@@ -1,0 +1,114 @@
+use super::destination_point_generator::DestinationPointGenerator;
+use super::isochrone_algorithm::IsochroneAlgorithm;
+use super::isochrone_output_format::IsochroneOutputFormat;
+use super::time_bin::TimeBin;
+use crate::model::output_plugin::mep_output_field as field;
+use crate::model::output_plugin::mep_output_ops;
+use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
+use routee_compass::plugin::output::OutputPlugin;
+use routee_compass::plugin::output::OutputPluginError;
+use routee_compass_core::algorithm::search::SearchInstance;
+use serde_json::json;
+
+pub struct IsochroneOutputPlugin {
+    time_bins: Vec<TimeBin>,
+    isochrone_algorithm: IsochroneAlgorithm,
+    isochrone_output_format: IsochroneOutputFormat,
+    destination_point_generator: DestinationPointGenerator,
+}
+
+impl OutputPlugin for IsochroneOutputPlugin {
+    /// generates isochrones from this search result.
+    /// appends the following structure to the output (assuming bins==(10,20,30,40)):
+    ///
+    /// {
+    ///   "bin": {
+    ///     "10": {
+    ///       "info": { ... },
+    ///       "isochrone": {}
+    ///     },
+    ///     "20": { ... },
+    ///     "30": { ... },
+    ///     "40": { ... }
+    ///   }
+    /// }
+    fn process(
+        &self,
+        output: &mut serde_json::Value,
+        result: &Result<(SearchAppResult, SearchInstance), CompassAppError>,
+    ) -> Result<(), OutputPluginError> {
+        output[field::TIME_BIN] = json![{}];
+        for time_bin in &self.time_bins {
+            // set up this time bin JSON object
+            let time_bin_key = time_bin.key();
+            let initial = json![{field::INFO: json![{}]}];
+            field::insert_nested(output, &[field::TIME_BIN], &time_bin_key, initial)
+                .map_err(OutputPluginError::OutputPluginFailed)?;
+            let (isochrone, tree_size) = match result {
+                Err(_) => {
+                    let empty = self.isochrone_output_format.empty_geometry()?;
+                    (json![empty], 0)
+                }
+                Ok((search_result, si)) => {
+                    // collect destinations for this time bin but starting from zero
+                    let isochrone_time_bin = TimeBin {
+                        min_time: 0,
+                        max_time: time_bin.max_time,
+                    };
+                    let tree_destinations: Vec<_> = mep_output_ops::collect_destinations(
+                        search_result,
+                        Some(&isochrone_time_bin),
+                        &si.state_model,
+                    )
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| {
+                        OutputPluginError::OutputPluginFailed(format!(
+                            "failure collecting destinations: {}",
+                            e
+                        ))
+                    })?;
+                    let tree_size = tree_destinations.len();
+
+                    // draw isochrone and serialize result
+                    let tree_mp = self
+                        .destination_point_generator
+                        .generate_destination_points(&tree_destinations, si.map_model.clone())?;
+                    let geometry = self.isochrone_algorithm.run(tree_mp)?;
+                    let isochrone = self.isochrone_output_format.serialize_geometry(&geometry)?;
+                    (json![isochrone], tree_size)
+                }
+            };
+            field::insert_nested(
+                output,
+                &[field::TIME_BIN, &time_bin_key],
+                field::ISOCHRONE,
+                json!(isochrone),
+            )
+            .map_err(OutputPluginError::OutputPluginFailed)?;
+            field::insert_nested(
+                output,
+                &[field::TIME_BIN, &time_bin_key, field::INFO],
+                field::ISOCHRONE_TREE_COUNT,
+                json!(tree_size),
+            )
+            .map_err(OutputPluginError::OutputPluginFailed)?;
+        }
+        Ok(())
+    }
+}
+
+impl IsochroneOutputPlugin {
+    pub fn new(
+        time_bins: Vec<TimeBin>,
+        isochrone_algorithm: IsochroneAlgorithm,
+        isochrone_output_format: IsochroneOutputFormat,
+        destination_point_generator: DestinationPointGenerator,
+    ) -> Result<IsochroneOutputPlugin, OutputPluginError> {
+        Ok(IsochroneOutputPlugin {
+            time_bins,
+            isochrone_algorithm,
+            isochrone_output_format,
+            destination_point_generator,
+        })
+    }
+}

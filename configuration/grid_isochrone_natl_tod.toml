@@ -1,0 +1,235 @@
+parallelism = 100
+search_orientation = "edge"
+response_persistence_policy = "discard_response_from_memory"
+
+[response_output_policy]
+type = "combined"
+
+[[response_output_policy.policies]]
+type = "file"
+filename = "complete.json"
+[response_output_policy.policies.format]
+type = "json"
+newline_delimited = true
+
+[[response_output_policy.policies]]
+type = "file"
+filename = "errors.csv"
+[response_output_policy.policies.format]
+type = "csv"
+sorted = true
+[response_output_policy.policies.format.mapping]
+hex_id = "request.grid_id"
+mode = "request.mode"
+error = { optional = "error" }
+
+[[response_output_policy.policies]]
+type = "file"
+filename = "result.csv"
+[response_output_policy.policies.format]
+type = "csv"
+sorted = true
+[response_output_policy.policies.format.mapping]
+hex_id = "request.grid_id"
+lon = "request.origin_x"
+lat = "request.origin_y"
+mode = "request.mode"
+population = "request.population"
+runtime = "search_app_runtime"
+ram_mb = "search_result_size_mib"
+
+isochrone_10_tree_count = "bin.10.info.isochrone_tree_count"
+isochrone_20_tree_count = "bin.20.info.isochrone_tree_count"
+isochrone_30_tree_count = "bin.30.info.isochrone_tree_count"
+isochrone_40_tree_count = "bin.40.info.isochrone_tree_count"
+isochrone_10 = "bin.10.isochrone"
+isochrone_20 = "bin.20.isochrone"
+isochrone_30 = "bin.30.isochrone"
+isochrone_40 = "bin.40.isochrone"
+
+[graph]
+edge_list_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-compass.csv.gz"
+vertex_list_input_file = "../../routee-compass-tomtom/data/tomtom_national/vertices-compass.csv.gz"
+verbose = true
+
+[mapping]
+type = "edge"
+geometry_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-geometries-enumerated.txt.gz"
+tolerance.distance = 15.0
+tolerance.unit = "meters"
+queries_without_destinations = false
+matching_type = ["point", "vertex_id", "edge_id"]
+
+[algorithm]
+type = "a*"
+
+# cut off searches that exceed these termination policies
+[termination]
+type = "combined"
+[[termination.models]]
+type = "query_runtime"
+limit = "00:10:00"
+frequency = 100_000
+[[termination.models]]
+type = "solution_size"
+limit = 50_000_000
+
+[traversal]
+type = "switch"
+
+[[traversal.models]]
+mode = "walk"
+type = "fixed_speed"
+distance_unit = "miles"
+time_unit = "minutes"
+speed_unit = "kilometers_per_hour"
+speed = 5
+access_model = []
+departure_agg = "sum"
+arrival_agg = "sum"
+
+[[traversal.models]]
+mode = "bike"
+type = "fixed_speed"
+distance_unit = "miles"
+time_unit = "minutes"
+speed_unit = "kilometers_per_hour"
+speed = 16
+access_model = []
+departure_agg = "sum"
+arrival_agg = "sum"
+
+[[traversal.models]]
+mode = "drive"
+type = "link_speed"
+underlying_type = "time_of_day"
+edge_to_speed_profile_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-speed-profile-id-mapping-enumerated.txt.gz"
+speed_profile_input_file = "../../routee-compass-tomtom/data/tomtom_national/speed-profile.csv.gz"
+# 35.704525623444134 is the average of all weekday_speed and weekend_speed entries
+fallback = { type = "global", fill_value = 35.704, speed_unit = "kilometers_per_hour" }
+max_speed = 128
+distance_unit = "kilometers"
+time_unit = "hours"
+speed_unit = "kilometers_per_hour"
+[traversal.models.speed_trace]
+type = "dense"
+speed_trace_input_file = "../../routee-compass-tomtom/data/tomtom_national/speed-trace.csv.gz"
+stride = 300
+
+[[traversal.models.access_model]]
+type = "turn_delay"
+edge_heading_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-headings-enumerated.csv.gz"
+[access.turn_delay_model]
+type = "tabular_discrete"
+time_unit = "seconds"
+[access.turn_delay_model.table]
+no_turn = 0.0
+slight_right = 0.5
+right = 1.0
+sharp_right = 1.5
+slight_left = 1.0
+left = 2.5
+sharp_left = 3.5
+u_turn = 9.5
+
+# use a time-optimal routing strategy
+[cost.weights]
+time = 1.0
+
+[cost.vehicle_rates.time]
+type = "raw" # default
+
+# # based on 65.5 cents per mile 2023 IRS mileage rate, $/mile
+# [cost.vehicle_rates.distance]
+# type = "factor"
+# factor = 0.655
+
+# # based on $20/hr approximation of 2023 median hourly wages, $/second
+# [cost.vehicle_rates.time]
+# type = "factor"
+# factor = 0.333336
+
+# # based on AAA regular unleaded gas prices sampled 12/21/2023
+# [cost.vehicle_rates.energy_liquid]
+# type = "factor"
+# factor = 3.120
+
+# # based on $0.50/kWh approximation of DCFC charge rates, $/kWhtype = "factor"
+# [cost.vehicle_rates.energy_electric]
+# type = "factor"
+# factor = 0.50
+
+
+[frontier]
+type = "combined"
+
+[[frontier.models]]
+type = "road_class"
+road_class_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-routing-class-enumerated.txt.gz"
+
+[[frontier.models]]
+type = "turn_restriction"
+turn_restriction_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-turn-restrictions.csv.gz"
+
+[[frontier.models]]
+type = "isochrone"
+time_limit = 40.0
+time_unit = "minutes"
+
+[[plugin.input_plugins]]
+type = "grid"
+extent_format = "wkt"
+grid = { type = "h3", resolution = 8 }
+[plugin.input_plugins.population_source]
+type = "acs"
+acs_type = "five_year"
+acs_year = 2022
+acs_resolution = "census_tract"
+acs_categories = ["B01001_001E"]
+
+[[plugin.input_plugins]]
+type = "inject"
+key = "grid_search"
+value = '{"modes":[{"mode":"walk","road_classes":[4,5,6,7]},{"mode":"bike","road_classes":[4,5,6,7]},{"mode":"drive","road_classes":[1,2,3,4,5,6]}]}'
+format = "json"
+
+[[plugin.input_plugins]]
+type = "inject"
+key = "start_time"
+value = "08:00:00"
+format = "string"
+
+[[plugin.input_plugins]]
+type = "inject"
+key = "start_weekday"
+value = "monday"
+format = "string"
+
+[[plugin.input_plugins]]
+type = "inject"
+key = "time_limit"
+value = '40.0'
+format = "json"
+
+[[plugin.input_plugins]]
+type = "grid_search"
+
+[[plugin.input_plugins]]
+type = "load_balancer"
+[plugin.input_plugins.weight_heuristic]
+type = "custom"
+[plugin.input_plugins.weight_heuristic.custom_weight_type]
+type = "categorical"
+column_name = "mode"
+default = 1
+mapping = { "walk" = 1, "bike" = 10, "drive" = 100 }
+
+[[plugin.output_plugins]]
+type = "summary"
+
+[[plugin.output_plugins]]
+type = "isochrone"
+time_bin = { type = "list", times = [10, 20, 30, 40] }
+isochrone_algorithm = { type = "k_nearest_concave_hull", k = 3 }
+destination_point_generator = { type = "destination_point" }
+isochrone_output_format = "wkb"
