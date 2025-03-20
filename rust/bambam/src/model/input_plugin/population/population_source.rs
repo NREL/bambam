@@ -30,7 +30,8 @@ impl PopulationSource {
     /// * a vector of relevant population data (geometry, population count) intersecting the incoming queries
     pub fn create_dataset(
         &self,
-        queries: &Vec<serde_json::Value>,
+        // queries: &Vec<serde_json::Value>,
+        extent: &Geometry,
     ) -> Result<Vec<(Geometry, f64)>, String> {
         match self {
             PopulationSource::UsCensusAcs {
@@ -43,32 +44,36 @@ impl PopulationSource {
             } => {
                 // find the list of US states (by GEOID) that intersect the incoming query dataset.
                 // we will only request ACS data for those states.
-                let mut unique_state_geoids: HashSet<Geoid> = HashSet::new();
-                let geoids_iter = tqdm!(
-                    queries.iter(),
-                    desc = "identify intersecting US states",
-                    total = queries.len(),
-                    animation = "fillup"
-                );
-                for row in geoids_iter {
-                    let wkt = row.get_config_string(&grid::GEOMETRY, &"").map_err(|e| {
-                        format!("failure reading `geometry` key on grid row: {}", e)
-                    })?;
-                    let geometry = TryFromWkt::try_from_wkt_str(&wkt)
-                        .map_err(|e| format!("failure parsing WKT geometry: {}", e))?;
-                    let intersecting = states.intersection(&geometry)?;
-                    for state in intersecting {
-                        unique_state_geoids.insert(state.data.clone());
-                    }
-                }
-                eprintln!();
+                // let mut unique_state_geoids: HashSet<Geoid> = HashSet::new();
+                let state_geoids = states
+                    .intersection(extent)?
+                    .map(|s| s.data.clone())
+                    .collect::<HashSet<_>>();
+                // let geoids_iter = tqdm!(
+                //     queries.iter(),
+                //     desc = "identify intersecting US states",
+                //     total = queries.len(),
+                //     animation = "fillup"
+                // );
+                // for row in geoids_iter {
+                //     let wkt = row.get_config_string(&grid::GEOMETRY, &"").map_err(|e| {
+                //         format!("failure reading `geometry` key on grid row: {}", e)
+                //     })?;
+                //     let geometry = TryFromWkt::try_from_wkt_str(&wkt)
+                //         .map_err(|e| format!("failure parsing WKT geometry: {}", e))?;
+                //     let intersecting = states.intersection(&geometry)?;
+                //     for state in intersecting {
+                //         unique_state_geoids.insert(state.data.clone());
+                //     }
+                // }
+                // eprintln!();
 
                 let acs_get_query = match acs_categories {
                     Some(cats) => cats.to_vec(),
                     None => vec![String::from("B01001_001E")],
                 };
 
-                let queries = unique_state_geoids
+                let queries = state_geoids
                     .into_iter()
                     .map(|geoid| {
                         let acs_geoid_query: AcsGeoidQuery =

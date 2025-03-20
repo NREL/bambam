@@ -92,9 +92,9 @@ impl InputPlugin for GridInputPlugin {
             grid_queries.len()
         );
 
-        if let Some(pop_src) = &self.population_source {
+        if let Some(population_source) = &self.population_source {
             eprintln!("adding population source");
-            add_population_source(&mut grid_queries, pop_src)?;
+            add_population_source(&mut grid_queries, &extent, population_source)?;
         }
 
         let mut replacement = serde_json::json![grid_queries];
@@ -156,9 +156,10 @@ fn validate_query(input: &serde_json::Value) -> Result<(), InputPluginError> {
 /// * `population_source` - provider for population data
 fn add_population_source(
     queries: &mut Vec<serde_json::Value>,
+    extent: &Geometry,
     population_source: &PopulationSource,
 ) -> Result<(), InputPluginError> {
-    let pop_data = population_source.create_dataset(queries).map_err(|e| {
+    let pop_data = population_source.create_dataset(extent).map_err(|e| {
         InputPluginError::InputPluginFailed(format!("failure creating population dataset: {}", e))
     })?;
     let rtree = PolygonalRTree::new(pop_data).map_err(|e| {
