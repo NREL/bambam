@@ -5,11 +5,11 @@ use routee_compass_core::{
     model::{
         map::MapModel,
         network::{EdgeId, VertexId},
-        unit::{AsF64, Distance, DistanceUnit},
+        unit::{AsF64, Convert, Distance, DistanceUnit},
     },
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -76,7 +76,15 @@ impl DestinationPointGenerator {
                 stride,
                 distance_unit,
             } => {
-                let meters = distance_unit.convert(stride, &DistanceUnit::Meters);
+                let mut meters = Cow::Borrowed(stride);
+                distance_unit
+                    .convert(&mut meters, &DistanceUnit::Meters)
+                    .map_err(|e| {
+                        OutputPluginError::OutputPluginFailed(format!(
+                            "failure converting stride {} to meters: {}",
+                            stride, e
+                        ))
+                    })?;
                 let dense_linestring = linestring.densify(meters.as_f64() as f32);
                 Ok(dense_linestring.into_points())
             }

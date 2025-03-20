@@ -22,7 +22,7 @@ impl Default for BambamConfiguration {
         Self {
             component_filter: Default::default(),
             element_filter: Default::default(),
-            consolidation_threshold: Some((Distance::new(15.0), DistanceUnit::Meters)),
+            consolidation_threshold: Some((Distance::from(15.0), DistanceUnit::Meters)),
             ignore_osm_parsing_errors: false,
             truncate_by_edge: true,
             simplify: true,
@@ -35,7 +35,7 @@ impl Default for BambamConfiguration {
 impl BambamConfiguration {
     pub fn get_consolidation_threshold(&self) -> (Distance, DistanceUnit) {
         self.consolidation_threshold
-            .unwrap_or_else(|| (Distance::new(15.0), DistanceUnit::Meters))
+            .unwrap_or_else(|| (Distance::from(15.0), DistanceUnit::Meters))
     }
 }
 

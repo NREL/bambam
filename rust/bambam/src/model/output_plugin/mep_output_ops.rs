@@ -13,10 +13,10 @@ use routee_compass_core::{
     model::{
         network::VertexId,
         state::{StateModel, StateModelError},
-        unit::{AsF64, Distance, DistanceUnit},
+        unit::{AsF64, Convert, Distance, DistanceUnit},
     },
 };
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 use wkt::ToWkt;
 
 /// collects the destinations for a search result. if included, restrict the
@@ -81,12 +81,14 @@ pub fn points_along_linestring(
     stride: &Distance,
     distance_unit: &DistanceUnit,
 ) -> Result<Vec<Point<f32>>, String> {
-    let stride_internal = distance_unit
-        .convert(stride, &DistanceUnit::Meters)
-        .as_f64() as f32;
+    let mut stride_internal = Cow::Borrowed(stride);
+    distance_unit
+        .convert(&mut stride_internal, &DistanceUnit::Meters)
+        .map_err(|e| e.to_string())?;
+    let stride_f32 = stride_internal.as_f64() as f32;
     let line_length_meters = linestring.haversine_length();
 
-    if line_length_meters < stride_internal {
+    if line_length_meters < stride_f32 {
         match (linestring.points().next(), linestring.points().last()) {
             (Some(first), Some(last)) => Ok(vec![first, last]),
             _ => Err(format!(
@@ -96,13 +98,13 @@ pub fn points_along_linestring(
         }
     } else {
         // determine number of steps
-        let n_strides = (line_length_meters / stride_internal).ceil();
+        let n_strides = (line_length_meters / stride_f32).ceil();
         let n_strides_rounded = n_strides as i64;
         let n_points = n_strides_rounded + 1;
 
         (0..=n_points)
             .map(|point_index| {
-                let distance_to_point = point_index as f32 * stride_internal;
+                let distance_to_point = point_index as f32 * stride_f32;
                 let fraction = distance_to_point / line_length_meters;
                 let point = linestring.line_interpolate_point(fraction).ok_or_else(|| {
                     format!(

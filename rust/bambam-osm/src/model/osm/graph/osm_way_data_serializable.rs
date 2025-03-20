@@ -260,7 +260,7 @@ fn deserialize_maxspeed(
                 ["default"] => Ok(None),
                 ["variable"] => Ok(None),
                 ["national"] => Ok(None),
-                ["25mph"] => Ok(Some((Speed::new(25.0), SpeedUnit::MilesPerHour))),
+                ["25mph"] => Ok(Some((Speed::from(25.0), SpeedUnit::MPH))),
 
                 // todo! handle all default speed limits
                 // see https://wiki.openstreetmap.org/wiki/Default_speed_limits
@@ -269,8 +269,8 @@ fn deserialize_maxspeed(
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
                     Ok(Some((
-                        Speed::new(OsmWayDataSerializable::DEFAULT_WALK_SPEED_KPH),
-                        SpeedUnit::KilometersPerHour,
+                        Speed::from(OsmWayDataSerializable::DEFAULT_WALK_SPEED_KPH),
+                        SpeedUnit::KPH,
                     )))
                 }
                 [speed_str] => {
@@ -288,7 +288,7 @@ fn deserialize_maxspeed(
                     if speed == 0.0 {
                         Ok(None)
                     } else {
-                        Ok(Some((Speed::new(speed), SpeedUnit::KilometersPerHour)))
+                        Ok(Some((Speed::from(speed), SpeedUnit::KPH)))
                     }
                 }
                 [speed_str, unit_str] => {
@@ -307,8 +307,8 @@ fn deserialize_maxspeed(
                         return Ok(None);
                     }
                     let speed_unit = match unit_str {
-                        "kph" => SpeedUnit::KilometersPerHour,
-                        "mph" => SpeedUnit::MilesPerHour,
+                        "kph" => SpeedUnit::KPH,
+                        "mph" => SpeedUnit::MPH,
                         _ if !ignore_invalid_entries => {
                             return Err(format!(
                                 "unknown speed unit {} with value {}",
@@ -320,7 +320,7 @@ fn deserialize_maxspeed(
                             return Ok(None);
                         }
                     };
-                    let result = (Speed::new(speed), speed_unit);
+                    let result = (Speed::from(speed), speed_unit);
                     Ok(Some(result))
                 }
                 _ => Err(format!("unexpected maxspeed entry '{}'", s)),
@@ -336,7 +336,7 @@ fn deserialize_maxspeed(
                 .into_iter()
                 .min_by_key(|m| match m {
                     Some((s, _)) => *s,
-                    None => Speed::new(999999.9),
+                    None => Speed::from(999999.9),
                 })
                 .flatten();
             Ok(min)

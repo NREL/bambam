@@ -1,11 +1,13 @@
+use std::borrow::Cow;
+
 use geo::{
     line_string, Centroid, Convert, Coord, CoordFloat, Destination, Distance, GeoFloat, Geometry,
     Haversine, KNearestConcaveHull, Length, LineString, Point, Polygon, Scale, TryConvert,
 };
 use itertools::Itertools;
 use num_traits::FromPrimitive;
-use routee_compass_core::model::unit;
 use routee_compass_core::model::unit::AsF64;
+use routee_compass_core::model::unit::{self, Convert as _};
 
 pub trait Buffer<F: CoordFloat + FromPrimitive> {
     /// buffer a geometry up to some distance. GEOS uses a fancier method to determine
@@ -36,7 +38,9 @@ impl Buffer<f32> for Point<f32> {
         let y = self.y() as f64;
         let point: Point<f64> = geo::Point(geo::Coord::from((x, y)));
         let (dist, unit) = size;
-        let dist_meters = unit.convert(&dist, &unit::DistanceUnit::Meters);
+        let mut dist_meters: Cow<unit::Distance> = Cow::Owned(dist);
+        unit.convert(&mut dist_meters, &unit::DistanceUnit::Meters)
+            .map_err(|e| e.to_string())?;
         let resolution = consts::MAX_RES;
         let buffer = create_buffer(&point, dist_meters.as_f64(), resolution);
         let buf32: Polygon<f32> = geo::Polygon::new(

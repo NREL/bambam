@@ -115,7 +115,7 @@ mod tests {
         //     truncate_by_edge: true,
         //     simplify: true,
         //     consolidate: true,
-        //     consolidation_threshold: (Distance::new(15.0), DistanceUnit::Meters),
+        //     consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
         //     parallelize: false,
         // };
         let pbf_file = "/Users/rfitzger/data/mep/mep3/input/osm/colorado-latest.osm.pbf";
@@ -158,7 +158,7 @@ mod tests {
             truncate_by_edge: true,
             simplify: true,
             consolidate: true,
-            consolidation_threshold: (Distance::new(15.0), DistanceUnit::Meters),
+            consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
             parallelize: false,
         };
 

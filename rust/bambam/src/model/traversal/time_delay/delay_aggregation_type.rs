@@ -1,4 +1,4 @@
-use routee_compass_core::model::unit::Time;
+use routee_compass_core::model::unit::{AsF64, Time};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -24,8 +24,12 @@ impl DelayAggregationType {
             A::Mean => {
                 let (sum, cnt) = values
                     .into_iter()
-                    .fold((0.0, 0.0), |(acc, cnt), v| (acc + v.to_f64(), cnt + 1.0));
-                Time::new(sum / cnt)
+                    .fold((0.0, 0.0), |(acc, cnt), v| (acc + v.as_f64(), cnt + 1.0));
+                if cnt == 0.0 {
+                    Time::ZERO
+                } else {
+                    Time::from(sum / cnt)
+                }
             }
             A::Median => {
                 let mid_idx = values.len() / 2;

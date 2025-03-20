@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, path::Path};
+use std::{borrow::Cow, collections::HashMap, fs::File, path::Path};
 
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
@@ -6,7 +6,7 @@ use itertools::Itertools;
 use kdam::tqdm;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    unit::{AsF64, Speed, SpeedUnit},
+    unit::{AsF64, Convert, Speed, SpeedUnit},
 };
 use wkt::ToWkt;
 
@@ -149,8 +149,16 @@ impl CompassWriter for OsmGraphVectorized {
         /// build a speed fill value lookup table
         let maxspeed_cb = |r: &OsmWayDataSerializable| {
             r.get_maxspeed(true)
-                .map(|r_opt| {
-                    r_opt.map(|(s, su)| su.convert(&s, &SpeedUnit::KilometersPerHour).as_f64())
+                .and_then(|r_opt| {
+                    if let Some((s, su)) = r_opt {
+                        let mut s_convert = Cow::Owned(s);
+                        su.convert(&mut s_convert, &SpeedUnit::KPH)
+                            .map_err(|e| e.to_string())?;
+                        let output = s_convert.into_owned().as_f64();
+                        Ok(Some(output))
+                    } else {
+                        Ok(None)
+                    }
                 })
                 .map_err(OsmError::GraphConsolidationError)
         };
@@ -241,5 +249,5 @@ fn get_fill_value(
         .get_string_at_field("highway")
         .map_err(OsmError::GraphConsolidationError)?;
     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    Ok(Speed::new(avg_speed))
+    Ok(Speed::from(avg_speed))
 }

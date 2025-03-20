@@ -50,7 +50,7 @@ pub fn run(
             .map_err(|e| format!("{}", e))?;
     let index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
-        Some((Distance::new(200.0), DistanceUnit::Meters)),
+        Some((Distance::from(200.0), DistanceUnit::Meters)),
     ));
 
     // load opportunity data, build activity types lookup

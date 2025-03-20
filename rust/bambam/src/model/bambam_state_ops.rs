@@ -90,18 +90,13 @@ pub fn default_mep_traversal(
         &DistanceUnit::Meters,
     )?;
 
-    let traversal_time = Time::create(
-        speed,
-        speed_unit,
-        &edge.distance,
-        &DistanceUnit::Meters,
-        &TimeUnit::Minutes,
-    )?;
+    let (traversal_time, time_unit) =
+        Time::create((&edge.distance, &DistanceUnit::Meters), (speed, speed_unit))?;
     state_model.add_time(
         state,
         &field::TRAVERSAL_TIME.into(),
         &traversal_time,
-        &TimeUnit::Minutes,
+        &time_unit,
     )?;
 
     assign_arrival_delay(dst, state, state_model, arrival_delay)?;

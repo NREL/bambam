@@ -11,10 +11,11 @@ use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::{
     network::EdgeId,
-    unit::{Distance, DistanceUnit},
+    unit::{Convert, Distance, DistanceUnit},
 };
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
@@ -72,10 +73,14 @@ impl SimplifiedWay {
         let geometry = LineString::new(linestring_coords);
 
         // find the segment length
-        let length_haversine = Distance::new(geometry.length::<Haversine>() as f64);
-        let length = match distance_unit {
-            None => length_haversine,
-            Some(du) => DistanceUnit::Meters.convert(&length_haversine, du),
+        let length_haversine_f64 = geometry.length::<Haversine>() as f64;
+        let mut length = Cow::Owned(Distance::from(length_haversine_f64));
+        if let Some(du) = distance_unit {
+            DistanceUnit::Meters.convert(&mut length, du).map_err(
+                |e: routee_compass_core::model::unit::UnitError| {
+                    OsmError::GraphSimplificationError(e.to_string())
+                },
+            )?;
         };
 
         let way = SimplifiedWay {
@@ -83,7 +88,7 @@ impl SimplifiedWay {
             src_osmid,
             dst_osmid,
             geometry,
-            length,
+            length: length.into_owned(),
         };
         Ok(way)
     }

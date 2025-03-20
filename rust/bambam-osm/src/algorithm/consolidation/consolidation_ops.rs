@@ -169,7 +169,7 @@ pub fn consolidate_graph(
     // let maxspeed_cb = |r: &OsmWayData| {
     //     r.get_maxspeed(true)
     //         .map(|r_opt| {
-    //             r_opt.map(|(s, su)| su.convert(&s, &SpeedUnit::KilometersPerHour).as_f64())
+    //             r_opt.map(|(s, su)| su.convert(&s, &SpeedUnit::KPH).as_f64())
     //         })
     //         .map_err(OsmError::GraphConsolidationError)
     // };
@@ -260,7 +260,7 @@ pub fn consolidate_graph(
     //         .map_err(OsmError::GraphConsolidationError);
     //     let speed = match maxspeed_opt {
     //         Ok(Some((maxspeed, speed_unit))) => {
-    //             Ok(speed_unit.convert(&maxspeed, &SpeedUnit::KilometersPerHour))
+    //             Ok(speed_unit.convert(&maxspeed, &SpeedUnit::KPH))
     //         }
     //         Ok(None) => get_fill_value(way, &maxspeeds_fill_lookup),
     //         Err(_) if ignore_osm_parsing_errors => get_fill_value(way, &maxspeeds_fill_lookup),
@@ -293,7 +293,7 @@ pub fn consolidate_graph(
     //     grades,
     //     maxspeeds,
     //     grade_unit: routee_compass_core::model::unit::GradeUnit::Decimal,
-    //     speed_unit: routee_compass_core::model::unit::SpeedUnit::KilometersPerHour,
+    //     speed_unit: routee_compass_core::model::unit::SpeedUnit::KPH,
     // };
     // Ok(result)
     todo!()
@@ -355,7 +355,7 @@ fn get_fill_value(
         .get_string_at_field("highway")
         .map_err(OsmError::GraphConsolidationError)?;
     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    Ok(Speed::new(avg_speed))
+    Ok(Speed::from(avg_speed))
 }
 
 /// with knowledge of which geometry indices contain spatially-similar nodes,

@@ -20,7 +20,7 @@ impl Schedule {
         self,
         time: (&Time, &TimeUnit),
     ) -> Result<Option<Departure>, String> {
-        let departure_query = Departure::departure_list_query(time);
+        let departure_query = Departure::departure_list_query(time)?;
         let next_departure_option = self.0.upper_bound(Bound::Included(&departure_query));
         Ok(next_departure_option.cloned())
     }

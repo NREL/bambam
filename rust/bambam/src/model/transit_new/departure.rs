@@ -1,4 +1,6 @@
-use routee_compass_core::model::unit::{AsF64, Time, TimeUnit};
+use std::borrow::Cow;
+
+use routee_compass_core::model::unit::{AsF64, Convert, Time, TimeUnit, UnitError};
 
 /// represents a single departure time for a static scheduled route.
 #[derive(Clone, Debug)]
@@ -21,14 +23,18 @@ impl Departure {
     }
     /// OrderedSkipList.upper_bound() query value must be of type `Departure`.
     /// this creates a 'dummy' value with the matching departure time.
-    pub fn departure_list_query(departure_time: (&Time, &TimeUnit)) -> Departure {
+    pub fn departure_list_query(departure_time: (&Time, &TimeUnit)) -> Result<Departure, String> {
         let (time, time_unit) = departure_time;
-        let t_secs = time_unit.convert(time, &TimeUnit::Seconds);
-        let secs = t_secs.to_f64() as u32;
-        Departure {
+        let mut t_secs = Cow::Borrowed(time);
+        time_unit
+            .convert(&mut t_secs, &TimeUnit::Seconds)
+            .map_err(|e| e.to_string())?;
+        let secs = t_secs.as_f64() as u32;
+        let result = Departure {
             time_seconds: secs,
             duration_seconds: 0,
-        }
+        };
+        Ok(result)
     }
 }
 
@@ -45,27 +51,33 @@ impl PartialOrd for Departure {
 }
 
 fn create_departure_time_internal(value: (&Time, &TimeUnit)) -> Result<u32, String> {
-    let (time, time_unit) = value;
-    let t_secs = time_unit.convert(time, &TimeUnit::Seconds);
-    if t_secs < Time::ZERO || 86400.0 < t_secs.as_f64() {
-        Err(format!(
-            "invalid departure time {} must be in seconds range [0,86400)",
-            t_secs
-        ))
-    } else {
-        Ok(t_secs.to_f64() as u32)
-    }
+    let secs = to_seconds_bounded(value, (None, &Time::from(86400.0)))?;
+    Ok(secs as u32)
 }
 
 fn create_leg_duration_internal(value: (&Time, &TimeUnit)) -> Result<u16, String> {
+    let secs = to_seconds_bounded(value, (None, &Time::from(65536.0)))?;
+    Ok(secs as u16)
+}
+
+fn to_seconds_bounded(
+    value: (&Time, &TimeUnit),
+    bounds: (Option<&Time>, &Time),
+) -> Result<f64, String> {
+    let (min_value, max) = bounds;
+    let min = min_value.unwrap_or_else(|| &Time::ZERO);
     let (time, time_unit) = value;
-    let t_secs = time_unit.convert(time, &TimeUnit::Seconds);
-    if t_secs < Time::ZERO || 65536.0 < t_secs.as_f64() {
+    let mut t_convert = Cow::Borrowed(time);
+    time_unit
+        .convert(&mut t_convert, &TimeUnit::Seconds)
+        .map_err(|e| e.to_string())?;
+    let t_secs = t_convert.as_ref();
+    if t_secs < min || max < t_secs {
         Err(format!(
-            "invalid trip leg duration {} must be in seconds range [0,65536)",
-            t_secs
+            "invalid number of seconds {} is outside of range [{},{})",
+            t_secs, min, max
         ))
     } else {
-        Ok(t_secs.to_f64() as u16)
+        Ok(t_secs.as_f64())
     }
 }

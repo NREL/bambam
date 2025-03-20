@@ -4,10 +4,10 @@ use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::VertexId,
-    unit::{AsF64, Grade, GradeUnit, Speed, SpeedUnit},
+    unit::{AsF64, Convert, Grade, GradeUnit, Speed, SpeedUnit},
 };
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct OsmWayData {
@@ -309,7 +309,21 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             .collect_vec();
         let maxspeed: Option<String> = maxspeeds
             .iter()
-            .map(|(s, su)| su.convert(s, &SpeedUnit::KilometersPerHour))
+            .map(|(s, su)| {
+                let mut s_convert = Cow::Borrowed(s);
+                su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
+                    OsmError::GraphSimplificationError(format!(
+                        "failure converting way speed {}/{} into {}: {}",
+                        s,
+                        su,
+                        SpeedUnit::KPH,
+                        e.to_string()
+                    ))
+                })?;
+                Ok(s_convert.into_owned())
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
             .max()
             .map(|s| s.to_string());
 
@@ -397,7 +411,7 @@ fn deserialize_maxspeed(
                 ["default"] => Ok(None),
                 ["variable"] => Ok(None),
                 ["national"] => Ok(None),
-                ["25mph"] => Ok(Some((Speed::new(25.0), SpeedUnit::MilesPerHour))),
+                ["25mph"] => Ok(Some((Speed::from(25.0), SpeedUnit::MPH))),
 
                 // todo! handle all default speed limits
                 // see https://wiki.openstreetmap.org/wiki/Default_speed_limits
@@ -406,8 +420,8 @@ fn deserialize_maxspeed(
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
                     Ok(Some((
-                        Speed::new(OsmWayData::DEFAULT_WALK_SPEED_KPH),
-                        SpeedUnit::KilometersPerHour,
+                        Speed::from(OsmWayData::DEFAULT_WALK_SPEED_KPH),
+                        SpeedUnit::KPH,
                     )))
                 }
                 [speed_str] => {
@@ -425,7 +439,7 @@ fn deserialize_maxspeed(
                     if speed == 0.0 {
                         Ok(None)
                     } else {
-                        Ok(Some((Speed::new(speed), SpeedUnit::KilometersPerHour)))
+                        Ok(Some((Speed::from(speed), SpeedUnit::KPH)))
                     }
                 }
                 [speed_str, unit_str] => {
@@ -444,8 +458,8 @@ fn deserialize_maxspeed(
                         return Ok(None);
                     }
                     let speed_unit = match unit_str {
-                        "kph" => SpeedUnit::KilometersPerHour,
-                        "mph" => SpeedUnit::MilesPerHour,
+                        "kph" => SpeedUnit::KPH,
+                        "mph" => SpeedUnit::MPH,
                         _ if !ignore_invalid_entries => {
                             return Err(format!(
                                 "unknown speed unit {} with value {}",
@@ -457,7 +471,7 @@ fn deserialize_maxspeed(
                             return Ok(None);
                         }
                     };
-                    let result = (Speed::new(speed), speed_unit);
+                    let result = (Speed::from(speed), speed_unit);
                     Ok(Some(result))
                 }
                 _ => Err(format!("unexpected maxspeed entry '{}'", s)),
@@ -473,7 +487,7 @@ fn deserialize_maxspeed(
                 .into_iter()
                 .min_by_key(|m| match m {
                     Some((s, _)) => *s,
-                    None => Speed::new(999999.9),
+                    None => Speed::from(999999.9),
                 })
                 .flatten();
             Ok(min)
