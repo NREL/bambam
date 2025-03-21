@@ -65,7 +65,7 @@ fn to_seconds_bounded(
     bounds: (Option<&Time>, &Time),
 ) -> Result<f64, String> {
     let (min_value, max) = bounds;
-    let min = min_value.unwrap_or_else(|| &Time::ZERO);
+    let min = min_value.unwrap_or(&Time::ZERO);
     let (time, time_unit) = value;
     let mut t_convert = Cow::Borrowed(time);
     time_unit

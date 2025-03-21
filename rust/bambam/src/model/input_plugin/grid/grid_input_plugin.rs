@@ -188,7 +188,7 @@ fn add_population_source(
             if let Ok(mut bar) = bar.clone().lock() {
                 let _ = bar.update(1);
             }
-            let population = get_query_population_proportion(&query, &rtree).map_err(|e| {
+            let population = get_query_population_proportion(query, &rtree).map_err(|e| {
                 InputPluginError::InputPluginFailed(format!(
                     "failure matching query with population data: {}",
                     e

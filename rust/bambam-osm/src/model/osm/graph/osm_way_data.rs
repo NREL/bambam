@@ -317,7 +317,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
                         s,
                         su,
                         SpeedUnit::KPH,
-                        e.to_string()
+                        e
                     ))
                 })?;
                 Ok(s_convert.into_owned())

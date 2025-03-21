@@ -104,15 +104,15 @@ fn process_single_acs_category_response(
     res: AcsTigerResponse,
 ) -> Result<Vec<(Geometry, f64)>, String> {
     // special case where we do not need to sum each ACS category by geometry
-    let result = res
+    
+    res
         .join_dataset
         .into_iter()
         .map(|row| {
             let value = row.acs_value.as_f64_safe()?;
             Ok((row.geometry, value))
         })
-        .collect::<Result<Vec<_>, _>>();
-    return result;
+        .collect::<Result<Vec<_>, _>>()
 }
 
 fn process_multiple_acs_category_response(
