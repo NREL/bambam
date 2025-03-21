@@ -3,7 +3,7 @@
 #SBATCH --job-name=bambam-a
 #SBATCH --nodes=1
 #SBATCH --ntasks=100
-#SBATCH --mem=200GB
+#SBATCH --mem=240GB
 #SBATCH --tmp=500GB
 #SBATCH --mail-type=ALL
 
