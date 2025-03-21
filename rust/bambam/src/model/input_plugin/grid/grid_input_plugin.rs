@@ -4,13 +4,18 @@ use crate::{
     util::polygonal_rtree::PolygonalRTree,
 };
 use geo::{Area, Geometry};
+use kdam::{Bar, BarExt};
+use rayon::prelude::*;
 use routee_compass::{
     app::search::SearchApp,
     plugin::input::{InputPlugin, InputPluginError},
 };
 use routee_compass_core::config::{CompassConfigurationError, ConfigJsonExtensions};
 use serde_json::json;
-use std::sync::Arc;
+use std::{
+    collections::LinkedList,
+    sync::{Arc, Mutex},
+};
 use wkt::TryFromWkt;
 
 pub struct GridInputPlugin {
@@ -162,31 +167,55 @@ fn add_population_source(
     let pop_data = population_source.create_dataset(extent).map_err(|e| {
         InputPluginError::InputPluginFailed(format!("failure creating population dataset: {}", e))
     })?;
-    let rtree = PolygonalRTree::new(pop_data).map_err(|e| {
+    let rtree = Arc::new(PolygonalRTree::new(pop_data).map_err(|e| {
         InputPluginError::InputPluginFailed(format!("failure building spatial lookup: {}", e))
-    })?;
+    })?);
+    let mut bar = Arc::new(Mutex::new(
+        Bar::builder()
+            .desc("map match population")
+            .total(queries.len())
+            .build()
+            .map_err(|e| {
+                InputPluginError::InputPluginFailed(format!("failure building progress bar: {}", e))
+            })?,
+    ));
 
-    // append population data to each grid cell
-    for idx in 0..queries.len() {
-        let row = queries[idx].to_owned();
-        let population = get_population(&row, &rtree).map_err(|e| {
-            InputPluginError::InputPluginFailed(format!(
-                "failure matching query with population data: {}",
-                e
-            ))
-        })?;
-        match row {
-            serde_json::Value::Object(mut map) => {
-                map.insert(String::from(super::POPULATION), json![population]);
-                let new_row = serde_json::Value::Object(map);
-                queries[idx] = new_row;
-                // std::mem::swap(&mut row, &mut new_row);
-                Ok(())
+    // find the population values via spatial index (parallelized)
+    let populations_result: LinkedList<Vec<Result<_, InputPluginError>>> = queries
+        .into_par_iter()
+        .enumerate()
+        .map(|(idx, query)| {
+            if let Ok(mut bar) = bar.clone().lock() {
+                let _ = bar.update(1);
             }
-            _ => Err(InputPluginError::InternalError(String::from(
-                "user input is not JSON object!",
-            ))),
-        }?
+            let population = get_query_population_proportion(&query, &rtree).map_err(|e| {
+                InputPluginError::InputPluginFailed(format!(
+                    "failure matching query with population data: {}",
+                    e
+                ))
+            })?;
+            Ok((idx, population))
+        })
+        .collect_vec_list();
+    eprintln!();
+
+    // update the input queries with (proportioned) population values
+    for pop_chunk in populations_result.into_iter() {
+        for row in pop_chunk.into_iter() {
+            let (idx, pop) = row?;
+            let row = queries[idx].to_owned();
+            match row {
+                serde_json::Value::Object(mut map) => {
+                    map.insert(String::from(super::POPULATION), json![pop]);
+                    let new_row = serde_json::Value::Object(map);
+                    queries[idx] = new_row;
+                    Ok(())
+                }
+                _ => Err(InputPluginError::InternalError(String::from(
+                    "user input is not JSON object!",
+                ))),
+            }?
+        }
     }
 
     Ok(())
@@ -196,7 +225,7 @@ fn add_population_source(
 /// percent of each intersecting geometry overlaps geographically
 /// with the grid geometry, and then we use that percentage to
 /// perform a uniform (dis) aggregation from the source data.
-fn get_population(
+fn get_query_population_proportion(
     row: &serde_json::Value,
     population: &PolygonalRTree<f64>,
 ) -> Result<f64, String> {
