@@ -80,7 +80,7 @@ impl ScheduledEdge {
         current_time: &Time,
         time_unit: TimeUnit,
     ) -> Result<Option<&ScheduledHeadway>, ScheduleError> {
-        let current_datetime = schedule_ops::add_delta(start_datetime, *current_time, time_unit);
+        let current_datetime = schedule_ops::add_delta(start_datetime, *current_time, time_unit)?;
         let comparator = ScheduledHeadway::dummy_comparator(current_datetime);
         let headway = self
             .headways
