@@ -82,7 +82,7 @@ mode = "walk"
 type = "fixed_speed"
 distance_unit = "miles"
 time_unit = "minutes"
-speed_unit = "kilometers_per_hour"
+speed_unit = "kph"
 speed = 5
 access_model = []
 departure_agg = "sum"
@@ -93,7 +93,7 @@ mode = "bike"
 type = "fixed_speed"
 distance_unit = "miles"
 time_unit = "minutes"
-speed_unit = "kilometers_per_hour"
+speed_unit = "kph"
 speed = 16
 access_model = []
 departure_agg = "sum"
@@ -106,11 +106,11 @@ underlying_type = "time_of_day"
 edge_to_speed_profile_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-speed-profile-id-mapping-enumerated.txt.gz"
 speed_profile_input_file = "../../routee-compass-tomtom/data/tomtom_national/speed-profile.csv.gz"
 # 35.704525623444134 is the average of all weekday_speed and weekend_speed entries
-fallback = { type = "global", fill_value = 35.704, speed_unit = "kilometers_per_hour" }
+fallback = { type = "global", fill_value = 35.704, speed_unit = "kph" }
 max_speed = 128
 distance_unit = "kilometers"
 time_unit = "hours"
-speed_unit = "kilometers_per_hour"
+speed_unit = "kph"
 [traversal.models.speed_trace]
 type = "dense"
 speed_trace_input_file = "../../routee-compass-tomtom/data/tomtom_national/speed-trace.csv.gz"
