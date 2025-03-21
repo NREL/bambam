@@ -11,4 +11,4 @@ bamsoda-lehd = { git = "https://github.nrel.gov/BAM/bamsoda.git", branch = "main
 routee-compass = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/par-input-plugins" }
 routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/par-input-plugins" }
 routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/par-input-plugins" }
-compass-tomtom = { git = "https://github.nrel.gov/MBAP/routee-compass-tomtom.git", branch = "rjf/update-units" }
+compass-tomtom = { git = "https://github.nrel.gov/MBAP/routee-compass-tomtom.git", branch = "rjf/test-input-plugin-fix" }
