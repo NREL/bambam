@@ -1,4 +1,4 @@
-use super::{CategoryFormat, OpportunityRecord};
+use super::{OpportunityRecord, SourceFormat};
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
 use itertools::Itertools;
@@ -25,10 +25,8 @@ use wkt;
 pub fn run(
     vertices_compass_filename: &String,
     opportunities_filename: &String,
-    output_directory: &String,
-    geometry_column: &String,
-    category_column: &String,
-    category_format: &CategoryFormat,
+    output_filename: &String,
+    source_format: &SourceFormat,
     category_filter: &String,
 ) -> Result<(), String> {
     let accept_categories = category_filter
@@ -54,13 +52,8 @@ pub fn run(
     ));
 
     // load opportunity data, build activity types lookup
-    let opportunities: Vec<(geo::Point<f32>, (usize, String))> = read_opportunity_rows(
-        opportunities_filename,
-        geometry_column,
-        category_column,
-        category_format,
-        &accept_categories,
-    )?;
+    let opportunities: Vec<(geo::Point<f32>, (usize, String))> =
+        read_opportunity_rows(opportunities_filename, source_format, &accept_categories)?;
     // let acts_iter = tqdm!(
     //     opportunities.iter(),
     //     desc = "find all present unique categories",
@@ -167,7 +160,7 @@ pub fn run(
     term::show_cursor().map_err(|e| format!("progress bar error: {}", e))?;
 
     // write opportunity vectors
-    let opportunities_compass_file = Path::new(output_directory).join("opportunities.csv");
+    let opportunities_compass_file = Path::new(output_filename);
     let mut writer = csv::WriterBuilder::new()
         .has_headers(false)
         .from_path(&opportunities_compass_file)
@@ -189,31 +182,29 @@ pub fn run(
     }
     eprintln!();
 
-    // write activity types from this dataset to a file, preserving vector ordering
-    let opportunities_list_file = Path::new(output_directory).join("activity_types.json");
-    let act_types_list = activity_types_lookup
-        .iter()
-        .sorted_by_key(|(_, idx)| *idx)
-        .map(|(c, _)| c.clone())
-        .collect_vec();
-    let act_types_str = serde_json::to_string_pretty(&act_types_list)
-        .map_err(|e| format!("failure JSON-encoding activity types by index: {}", e))?;
-    std::fs::write(&opportunities_list_file, act_types_str).map_err(|e| {
-        format!(
-            "failure writing {}: {}",
-            &opportunities_list_file.to_string_lossy(),
-            e
-        )
-    })?;
+    // // write activity types from this dataset to a file, preserving vector ordering
+    // let opportunities_list_file = Path::new(output_filename).join("activity_types.json");
+    // let act_types_list = activity_types_lookup
+    //     .iter()
+    //     .sorted_by_key(|(_, idx)| *idx)
+    //     .map(|(c, _)| c.clone())
+    //     .collect_vec();
+    // let act_types_str = serde_json::to_string_pretty(&act_types_list)
+    //     .map_err(|e| format!("failure JSON-encoding activity types by index: {}", e))?;
+    // std::fs::write(&opportunities_list_file, act_types_str).map_err(|e| {
+    //     format!(
+    //         "failure writing {}: {}",
+    //         &opportunities_list_file.to_string_lossy(),
+    //         e
+    //     )
+    // })?;
 
     Ok(())
 }
 
 pub fn read_opportunity_rows(
     opportunities_filename: &String,
-    geometry_column: &String,
-    category_column: &String,
-    category_format: &CategoryFormat,
+    source_format: &SourceFormat,
     accept_categories: &HashSet<String>,
 ) -> Result<Vec<(geo::Point<f32>, (usize, String))>, String> {
     // rust/bambam/src/app/oppvec/overture_categories.csv
@@ -260,31 +251,26 @@ pub fn read_opportunity_rows(
         .has_headers(true)
         .from_path(opportunities_filename)
         .map_err(|e| format!("failed to load {}: {}", opportunities_filename, e))?;
-    let headers = build_header_lookup(&mut opps_reader, &[geometry_column, category_column])?;
-    let geom_idx = headers
-        .get(geometry_column)
-        .ok_or_else(|| String::from("internal error"))?;
-    let cat_idx = headers
-        .get(category_column)
-        .ok_or_else(|| String::from("internal error"))?;
+    let headers = build_header_lookup(&mut opps_reader)?;
+    // let geom_idx = headers
+    //     .get(geometry_column)
+    //     .ok_or_else(|| String::from("internal error"))?;
     let iter = tqdm!(
         opps_reader.records().enumerate(),
         desc = "deserialize opportunities"
     );
     let result = iter
         .map(|(idx, row)| {
-            let row_value = row.map_err(|e| format!("failed to read row {}: {}", idx, e))?;
-            let geometry_str = row_value
-                .get(*geom_idx)
-                .ok_or_else(|| format!("row {} missing '{}' column", idx, geometry_column))?;
-            let cat_str = row_value
-                .get(*cat_idx)
-                .ok_or_else(|| format!("row {} missing '{}' column", idx, category_column))?;
-            let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(geometry_str)
-                .map_err(|e| format!("row {} has invalid Point geometry: {}", idx, e))?;
-            let category_opt = category_format.read(cat_str)?;
-            match category_opt {
-                Some(category) => {
+            let record = row.map_err(|e| format!("failed to read row {}: {}", idx, e))?;
+            // let geometry_str = &record
+            //     .get(*geom_idx)
+            //     .ok_or_else(|| format!("row {} missing '{}' column", idx, geometry_column))?;
+            // let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(geometry_str)
+            //     .map_err(|e| format!("row {} has invalid Point geometry: {}", idx, e))?;
+            let geometry_opt = source_format.read_geometry(&record, &headers)?;
+            let category_opt = source_format.read_category(&record, &headers)?;
+            match (geometry_opt, category_opt) {
+                (Some(geometry), Some(category)) => {
                     // let parent = parent_lookup.get(&category).ok_or_else(|| {
                     //     format!("missing parent lookup value for category '{}' where the cat_str was '{}'", category, cat_str)
                     // // })?;
@@ -312,10 +298,7 @@ pub fn read_opportunity_rows(
     Ok(result)
 }
 
-pub fn build_header_lookup(
-    reader: &mut Reader<File>,
-    columns: &[&str],
-) -> Result<HashMap<String, usize>, String> {
+pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, usize>, String> {
     // We nest this call in its own scope because of lifetimes.
     let headers = reader
         .headers()
@@ -325,14 +308,14 @@ pub fn build_header_lookup(
         .enumerate()
         .map(|(idx, col)| (String::from(col), idx))
         .collect::<HashMap<_, _>>();
-    for col in columns {
-        if !lookup.contains_key(*col) {
-            let header_str = lookup.keys().join(",");
-            return Err(format!(
-                "column '{}' not found in headers: [{}]",
-                col, header_str
-            ));
-        }
-    }
+    // for col in columns {
+    //     if !lookup.contains_key(*col) {
+    //         let header_str = lookup.keys().join(",");
+    //         return Err(format!(
+    //             "column '{}' not found in headers: [{}]",
+    //             col, header_str
+    //         ));
+    //     }
+    // }
     Ok(lookup)
 }

@@ -1,6 +1,6 @@
 use bambam::app::{
-    matoverlay::{self, Overlay},
-    oppvec::{self, CategoryFormat},
+    oppvec::{self, SourceFormat},
+    overlay::{self, OverlayOperation},
 };
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
@@ -13,31 +13,51 @@ pub struct CliArgs {
 
 #[derive(Subcommand)]
 pub enum App {
+    #[command(
+        name = "opp-vec",
+        about = "vectorize an opportunity dataset CSV for bambam integration"
+    )]
     OpportunityVectorization {
-        #[arg(long)]
+        #[command(subcommand)]
+        source_format: SourceFormat,
+        /// a vertices-compass.csv.gz file for a RouteE Compass dataset
         vertices_compass_filename: String,
-        #[arg(long)]
+        /// a CSV file containing opportunities and geometries in long format
         opportunities_filename: String,
+        /// file to write resulting opportunities dataset, designed to be a tabular
+        /// opportunity input to bambam.
+        output_filename: String,
+        // /// column name containing geometry
+        // #[arg(long, default_value_t = String::from("geometry"))]
+        // geometry_column: String,
+        // /// column name containing activity category name
+        // #[arg(long)]
+        // category_column: String,
+        // /// the format of the category type
+        // #[arg(long, default_value_t = CategoryFormat::String)]
+        // category_format: CategoryFormat,
+        /// comma-delimited list of categories to keep
         #[arg(long)]
-        output_directory: String,
-        #[arg(long, default_value_t = String::from("geometry"))]
-        geometry_column: String,
-        #[arg(long)]
-        category_column: String,
-        #[arg(long, default_value_t = CategoryFormat::String)]
-        category_format: CategoryFormat,
-        #[arg(long, help = "comma-delimited list of categories to keep")]
         category_filter: String,
     },
-    MepMatrixOverlay {
-        #[arg(long)]
+    #[command(
+        name = "overlay",
+        about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
+    )]
+    OutputOverlay {
+        /// a CSV file containing a bambam output
         mep_matrix_filename: String,
-        #[arg(long)]
+        /// a file containing WKT geometries tagged with ids
         overlay_filename: String,
-        #[arg(long, default_value_t = Overlay::Intersection)]
-        how: Overlay,
+        /// file path to write the result dataset
+        output_filename: String,
+        /// overlay method to apply
+        #[arg(long, default_value_t = OverlayOperation::Intersection)]
+        how: OverlayOperation,
+        /// name of geometry column in the overlay file
         #[arg(long, default_value_t = String::from("geometry"))]
         geometry_column: String,
+        /// name of the id column in the overlay file
         #[arg(long, default_value_t = String::from("GEOID"))]
         id_column: String,
     },
@@ -47,15 +67,17 @@ impl App {
     pub fn run(&self) -> Result<(), String> {
         env_logger::init();
         match self {
-            Self::MepMatrixOverlay {
+            Self::OutputOverlay {
                 mep_matrix_filename,
                 overlay_filename,
+                output_filename,
                 how,
                 geometry_column,
                 id_column,
-            } => matoverlay::run(
+            } => overlay::run(
                 mep_matrix_filename,
                 overlay_filename,
+                output_filename,
                 how,
                 geometry_column,
                 id_column,
@@ -63,18 +85,14 @@ impl App {
             Self::OpportunityVectorization {
                 vertices_compass_filename,
                 opportunities_filename,
-                output_directory,
-                geometry_column,
-                category_column,
-                category_format,
+                output_filename,
+                source_format,
                 category_filter,
             } => oppvec::run(
                 vertices_compass_filename,
                 opportunities_filename,
-                output_directory,
-                geometry_column,
-                category_column,
-                category_format,
+                output_filename,
+                source_format,
                 category_filter,
             ),
         }
@@ -97,9 +115,7 @@ mod tests {
             &String::from("/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"),
             &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/us-places.csv"),
             &String::from(""),
-            &String::from("geometry"),
-            &String::from("categories"),
-            &bambam::app::oppvec::CategoryFormat::OvertureMaps,
+            &bambam::app::oppvec::SourceFormat::OvertureMaps { geometry_column: None, category_column: None },
             &String::from("eat_and_drink,retail,health_and_medical,public_service_and_government,arts_and_entertainment"),
         );
         match result {
