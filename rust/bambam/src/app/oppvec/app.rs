@@ -163,7 +163,7 @@ pub fn run(
     let opportunities_compass_file = Path::new(output_filename);
     let mut writer = csv::WriterBuilder::new()
         .has_headers(false)
-        .from_path(&opportunities_compass_file)
+        .from_path(opportunities_compass_file)
         .map_err(|e| {
             let opp_file_str = opportunities_compass_file.to_string_lossy();
             format!("failure opening output file {}: {}", opp_file_str, e)

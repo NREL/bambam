@@ -68,12 +68,12 @@ impl std::fmt::Display for SourceFormat {
 mod properties {
     use std::collections::HashMap;
 
-    pub const OVERTURE_MAPS_GEOMETRY: &'static str = "geometry";
-    pub const COSTAR_LATITUDE: &'static str = "latitude";
-    pub const COSTAR_LONGITUDE: &'static str = "longitude";
-    pub const OVERTURE_CATEGORY_FIELD: &'static str = "categories";
-    pub const COSTAR_PROPERTYTYPE_FIELD: &'static str = "propertytype";
-    pub const COSTAR_PROPERTYSUBTYPE_FIELD: &'static str = "propertysubtype";
+    pub const OVERTURE_MAPS_GEOMETRY: &str = "geometry";
+    pub const COSTAR_LATITUDE: &str = "latitude";
+    pub const COSTAR_LONGITUDE: &str = "longitude";
+    pub const OVERTURE_CATEGORY_FIELD: &str = "categories";
+    pub const COSTAR_PROPERTYTYPE_FIELD: &str = "propertytype";
+    pub const COSTAR_PROPERTYSUBTYPE_FIELD: &str = "propertysubtype";
 
     pub fn costar_category_mapping(propertytype: &str, propertysubtype: &str) -> Option<String> {
         match (propertytype, propertysubtype) {
@@ -186,7 +186,7 @@ impl SourceFormat {
             SourceFormat::String {
                 geometry_column,
                 category_column,
-            } => get_value(record, &category_column, headers).map(Some),
+            } => get_value(record, category_column, headers).map(Some),
             SourceFormat::OvertureMaps {
                 geometry_column,
                 category_column,
