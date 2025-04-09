@@ -1,5 +1,5 @@
 use bambam::app::{
-    oppvec::{self, SourceFormat},
+    oppvec,
     overlay::{self, OverlayOperation},
 };
 use clap::{Parser, Subcommand};
