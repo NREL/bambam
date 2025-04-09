@@ -34,7 +34,7 @@ impl OutputRow {
 /// CoStar activity mapping.
 fn main() {
     let mut reader = csv::Reader::from_path(Path::new(
-        "/Users/rfitzger/data/mep/mep3/input/opportunities/2018-04-costar.csv",
+        "/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar.csv",
     ))
     .unwrap();
 
@@ -49,7 +49,7 @@ fn main() {
     eprintln!();
 
     let mut writer = csv::Writer::from_path(
-        "/Users/rfitzger/data/mep/mep3/input/opportunities/2018-04-costar-mep-long.csv",
+        "/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar-mep-long.csv",
     )
     .unwrap();
 
@@ -74,13 +74,14 @@ fn main() {
 ///  landUse$propertytype[landUse$propertysubtype %in% c('Fast Food', 'Restaurant', 'Bar')] <- Default.OpportunityTypes$food
 fn mapping(ptype: Option<&str>, psubtype: Option<&str>) -> Option<String> {
     match (ptype, psubtype) {
+        // handle food activities before Retail, since these are retail types
+        (_, Some("Fast Food")) => Some(String::from("food")),
+        (_, Some("Restaurant")) => Some(String::from("food")),
+        (_, Some("Bar")) => Some(String::from("food")),
         (Some("Health Care"), _) => Some(String::from("healthcare")),
         (Some("Sports & Entertainment"), _) => Some(String::from("entertainment")),
         (Some("Retail"), _) => Some(String::from("retail")),
         (Some("Specialty"), _) => Some(String::from("services")),
-        (_, Some("Fast Food")) => Some(String::from("food")),
-        (_, Some("Restaurant")) => Some(String::from("food")),
-        (_, Some("Bar")) => Some(String::from("food")),
         _ => None,
     }
 }
