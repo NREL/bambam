@@ -130,7 +130,7 @@ mod tests {
             &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/us-places.csv"),
             &String::from(""),
             &oppvec::SourceFormat::LongFormat { geometry_format: oppvec::GeometryFormat::XYColumns { x_column: String::from("longitude"), y_column: String::from("latitude") }, category_column: String::from("activity_type") },
-            &vec![String::from("retail"),String::from("entertainment"),String::from("healthcare"),String::from("services"),String::from("food")],
+            &[String::from("retail"),String::from("entertainment"),String::from("healthcare"),String::from("services"),String::from("food")],
         );
         match result {
             Ok(_) => {}

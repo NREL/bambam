@@ -1,5 +1,4 @@
 use clap::{self, Parser};
-use csv;
 use itertools::Itertools;
 use kdam::tqdm;
 use serde::{Deserialize, Serialize};

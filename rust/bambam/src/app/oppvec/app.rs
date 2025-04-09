@@ -252,12 +252,12 @@ pub fn read_opportunity_rows_v2(
                 None => return vec![],
             };
             match geometry_opt {
-                None => return vec![],
+                None => vec![],
                 Some(geometry) => {
-                    return counts_by_category
+                    counts_by_category
                         .into_iter()
                         .map(|(act, cnt)| OppRow {
-                            geometry: geometry.clone(),
+                            geometry,
                             index: idx,
                             category: act.clone(),
                             count: cnt,

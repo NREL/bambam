@@ -132,7 +132,7 @@ fn get_activity_name(
     category_column: &str,
     headers: &HashMap<String, usize>,
 ) -> Result<String, String> {
-    get_value(record, &category_column, headers)
+    get_value(record, category_column, headers)
 }
 
 /// used with wide format file sources where each row contains aggregated
@@ -143,7 +143,7 @@ fn get_activity_count(
     category_name: &str,
     headers: &HashMap<String, usize>,
 ) -> Result<(String, u64), String> {
-    let count_str = get_value(record, &category_column, headers)?;
+    let count_str = get_value(record, category_column, headers)?;
     let count = count_str.parse::<u64>().map_err(|e| {
         format!(
             "unable to parse count '{}' for column '{}' as a non-negative integer",
