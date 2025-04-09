@@ -1,3 +1,4 @@
+use clap::{self, Parser};
 use csv;
 use itertools::Itertools;
 use kdam::tqdm;
@@ -29,14 +30,19 @@ impl OutputRow {
     }
 }
 
+#[derive(clap::Parser)]
+struct Args {
+    input_file: String,
+    output_file: String,
+}
+
 /// single-use script for converting our legacy CoStar data into a long-format
 /// CSV with latitude, longitude, and activity_type columns, using the MEP 1
 /// CoStar activity mapping.
 fn main() {
-    let mut reader = csv::Reader::from_path(Path::new(
-        "/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar.csv",
-    ))
-    .unwrap();
+    let args = Args::parse();
+
+    let mut reader = csv::Reader::from_path(Path::new(&args.input_file)).unwrap();
 
     let process_iter = tqdm!(reader.deserialize(), desc = "reading and filtering rows");
     let result = process_iter
@@ -48,10 +54,7 @@ fn main() {
         .collect_vec();
     eprintln!();
 
-    let mut writer = csv::Writer::from_path(
-        "/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar-mep-long.csv",
-    )
-    .unwrap();
+    let mut writer = csv::Writer::from_path(&args.output_file).unwrap();
 
     let n_results = result.len();
     let write_iter = tqdm!(
