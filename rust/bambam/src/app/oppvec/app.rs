@@ -27,33 +27,21 @@ pub fn run(
     opportunities_filename: &String,
     output_filename: &String,
     source_format: &SourceFormat,
-    category_filter: &String,
+    activity_categories: &[String],
 ) -> Result<(), String> {
-    let accept_categories = category_filter
-        .split(",")
-        .map(String::from)
-        .collect::<HashSet<_>>();
-    if accept_categories.is_empty() {
-        return Err(format!("category filter argument is invalid, must be a comma-delimited list of values, found '{}'", category_filter));
-    }
-    log::info!(
-        "accept categories: [{}]",
-        accept_categories.iter().join(",")
-    );
-
     // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
     let vertices: Box<[Vertex]> =
         read_utils::from_csv(vertices_compass_filename, true, Some(bar_builder), None)
             .map_err(|e| format!("{}", e))?;
-    let index = Arc::new(SpatialIndex::new_vertex_oriented(
+    let spatial_index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
         Some((Distance::from(200.0), DistanceUnit::Meters)),
     ));
 
     // load opportunity data, build activity types lookup
-    let opportunities: Vec<(geo::Point<f32>, (usize, String))> =
-        read_opportunity_rows(opportunities_filename, source_format, &accept_categories)?;
+    let opportunities: Vec<OppRow> =
+        read_opportunity_rows_v2(opportunities_filename, source_format)?;
     // let acts_iter = tqdm!(
     //     opportunities.iter(),
     //     desc = "find all present unique categories",
@@ -67,9 +55,9 @@ pub fn run(
     //     .map(|(i, c)| (c, i))
     //     .collect::<HashMap<_, _>>();
     // eprintln!();
-    let activity_types_lookup = category_filter
-        .split(",")
-        .map(String::from)
+    let activity_types_lookup = activity_categories
+        .iter()
+        .cloned()
         .enumerate()
         .map(|(i, s)| (s, i))
         .collect::<HashMap<_, _>>();
@@ -84,17 +72,24 @@ pub fn run(
     ));
     let nearest_results = opportunities
         .into_par_iter()
-        .flat_map(|(point, (row_idx, category))| {
-            if let Ok(mut bar) = nearest_bar.clone().lock() {
-                let _ = bar.update(1);
-            }
-            match index.clone().nearest_graph_id(&point) {
-                Ok(NearestSearchResult::NearestVertex(vertex_id)) => {
-                    Some((vertex_id, (point, row_idx, category)))
+        .flat_map(
+            |OppRow {
+                 geometry,
+                 index,
+                 category,
+                 count,
+             }| {
+                if let Ok(mut bar) = nearest_bar.clone().lock() {
+                    let _ = bar.update(1);
                 }
-                _ => None,
-            }
-        })
+                match spatial_index.clone().nearest_graph_id(&geometry) {
+                    Ok(NearestSearchResult::NearestVertex(vertex_id)) => {
+                        Some((vertex_id, (geometry, index, category)))
+                    }
+                    _ => None,
+                }
+            },
+        )
         .collect_vec_list();
     eprintln!();
 
@@ -202,101 +197,208 @@ pub fn run(
     Ok(())
 }
 
-pub fn read_opportunity_rows(
+pub struct OppRow {
+    pub geometry: geo::Point<f32>,
+    pub index: usize,
+    pub category: String,
+    pub count: u64,
+}
+
+pub fn read_opportunity_rows_v2(
     opportunities_filename: &String,
     source_format: &SourceFormat,
-    accept_categories: &HashSet<String>,
-) -> Result<Vec<(geo::Point<f32>, (usize, String))>, String> {
-    // rust/bambam/src/app/oppvec/overture_categories.csv
-    let overture_categories_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src")
-        .join("app")
-        .join("oppvec")
-        .join("overture_categories.csv");
-
-    let mut cats_reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .delimiter(b';')
-        .from_path(&overture_categories_filepath)
-        .map_err(|e| format!("failed to open overture_categories.csv file: {}", e))?;
-
-    let parent_lookup = cats_reader
-        .into_records()
-        .map(|record| {
-            let r = record
-                .map_err(|e| format!("failure reading overture_categories.csv row: {}", e))?;
-            let category_code = r
-                .get(0)
-                .map(String::from)
-                .ok_or_else(|| String::from("row missing column 0"))?;
-            let taxonomy_str = r
-                .get(1)
-                .ok_or_else(|| String::from("row missing column 1"))?;
-            let taxonomy_vec = taxonomy_str
-                .replace("[", "")
-                .replace("]", "")
-                .split(",")
-                .map(String::from)
-                .collect_vec();
-            let parent = taxonomy_vec
-                .first()
-                .ok_or_else(|| format!("taxonomy for {} has no parent", category_code))?
-                .trim()
-                .to_string();
-            Ok((category_code, parent))
-        })
-        .collect::<Result<HashMap<_, _>, String>>()?;
-
+) -> Result<Vec<OppRow>, String> {
     let mut opps_reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_path(opportunities_filename)
         .map_err(|e| format!("failed to load {}: {}", opportunities_filename, e))?;
     let headers = build_header_lookup(&mut opps_reader)?;
-    // let geom_idx = headers
-    //     .get(geometry_column)
-    //     .ok_or_else(|| String::from("internal error"))?;
-    let iter = tqdm!(
-        opps_reader.records().enumerate(),
-        desc = "deserialize opportunities"
-    );
-    let result = iter
-        .map(|(idx, row)| {
-            let record = row.map_err(|e| format!("failed to read row {}: {}", idx, e))?;
-            // let geometry_str = &record
-            //     .get(*geom_idx)
-            //     .ok_or_else(|| format!("row {} missing '{}' column", idx, geometry_column))?;
-            // let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(geometry_str)
-            //     .map_err(|e| format!("row {} has invalid Point geometry: {}", idx, e))?;
-            let geometry_opt = source_format.read_geometry(&record, &headers)?;
-            let category_opt = source_format.read_category(&record, &headers)?;
-            match (geometry_opt, category_opt) {
-                (Some(geometry), Some(category)) => {
-                    // let parent = parent_lookup.get(&category).ok_or_else(|| {
-                    //     format!("missing parent lookup value for category '{}' where the cat_str was '{}'", category, cat_str)
-                    // // })?;
-                    match parent_lookup.get(&category) {
-                        Some(parent) => {
-                            if accept_categories.contains(parent) {
-                                Ok(Some((geometry, (idx, category))))
-                            } else {
-                                Ok(None)
-                            }
-                        }
-                        None => Ok(None),
-                    }
-
-                    // log::debug!("accepting row {} with category {}", idx, category);
+    let bar = Arc::new(Mutex::new(
+        Bar::builder()
+            .desc("deserialize opportunities")
+            .build()
+            .map_err(|e| e.to_string())?,
+    ));
+    let errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    let outer_errors = errors.clone();
+    let result = opps_reader
+        .records()
+        .enumerate()
+        .collect_vec()
+        .into_par_iter()
+        .flat_map(|(idx, row)| {
+            let inner_bar_clone = bar.clone();
+            let mut inner_bar = match handle_failure(inner_bar_clone.lock(), errors.clone()) {
+                Some(b) => b,
+                None => return vec![],
+            };
+            inner_bar.update(1);
+            let record = match handle_failure(row, errors.clone()) {
+                Some(r) => r,
+                None => return vec![],
+            };
+            let geometry_opt = match handle_failure(
+                source_format.read_geometry(&record, &headers),
+                errors.clone(),
+            ) {
+                Some(g_opt) => g_opt,
+                None => return vec![],
+            };
+            let counts_by_category = match handle_failure(
+                source_format.get_counts_by_category(&record, &headers),
+                errors.clone(),
+            ) {
+                Some(cats) => cats,
+                None => return vec![],
+            };
+            match geometry_opt {
+                None => return vec![],
+                Some(geometry) => {
+                    return counts_by_category
+                        .into_iter()
+                        .map(|(act, cnt)| OppRow {
+                            geometry: geometry.clone(),
+                            index: idx,
+                            category: act.clone(),
+                            count: cnt,
+                        })
+                        .collect_vec()
                 }
-                _ => Ok(None),
             }
         })
-        .collect::<Result<Vec<_>, String>>()?
+        .collect_vec_list()
         .into_iter()
         .flatten()
         .collect_vec();
     eprintln!();
-    Ok(result)
+
+    let final_errors = match outer_errors.lock() {
+        Err(e) => return Err(e.to_string()),
+        Ok(final_errors) => final_errors,
+    };
+    // let final_errors = errors.clone().lock();
+    if final_errors.is_empty() {
+        Ok(result)
+    } else {
+        Err(final_errors.iter().join(","))
+    }
 }
+
+fn handle_failure<'a, T, E: ToString>(
+    result: Result<T, E>,
+    errors: Arc<Mutex<Vec<String>>>,
+) -> Option<T> {
+    match result.map_err(|e| e.to_string()) {
+        Ok(t) => Some(t),
+        Err(e) => {
+            if let Ok(mut errs) = errors.clone().lock() {
+                errs.push(e)
+            }
+            None
+        }
+    }
+}
+
+// pub fn read_opportunity_rows(
+//     opportunities_filename: &String,
+//     source_format: &SourceFormat,
+//     category_filter: Option<&String>,
+// ) -> Result<Vec<(geo::Point<f32>, (usize, String))>, String> {
+//     // rust/bambam/src/app/oppvec/overture_categories.csv
+//     // let overture_categories_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+//     //     .join("src")
+//     //     .join("app")
+//     //     .join("oppvec")
+//     //     .join("overture_categories.csv");
+
+//     // let mut cats_reader = csv::ReaderBuilder::new()
+//     //     .has_headers(true)
+//     //     .delimiter(b';')
+//     //     .from_path(&overture_categories_filepath)
+//     //     .map_err(|e| format!("failed to open overture_categories.csv file: {}", e))?;
+
+//     // let parent_lookup = cats_reader
+//     //     .into_records()
+//     //     .map(|record| {
+//     //         let r = record
+//     //             .map_err(|e| format!("failure reading overture_categories.csv row: {}", e))?;
+//     //         let category_code = r
+//     //             .get(0)
+//     //             .map(String::from)
+//     //             .ok_or_else(|| String::from("row missing column 0"))?;
+//     //         let taxonomy_str = r
+//     //             .get(1)
+//     //             .ok_or_else(|| String::from("row missing column 1"))?;
+//     //         let taxonomy_vec = taxonomy_str
+//     //             .replace("[", "")
+//     //             .replace("]", "")
+//     //             .split(",")
+//     //             .map(String::from)
+//     //             .collect_vec();
+//     //         let parent = taxonomy_vec
+//     //             .first()
+//     //             .ok_or_else(|| format!("taxonomy for {} has no parent", category_code))?
+//     //             .trim()
+//     //             .to_string();
+//     //         Ok((category_code, parent))
+//     //     })
+//     //     .collect::<Result<HashMap<_, _>, String>>()?;
+
+//     let mut opps_reader = csv::ReaderBuilder::new()
+//         .has_headers(true)
+//         .from_path(opportunities_filename)
+//         .map_err(|e| format!("failed to load {}: {}", opportunities_filename, e))?;
+//     let headers = build_header_lookup(&mut opps_reader)?;
+//     // let geom_idx = headers
+//     //     .get(geometry_column)
+//     //     .ok_or_else(|| String::from("internal error"))?;
+//     let iter = tqdm!(
+//         opps_reader.records().enumerate(),
+//         desc = "deserialize opportunities"
+//     );
+//     let result = iter
+//         .map(|(idx, row)| {
+//             let record = row.map_err(|e| format!("failed to read row {}: {}", idx, e))?;
+//             // let geometry_str = &record
+//             //     .get(*geom_idx)
+//             //     .ok_or_else(|| format!("row {} missing '{}' column", idx, geometry_column))?;
+//             // let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(geometry_str)
+//             //     .map_err(|e| format!("row {} has invalid Point geometry: {}", idx, e))?;
+//             let geometry_opt = source_format.read_geometry(&record, &headers)?;
+//             let category_opt = source_format.get_counts_by_category(&record, &headers)?;
+//             match geometry_opt {
+//                 None => Ok(None),
+//                 Some(geometry) => {}
+//             }
+
+//             // match (geometry_opt, category_opt) {
+//             //     (Some(geometry), Some(category)) => {
+//             //         // let parent = parent_lookup.get(&category).ok_or_else(|| {
+//             //         //     format!("missing parent lookup value for category '{}' where the cat_str was '{}'", category, cat_str)
+//             //         // // })?;
+//             //         match parent_lookup.get(&category) {
+//             //             Some(parent) => {
+//             //                 if accept_category_fn(parent) {
+//             //                     Ok(Some((geometry, (idx, category))))
+//             //                 } else {
+//             //                     Ok(None)
+//             //                 }
+//             //             }
+//             //             None => Ok(None),
+//             //         }
+
+//             //         // log::debug!("accepting row {} with category {}", idx, category);
+//             //     }
+//             //     _ => Ok(None),
+//             // }
+//         })
+//         .collect::<Result<Vec<_>, String>>()?
+//         .into_iter()
+//         .flatten()
+//         .collect_vec();
+//     eprintln!();
+//     Ok(result)
+// }
 
 pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, usize>, String> {
     // We nest this call in its own scope because of lifetimes.

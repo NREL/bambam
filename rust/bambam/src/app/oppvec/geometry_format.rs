@@ -1,0 +1,70 @@
+use csv::StringRecord;
+use geo::Geometry;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use wkt::TryFromWkt;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum GeometryFormat {
+    WktColumn { column_name: String },
+    XYColumns { x_column: String, y_column: String },
+}
+
+impl std::fmt::Display for GeometryFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GeometryFormat::WktColumn { column_name } => {
+                write!(f, "{}", column_name)
+            }
+            GeometryFormat::XYColumns { x_column, y_column } => {
+                write!(f, "{},{}", x_column, y_column)
+            }
+        }
+    }
+}
+
+impl GeometryFormat {
+    pub fn get_geometry(
+        &self,
+        row: &StringRecord,
+        column_index_lookup: &HashMap<String, usize>,
+    ) -> Result<geo::Point<f32>, String> {
+        match self {
+            GeometryFormat::WktColumn { column_name } => {
+                let idx = column_index_lookup
+                    .get(column_name)
+                    .ok_or_else(|| format!("file does not contain column '{}'", column_name))?;
+                let value = row.get(*idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", column_name, idx))?;
+                let g = Geometry::try_from_wkt_str(value).map_err(|e| {
+                    format!(
+                        "failure reading geometry at column '{}': {}",
+                        column_name, e
+                    )
+                })?;
+                match g {
+                    Geometry::Point(point) => Ok(point),
+                    _ => Err(format!("geometry must be point, found '{}'", value)),
+                }
+            }
+            GeometryFormat::XYColumns { x_column, y_column } => {
+                let x_idx = column_index_lookup
+                    .get(x_column)
+                    .ok_or_else(|| format!("file does not contain column '{}'", x_column))?;
+                let y_idx = column_index_lookup
+                    .get(y_column)
+                    .ok_or_else(|| format!("file does not contain column '{}'", y_column))?;
+                let x_str = row.get(*x_idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", x_column, x_idx))?;
+                let y_str = row.get(*y_idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", y_column, y_idx))?;
+                let x = x_str.parse::<f32>().map_err(|e| {
+                    format!("failure reading number in column '{}': {}", x_column, e)
+                })?;
+                let y = y_str.parse::<f32>().map_err(|e| {
+                    format!("failure reading number in column '{}': {}", y_column, e)
+                })?;
+                let point = geo::Point::new(x, y);
+                Ok(point)
+            }
+        }
+    }
+}

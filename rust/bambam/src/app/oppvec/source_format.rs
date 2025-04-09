@@ -3,115 +3,72 @@ use std::collections::HashMap;
 use clap::{Subcommand, ValueEnum};
 use csv::StringRecord;
 use geo::{Geometry, HasDimensions, Point};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-#[derive(Serialize, Deserialize, Clone, Debug, Subcommand)]
+use super::{default, geometry_format::GeometryFormat, SourceFormatConfig};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum SourceFormat {
-    String {
-        geometry_column: String,
+    LongFormat {
+        geometry_format: GeometryFormat,
         category_column: String,
     },
-    OvertureMaps {
-        geometry_column: Option<String>,
-        category_column: Option<String>,
-    },
-    CoStar {
-        latitude_column: Option<String>,
-        longitude_column: Option<String>,
+    // OvertureMaps {
+    //     geometry_format: String,
+    //     category_column: String,
+    // },
+    WideFormat {
+        geometry_format: GeometryFormat,
+        /// maps fields of a [`csv::StringRecord`] to opportunity categories
+        column_mapping: HashMap<String, String>,
         // category_mapping: HashMap<(String, String), String>,
     },
 }
 
-impl std::fmt::Display for SourceFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SourceFormat::String {
-                geometry_column,
+impl TryFrom<&SourceFormatConfig> for SourceFormat {
+    type Error = String;
+
+    fn try_from(config: &SourceFormatConfig) -> Result<Self, Self::Error> {
+        match config {
+            SourceFormatConfig::LongFormat {
+                geometry_format,
                 category_column,
-            } => {
-                write!(
-                    f,
-                    "read geometry from '{}' column, category from '{}'",
-                    geometry_column, category_column
-                )
-            }
-            SourceFormat::OvertureMaps {
-                geometry_column,
-                category_column,
-            } => {
-                let geo_col = geometry_column
-                    .clone()
-                    .unwrap_or_else(|| properties::OVERTURE_MAPS_GEOMETRY.to_string());
-                let cat_col = category_column
-                    .clone()
-                    .unwrap_or_else(|| properties::OVERTURE_CATEGORY_FIELD.to_string());
-                write!(
-                    f,
-                    "read geometry from '{}' column, category from '{}' in OvertureMaps file",
-                    geo_col, cat_col
-                )
-            }
-            SourceFormat::CoStar {
-                latitude_column: _,
-                longitude_column: _,
-                // category_mapping: _,
-            } => write!(
-                f,
-                "read geometry from CoStar via longitude/latitude columns"
-            ),
-        }
-    }
-}
-
-mod properties {
-    use std::collections::HashMap;
-
-    pub const OVERTURE_MAPS_GEOMETRY: &str = "geometry";
-    pub const COSTAR_LATITUDE: &str = "latitude";
-    pub const COSTAR_LONGITUDE: &str = "longitude";
-    pub const OVERTURE_CATEGORY_FIELD: &str = "categories";
-    pub const COSTAR_PROPERTYTYPE_FIELD: &str = "propertytype";
-    pub const COSTAR_PROPERTYSUBTYPE_FIELD: &str = "propertysubtype";
-
-    pub fn costar_category_mapping(propertytype: &str, propertysubtype: &str) -> Option<String> {
-        match (propertytype, propertysubtype) {
-            ("Health Care", _) => Some(String::from("healthcare")),
-            ("Sports & Entertainment", _) => Some(String::from("entertainment")),
-            ("Retail", _) => Some(String::from("retail")),
-            ("Specialty", _) => Some(String::from("services")),
-            (_, "Fast Food") => Some(String::from("food")),
-            (_, "Restaurant") => Some(String::from("food")),
-            (_, "Bar") => Some(String::from("food")),
-            _ => None,
+            } => Ok(Self::LongFormat {
+                geometry_format: geometry_format.clone(),
+                category_column: category_column.clone(),
+            }),
+            // SourceFormatConfig::OvertureMaps {
+            //     geometry_format,
+            //     category_column,
+            // } => {
+            //     // let geometry_format: String = geometry_format
+            //     //     .clone()
+            //     //     .unwrap_or_else(|| default::OVERTURE_MAPS_GEOMETRY.to_string());
+            //     // let category_column: String = category_column
+            //     //     .clone()
+            //     //     .unwrap_or_else(|| default::OVERTURE_CATEGORY_FIELD.to_string());
+            //     // let result = Self::OvertureMaps {
+            //     //     geometry_format,
+            //     //     category_column,
+            //     // };
+            //     // Ok(result)
+            //     todo!("should this variant exist? we are describing a 'from CSV' pipeline here, when does that ever happen from OvertureMaps Parquet data?")
+            // }
+            SourceFormatConfig::WideFormat {
+                geometry_format,
+                column_mapping,
+            } => Ok(Self::WideFormat {
+                geometry_format: geometry_format.clone(),
+                column_mapping: column_mapping.clone(),
+            }),
         }
     }
 }
 
 impl SourceFormat {
-    fn description(&self) -> String {
-        match self {
-            SourceFormat::String {
-                geometry_column: _,
-                category_column: _,
-            } => String::from("string read directly from CSV cell"),
-            SourceFormat::OvertureMaps {
-                geometry_column: _,
-                category_column: _,
-            } => String::from(
-                r#"overture_maps category format is a json object with root parent at '.alternate[0]' position,
-                    which is the most general category for this entry. for example, a
-                    record with primary entry 'elementary_school' will have a '.alternate[0]' value of 'school'"#,
-            ),
-            SourceFormat::CoStar {
-                latitude_column: _,
-                longitude_column: _,
-                // category_mapping: _,
-            } => String::from("CoStar stores activity locations by property type and subtype"),
-        }
-    }
-
     pub fn read_geometry(
         &self,
         record: &StringRecord,
@@ -119,134 +76,108 @@ impl SourceFormat {
     ) -> Result<Option<Point<f32>>, String> {
         // log::debug!("SourceFormat::read with '{}'", value);
 
-        match self {
-            SourceFormat::String {
-                geometry_column,
+        let geometry_format = match self {
+            SourceFormat::LongFormat {
+                geometry_format,
                 category_column: _,
-            } => {
-                let geometry_str = get_value(record, geometry_column, headers)?;
-                if geometry_str.is_empty() {
-                    return Ok(None);
-                }
-                let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(&geometry_str)
-                    .map_err(|e| format!("invalid Point geometry '{}': {}", geometry_str, e))?;
-                if geometry.is_empty() {
-                    return Ok(None);
-                }
-                Ok(Some(geometry))
-            }
-            SourceFormat::OvertureMaps {
-                geometry_column,
-                category_column: _,
-            } => {
-                let geom_fieldname: String = geometry_column
-                    .clone()
-                    .unwrap_or_else(|| properties::OVERTURE_MAPS_GEOMETRY.to_string());
-                let geometry_str = get_value(record, &geom_fieldname, headers)?;
-                // log::debug!("read with value '{}'", value);
-                let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(&geometry_str)
-                    .map_err(|e| format!("invalid Point geometry '{}': {}", geometry_str, e))?;
-                if geometry.is_empty() {
-                    return Ok(None);
-                }
-                Ok(Some(geometry))
-            }
-            SourceFormat::CoStar {
-                latitude_column,
-                longitude_column,
-                // category_mapping: _,
-            } => {
-                let lat_col = latitude_column
-                    .clone()
-                    .unwrap_or_else(|| properties::COSTAR_LATITUDE.to_string());
-                let lon_col = longitude_column
-                    .clone()
-                    .unwrap_or_else(|| properties::COSTAR_LONGITUDE.to_string());
-                let lon = get_value(record, &lon_col, headers)?;
-                let lat = get_value(record, &lat_col, headers)?;
-                match (lon.parse::<f32>(), lat.parse::<f32>()) {
-                    (Ok(lon_f32), Ok(lat_f32)) => {
-                        let geometry: geo::Point<f32> = geo::Point::new(lon_f32, lat_f32);
-                        Ok(Some(geometry))
-                    }
-                    _ => Ok(None),
-                }
-            }
+            } => geometry_format,
+            SourceFormat::WideFormat {
+                geometry_format,
+                column_mapping: _,
+            } => geometry_format,
+        };
+
+        let geometry = geometry_format.get_geometry(record, headers)?;
+
+        if geometry.is_empty() {
+            return Ok(None);
         }
+        Ok(Some(geometry))
     }
 
-    pub fn read_category(
+    pub fn get_counts_by_category(
         &self,
         record: &StringRecord,
         headers: &HashMap<String, usize>,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<HashMap<String, u64>, String> {
         // log::debug!("SourceFormat::read with '{}'", value);
 
         match self {
-            SourceFormat::String {
-                geometry_column,
-                category_column,
-            } => get_value(record, category_column, headers).map(Some),
-            SourceFormat::OvertureMaps {
-                geometry_column,
+            SourceFormat::LongFormat {
+                geometry_format: _,
                 category_column,
             } => {
-                let cat_fieldname: String = category_column
-                    .clone()
-                    .unwrap_or_else(|| properties::OVERTURE_CATEGORY_FIELD.to_string());
-                let json_str = get_value(record, &cat_fieldname, headers)?;
-                // log::debug!("read with value '{}'", value);
-                let json: Value = serde_json::from_str(&json_str).map_err(|e| format!("{}", e))?;
-                match json {
-                    Value::Null => Ok(None),
-                    Value::Object(map) => {
-                        top_level_om_category(&map).map_err(|e| format!("{}: {}", e, json_str))
-                    }
-                    _ => Err(format!("value is not a JSON object or null: {}", json_str)),
-                }
+                let name = get_activity_name(record, category_column, headers)?;
+                Ok(HashMap::from([(name, 1)]))
             }
-            SourceFormat::CoStar {
-                latitude_column,
-                longitude_column,
-                // category_mapping,
-            } => {
-                let p_type = get_value(record, properties::COSTAR_PROPERTYTYPE_FIELD, headers)?;
-                let p_subtype =
-                    get_value(record, properties::COSTAR_PROPERTYSUBTYPE_FIELD, headers)?;
-                Ok(properties::costar_category_mapping(&p_type, &p_subtype))
-            }
+            SourceFormat::WideFormat {
+                geometry_format: _,
+                column_mapping,
+            } => column_mapping
+                .iter()
+                .map(|(category_column, category_name)| {
+                    let (name, count) =
+                        get_activity_count(record, category_column, category_name, headers)?;
+                    Ok((name, count))
+                })
+                .collect::<Result<HashMap<String, u64>, String>>(),
         }
     }
+}
+
+/// used with long format file sources where each row contains a single
+/// opportunity count
+fn get_activity_name(
+    record: &StringRecord,
+    category_column: &str,
+    headers: &HashMap<String, usize>,
+) -> Result<String, String> {
+    get_value(record, &category_column, headers)
+}
+
+/// used with wide format file sources where each row contains aggregated
+/// opportunity counts
+fn get_activity_count(
+    record: &StringRecord,
+    category_column: &str,
+    category_name: &str,
+    headers: &HashMap<String, usize>,
+) -> Result<(String, u64), String> {
+    let count_str = get_value(record, &category_column, headers)?;
+    let count = count_str.parse::<u64>().map_err(|e| {
+        format!(
+            "unable to parse count '{}' for column '{}' as a non-negative integer",
+            count_str, category_column
+        )
+    })?;
+    Ok((category_name.to_string(), count))
 }
 
 fn get_value(
     record: &StringRecord,
-    geometry_column: &str,
+    key: &str,
     headers: &HashMap<String, usize>,
 ) -> Result<String, String> {
     let column_index = headers
-        .get(geometry_column)
-        .ok_or_else(|| format!("column name '{}' missing from CSV", geometry_column))?;
-    let record_value = record.get(*column_index).ok_or_else(|| {
-        format!(
-            "row missing index '{}' for '{}' column",
-            column_index, geometry_column
-        )
-    })?;
+        .get(key)
+        .ok_or_else(|| format!("column name '{}' missing from CSV", key))?;
+    let record_value = record
+        .get(*column_index)
+        .ok_or_else(|| format!("row missing index '{}' for '{}' column", column_index, key))?;
     Ok(record_value.to_string())
 }
 
-fn top_level_om_category(map: &Map<String, Value>) -> Result<Option<String>, String> {
-    let primary = map
-        .get("primary")
-        .ok_or_else(|| String::from("row is not a JSON object with a 'primary' key"))?;
-    // 'primary' may be an array or null
-    match primary {
-        Value::Null => Ok(None),
-        Value::String(string) => Ok(Some(string.clone())),
-        _ => Err(format!(
-            "'primary' entry is not a string or null as expected, instead found {}",
-            primary
-        )),
-    }
-}
+// fn top_level_om_category(map: &Map<String, Value>) -> Result<Option<String>, String> {
+//     let primary = map
+//         .get("primary")
+//         .ok_or_else(|| String::from("row is not a JSON object with a 'primary' key"))?;
+//     // 'primary' may be an array or null
+//     match primary {
+//         Value::Null => Ok(None),
+//         Value::String(string) => Ok(Some(string.clone())),
+//         _ => Err(format!(
+//             "'primary' entry is not a string or null as expected, instead found {}",
+//             primary
+//         )),
+//     }
+// }
