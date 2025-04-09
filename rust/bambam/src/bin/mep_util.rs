@@ -90,8 +90,17 @@ impl App {
                 activity_categories,
             } => {
                 // this should come from application config (subcommand)
-                let source_format = oppvec::SourceFormat::LongFormat { geometry_format: oppvec::GeometryFormat::XYColumns { x_column: String::from("longitude"), y_column: String::from("latitude") }, category_column: String::from("activity_type") };
-                let cats = activity_categories.split(",").map(|c| c.to_owned()).collect_vec();
+                let source_format = oppvec::SourceFormat::LongFormat {
+                    geometry_format: oppvec::GeometryFormat::XYColumns {
+                        x_column: String::from("longitude"),
+                        y_column: String::from("latitude"),
+                    },
+                    category_column: String::from("activity_type"),
+                };
+                let cats = activity_categories
+                    .split(",")
+                    .map(|c| c.to_owned())
+                    .collect_vec();
                 oppvec::run(
                     vertices_compass_filename,
                     opportunities_filename,
@@ -99,7 +108,7 @@ impl App {
                     &source_format,
                     &cats,
                 )
-            },
+            }
         }
     }
 }
@@ -122,7 +131,6 @@ mod tests {
             &String::from(""),
             &oppvec::SourceFormat::LongFormat { geometry_format: oppvec::GeometryFormat::XYColumns { x_column: String::from("longitude"), y_column: String::from("latitude") }, category_column: String::from("activity_type") },
             &vec![String::from("retail"),String::from("entertainment"),String::from("healthcare"),String::from("services"),String::from("food")],
-            
         );
         match result {
             Ok(_) => {}
