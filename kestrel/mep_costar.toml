@@ -297,7 +297,7 @@ activity_column_names = [
 ]
 table_orientation = "destination_vertex_oriented"
 
-[plugin.output_plugins.model.opportunity_source]
+[plugin.output_plugins.model.models.opportunity_source]
 type = "lodes"
 
 study_region.type = "census"
