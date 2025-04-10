@@ -236,7 +236,7 @@ impl OpportunityModelConfig {
             OpportunityModelConfig::Combined { models } => {
                 let models = models
                     .iter()
-                    .map(|model| model.build().map(|m| Box::new(m)))
+                    .map(|model| model.build().map(Box::new))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(OpportunityModel::Combined { models })
             }
