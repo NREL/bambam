@@ -47,7 +47,7 @@ impl OutputPlugin for OpportunityOutputPlugin {
 
                     let opportunities_json = self.opportunity_format.serialize_opportunities(
                         &destination_opportunities,
-                        self.model.activity_types(),
+                        &self.model.activity_types(),
                     )?;
                     v[field::OPPORTUNITIES] = opportunities_json;
                 }
