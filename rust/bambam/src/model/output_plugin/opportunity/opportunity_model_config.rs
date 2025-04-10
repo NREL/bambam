@@ -38,6 +38,9 @@ pub enum OpportunityModelConfig {
         activity_column_names: Vec<String>,
         table_orientation: OpportunityTableOrientation,
     },
+    Combined {
+        models: Vec<Box<OpportunityModelConfig>>,
+    },
 }
 
 impl OpportunityModelConfig {
@@ -229,6 +232,13 @@ impl OpportunityModelConfig {
                     table_orientation: *table_orientation,
                 };
                 Ok(result)
+            }
+            OpportunityModelConfig::Combined { models } => {
+                let models = models
+                    .iter()
+                    .map(|model| model.build().map(|m| Box::new(m)))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(OpportunityModel::Combined { models })
             }
         }
     }
