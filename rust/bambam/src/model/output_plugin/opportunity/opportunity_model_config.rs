@@ -38,6 +38,7 @@ pub enum OpportunityModelConfig {
         activity_column_names: Vec<String>,
         table_orientation: OpportunityTableOrientation,
     },
+    #[serde(rename = "combined")]
     Combined {
         models: Vec<Box<OpportunityModelConfig>>,
     },
