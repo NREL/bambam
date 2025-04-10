@@ -395,7 +395,7 @@ segment = "S000"
 # want a "continental" variant which could support 2022.
 year = 2016
 
-[plugin.output_plugins.model.opportunity_source.activity_mapping]
+[plugin.output_plugins.model.models.opportunity_source.activity_mapping]
 # see https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf
 CNS01 = ["jobs"] # 11 (Agriculture, Forestry, Fishing and Hunting)
 CNS02 = ["jobs"] # 21 (Mining, Quarrying, and Oil and Gas Extraction)
