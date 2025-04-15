@@ -1,8 +1,9 @@
 node_distance_threshold = [15.0, "meters"]
 ignore_osm_parsing_errors = true
 truncate_by_edge = false
-simplify = true
-parallelize = false
+simplify = false
+consolidate = false
+parallelize = true
 overwrite = true
 
 [component_filter]
