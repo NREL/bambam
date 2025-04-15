@@ -15,7 +15,7 @@ pub fn filter_components(graph: &mut OsmGraph, filter: &ComponentFilter) -> Resu
     let all_nodes = graph.connected_node_iterator(true).cloned().collect_vec();
     let components: Vec<Vec<crate::model::osm::graph::OsmNodeId>> =
         connected_components::weakly_connected_components(graph, &all_nodes)?;
-    let filtered_components = filter.assign_components(&components);
+    let filtered_components = filter.assign_components(components);
     log::info!(
         "retaining {} graph components after filtering",
         filtered_components.len()

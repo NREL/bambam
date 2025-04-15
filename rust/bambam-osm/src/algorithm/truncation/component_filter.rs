@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    collections::{BinaryHeap, HashSet},
+};
 
 use crate::model::osm::graph::OsmNodeId;
 use itertools::Itertools;
@@ -13,6 +17,7 @@ pub enum ComponentFilter {
     Largest,
     TopK(usize),
     LeastK(usize),
+    KeepAll,
 }
 
 impl std::fmt::Display for ComponentFilter {
@@ -21,18 +26,20 @@ impl std::fmt::Display for ComponentFilter {
             ComponentFilter::Largest => write!(f, "largest"),
             ComponentFilter::TopK(k) => write!(f, "top-{}", k),
             ComponentFilter::LeastK(k) => write!(f, "least-{}", k),
+            ComponentFilter::KeepAll => write!(f, "keep all"),
         }
     }
 }
 
 impl ComponentFilter {
     /// filters the resulting connected node components.
-    pub fn assign_components(&self, components: &Vec<Vec<OsmNodeId>>) -> Vec<Vec<OsmNodeId>> {
+    pub fn assign_components(&self, components: Vec<Vec<OsmNodeId>>) -> Vec<Vec<OsmNodeId>> {
         use ComponentFilter as CF;
         let k = match self {
             CF::Largest => 1,
             CF::TopK(k) => *k,
             CF::LeastK(k) => *k,
+            CF::KeepAll => return components,
         };
         let mut heap: BinaryHeap<FilterQueueElement> = BinaryHeap::with_capacity(k);
         let iter = tqdm!(
@@ -40,56 +47,69 @@ impl ComponentFilter {
             desc = format!("assign components using '{}' component filter", self),
             total = components.len()
         );
+
         for (idx, c) in iter {
             let element = match self {
-                CF::Largest => FilterQueueElement::largest(c),
-                CF::TopK(_) => FilterQueueElement::largest(c),
-                CF::LeastK(_) => FilterQueueElement::smallest(c),
+                CF::Largest => FilterQueueElement::largest(c, idx),
+                CF::TopK(_) => FilterQueueElement::largest(c, idx),
+                CF::LeastK(_) => FilterQueueElement::smallest(c, idx),
+                CF::KeepAll => panic!("runtime error, KeepAll variant should not reach this point"),
             };
             heap.push(element);
             if heap.len() > k {
                 let _ = heap.pop();
             }
         }
+        let keep_indices: HashSet<usize> = heap.iter().map(|fqe| fqe.index).collect();
+        if keep_indices.len() == components.len() {
+            return components;
+        }
 
-        let out_components: Vec<Vec<OsmNodeId>> =
-            heap.into_iter().map(|e| e.component.clone()).collect_vec();
+        let mut out_components: Vec<Vec<OsmNodeId>> = Vec::with_capacity(k);
+        for (idx, component) in components.into_iter().enumerate() {
+            if keep_indices.contains(&idx) {
+                out_components.push(component);
+            }
+        }
 
         out_components
     }
 }
 
 #[derive(Clone, Eq, PartialEq)]
-struct FilterQueueElement<'a> {
-    component: &'a Vec<OsmNodeId>,
+struct FilterQueueElement {
+    // component: &'a Vec<OsmNodeId>,
     ord: i64,
+    index: usize,
 }
 
-impl<'a> FilterQueueElement<'a> {
+impl FilterQueueElement {
     /// for largest filtering, we want the smallest values to bubble to the top.
-    pub fn largest(component: &'a Vec<OsmNodeId>) -> FilterQueueElement<'a> {
+    pub fn largest(component: &Vec<OsmNodeId>, index: usize) -> FilterQueueElement {
         FilterQueueElement {
-            component,
+            // component,
             ord: -(component.len() as i64),
+            index,
         }
     }
     /// for smallest filtering, we want the largest values to bubble to the top.
-    pub fn smallest(component: &'a Vec<OsmNodeId>) -> FilterQueueElement<'a> {
+    pub fn smallest(component: &Vec<OsmNodeId>, index: usize) -> FilterQueueElement {
         FilterQueueElement {
-            component,
+            // component,
             ord: component.len() as i64,
+            index,
         }
     }
 }
 
-impl Ord for FilterQueueElement<'_> {
+impl Ord for FilterQueueElement {
     fn cmp(&self, other: &Self) -> Ordering {
         self.ord.cmp(&other.ord)
     }
 }
 
 // `PartialOrd` needs to be implemented as well.
-impl PartialOrd for FilterQueueElement<'_> {
+impl PartialOrd for FilterQueueElement {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
