@@ -1,5 +1,5 @@
 use bambam_osm::{
-    app::BambamConfiguration,
+    config::OsmImportConfiguration,
     model::{
         osm::{graph::CompassWriter, OsmSource},
         OsmCliError,
@@ -40,10 +40,10 @@ pub fn run(app: &App) -> Result<(), OsmCliError> {
             output_directory,
         } => {
             let conf = match configuration_file {
-                None => Ok(BambamConfiguration::default()),
+                None => Ok(OsmImportConfiguration::default()),
                 Some(f) => {
                     log::info!("reading bambam configuration from {}", f);
-                    BambamConfiguration::try_from(f)
+                    OsmImportConfiguration::try_from(f)
                 }
             }?;
             let consolidation_threshold = conf.get_consolidation_threshold();
@@ -55,7 +55,7 @@ pub fn run(app: &App) -> Result<(), OsmCliError> {
                 component_filter: Some(conf.component_filter),
                 truncate_by_edge: conf.truncate_by_edge,
                 simplify: conf.simplify,
-                consolidate: false,
+                consolidate: conf.consolidate,
                 consolidation_threshold,
                 parallelize: conf.parallelize,
             };
@@ -156,8 +156,8 @@ mod tests {
             )),
             component_filter: None,
             truncate_by_edge: true,
-            simplify: true,
-            consolidate: true,
+            simplify: false,
+            consolidate: false,
             consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
             parallelize: false,
         };
