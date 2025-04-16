@@ -1,7 +1,7 @@
-use geo::Geometry;
+use geo::{Geometry, TryConvert};
 use routee_compass::plugin::{output::OutputPluginError, PluginError};
 use serde::{Deserialize, Serialize};
-use wkb::*;
+use wkb;
 use wkt::ToWkt;
 
 #[derive(Deserialize, Serialize)]
@@ -24,18 +24,27 @@ impl IsochroneOutputFormat {
         match self {
             IsochroneOutputFormat::Wkt => Ok(geometry.wkt_string()),
             IsochroneOutputFormat::Wkb => {
-                let bytes = geom_to_wkb(geometry).map_err(|e| {
+                let mut out_bytes = vec![];
+                let geom: Geometry<f64> = geometry.try_convert().map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "failed to generate wkb for geometry {:?} - {:?}",
-                        geometry, e
+                        "unable to convert geometry from f32 to f64: {}",
+                        e
                     ))
                 })?;
-                let wkb_str = bytes
-                    .iter()
-                    .map(|b| format!("{:02X?}", b))
-                    .collect::<Vec<String>>()
-                    .join("");
-                Ok(wkb_str)
+                wkb::writer::write_geometry(&mut out_bytes, &geom, wkb::Endianness::BigEndian)
+                    .map_err(|e| {
+                        OutputPluginError::OutputPluginFailed(format!(
+                            "failed to write geometry as WKB: {}",
+                            e
+                        ))
+                    })?;
+                let out_string = String::from_utf8(out_bytes).map_err(|e| {
+                    OutputPluginError::OutputPluginFailed(format!(
+                        "failed to read WKB as utf8: {}",
+                        e
+                    ))
+                })?;
+                Ok(out_string)
             }
             IsochroneOutputFormat::GeoJson => {
                 let geometry = geojson::Geometry::from(geometry);
