@@ -9,16 +9,18 @@ pub struct DatabaseBuilder {
     pub table: String,
 }
 
-impl DatabaseBuilder {
-    pub const DEFAULT_DB_NAME: &'static str = "mep";
-    pub const DEFAULT_TABLE_NAME: &'static str = "transit";
-
-    pub fn default() -> DatabaseBuilder {
+impl Default for DatabaseBuilder {
+    fn default() -> Self {
         DatabaseBuilder {
             name: String::from(DatabaseBuilder::DEFAULT_DB_NAME),
             table: String::from(DatabaseBuilder::DEFAULT_TABLE_NAME),
         }
     }
+}
+
+impl DatabaseBuilder {
+    pub const DEFAULT_DB_NAME: &'static str = "mep";
+    pub const DEFAULT_TABLE_NAME: &'static str = "transit";
 
     /// minimum supported version of SQLite is 3.24.0, which is where
     /// Rtree tables with auxiliary columns was introduced.

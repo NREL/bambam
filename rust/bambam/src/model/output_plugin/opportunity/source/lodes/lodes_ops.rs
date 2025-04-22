@@ -18,10 +18,10 @@ use std::collections::HashMap;
 /// to the specified data granularity.
 pub fn collect_lodes_opportunities(
     dataset: &LodesDataset,
-    segments: &Vec<WacSegment>,
+    segments: &[WacSegment],
     geoids: &Vec<Geoid>,
     data_granularity: &Option<GeoidType>,
-    activity_types: &Vec<String>,
+    activity_types: &[String],
     activity_mapping: &HashMap<WacSegment, Vec<String>>,
 ) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
     // download LODES data paired with TIGER/Lines geometries

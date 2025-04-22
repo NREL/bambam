@@ -27,8 +27,9 @@ pub enum OpportunityModel {
     },
     /// user provides a spatial dataset of opportunities. lookup will use a
     /// spatial index to find
-    /// - intersecting polygons
-    /// - nearest points with some distance tolerance
+    ///   - intersecting polygons
+    ///   - nearest points with some distance tolerance
+    ///
     /// it becomes the responsibility of the downstream code to de-duplicate results
     /// by making sure to only include one row with a given index value (slot 1 of the
     /// attach_opportunities function result).

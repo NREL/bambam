@@ -40,5 +40,4 @@ pub enum App {
 }
 
 /// duplicates the RouteE Compass app
-
 pub struct ScoringApp {}

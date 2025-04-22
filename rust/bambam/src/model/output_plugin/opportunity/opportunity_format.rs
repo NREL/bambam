@@ -15,12 +15,13 @@ pub enum OpportunityCollectFormat {
     Disaggregate,
 }
 
-impl ToString for OpportunityCollectFormat {
-    fn to_string(&self) -> String {
-        match self {
-            OpportunityCollectFormat::Aggregate => String::from(OPP_FMT_AGGREGATE),
-            OpportunityCollectFormat::Disaggregate => String::from(OPP_FMT_DISAGGREGATE),
-        }
+impl std::fmt::Display for OpportunityCollectFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let key = match self {
+            OpportunityCollectFormat::Aggregate => OPP_FMT_AGGREGATE,
+            OpportunityCollectFormat::Disaggregate => OPP_FMT_DISAGGREGATE,
+        };
+        write!(f, "{}", key)
     }
 }
 

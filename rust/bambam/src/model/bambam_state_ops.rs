@@ -74,7 +74,7 @@ pub fn get_reachability_time_minutes(
 pub fn default_mep_traversal(
     trajectory: (&Vertex, &Edge, &Vertex),
     edge_speed: (&Speed, &SpeedUnit),
-    state: &mut Vec<StateVariable>,
+    state: &mut [StateVariable],
     state_model: &StateModel,
     departure_delay: &Option<TimeDelayLookup>,
     arrival_delay: &Option<TimeDelayLookup>,

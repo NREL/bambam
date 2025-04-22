@@ -24,8 +24,8 @@ use wkt;
 /// it to some vertex dataset
 pub fn run(
     vertices_compass_filename: &String,
-    opportunities_filename: &String,
-    output_filename: &String,
+    opportunities_filename: &str,
+    output_filename: &str,
     source_format: &SourceFormat,
     activity_categories: &[String],
 ) -> Result<(), String> {
@@ -205,7 +205,7 @@ pub struct OppRow {
 }
 
 pub fn read_opportunity_rows_v2(
-    opportunities_filename: &String,
+    opportunities_filename: &str,
     source_format: &SourceFormat,
 ) -> Result<Vec<OppRow>, String> {
     let mut opps_reader = csv::ReaderBuilder::new()

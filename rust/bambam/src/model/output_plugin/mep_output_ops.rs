@@ -19,32 +19,6 @@ use routee_compass_core::{
 use std::{borrow::Cow, collections::HashMap};
 use wkt::ToWkt;
 
-/// collects the destinations for a search result. if included, restrict the
-/// destinations to those that were found within the provided time bin.
-// pub fn collect_destinations_owned<'a>(
-//     search_result: &'a SearchAppResult,
-//     time_bin: Option<&'a TimeBin>,
-//     state_model: &StateModel,
-// ) -> Box<dyn Iterator<Item = Result<(VertexId, SearchTreeBranch), StateError>> + 'a> {
-//     // valid destination is always the first state variable. having to clone them
-//     // here because create_tree_multilinestring requires owned key/values.
-//     let tree_destinations = search_result.tree.iter().filter_map(move |(v_id, branch)| {
-//         let result_state = &branch.edge_traversal.result_state;
-//         let within_bin = match &time_bin {
-//             Some(bin) => bin.state_time_within_bin(result_state, state_model),
-//             None => true,
-//         };
-//         if within_bin {
-//             Some((*v_id, branch.to_owned()))
-//         } else {
-//             None
-//         }
-//     });
-//     let result: Box<dyn Iterator<Item = (VertexId, SearchTreeBranch)> + 'a> =
-//         Box::new(tree_destinations);
-//     result
-// }
-
 pub type DestinationsIter<'a> =
     Box<dyn Iterator<Item = Result<(VertexId, &'a SearchTreeBranch), StateModelError>> + 'a>;
 

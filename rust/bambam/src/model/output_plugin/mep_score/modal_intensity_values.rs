@@ -7,7 +7,6 @@ use std::collections::HashMap;
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
-
 pub enum ModalIntensityValues {
     /// a set of global intensities as a nested lookup table
     ///
