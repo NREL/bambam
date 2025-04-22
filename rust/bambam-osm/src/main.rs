@@ -173,6 +173,4 @@ mod tests {
             Err(e) => panic!("graph write failed: {}", e),
         }
     }
-
 }
-
