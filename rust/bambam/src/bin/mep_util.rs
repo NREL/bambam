@@ -128,7 +128,7 @@ mod tests {
         let result = oppvec::run(
             &String::from("/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"),
             &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/us-places.csv"),
-            &String::from(""),
+            "",
             &oppvec::SourceFormat::LongFormat { geometry_format: oppvec::GeometryFormat::XYColumns { x_column: String::from("longitude"), y_column: String::from("latitude") }, category_column: String::from("activity_type") },
             &[String::from("retail"),String::from("entertainment"),String::from("healthcare"),String::from("services"),String::from("food")],
         );
