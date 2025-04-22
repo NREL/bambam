@@ -47,7 +47,7 @@ impl OpportunitySource {
     /// A collection of Geometries tagged with activity rows.
     pub fn generate_dataset(
         &self,
-        activity_types: &Vec<String>,
+        activity_types: &[String],
     ) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
         match self {
             OpportunitySource::OvertureMapsPlaces {

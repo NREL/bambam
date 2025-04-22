@@ -30,7 +30,6 @@ mod consts {
 }
 
 impl Buffer<f32> for Point<f32> {
-    ///
     fn buffer(
         &self,
         size: (unit::Distance, unit::DistanceUnit),

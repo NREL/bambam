@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
@@ -7,10 +9,10 @@ pub enum OverlayOperation {
     Intersection,
 }
 
-impl ToString for OverlayOperation {
-    fn to_string(&self) -> String {
+impl Display for OverlayOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Intersection => String::from("intersection"),
+            OverlayOperation::Intersection => write!(f, "intersection"),
         }
     }
 }

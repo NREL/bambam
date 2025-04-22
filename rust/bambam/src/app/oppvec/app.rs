@@ -23,7 +23,7 @@ use wkt;
 /// reads in opportunity data from some long-formatted opportunity dataset and aggregates
 /// it to some vertex dataset
 pub fn run(
-    vertices_compass_filename: &String,
+    vertices_compass_filename: &str,
     opportunities_filename: &str,
     output_filename: &str,
     source_format: &SourceFormat,
@@ -31,9 +31,13 @@ pub fn run(
 ) -> Result<(), String> {
     // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
-    let vertices: Box<[Vertex]> =
-        read_utils::from_csv(vertices_compass_filename, true, Some(bar_builder), None)
-            .map_err(|e| format!("{}", e))?;
+    let vertices: Box<[Vertex]> = read_utils::from_csv(
+        &Path::new(vertices_compass_filename),
+        true,
+        Some(bar_builder),
+        None,
+    )
+    .map_err(|e| format!("{}", e))?;
     let spatial_index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
         Some((Distance::from(200.0), DistanceUnit::Meters)),
@@ -282,7 +286,7 @@ pub fn read_opportunity_rows_v2(
     }
 }
 
-fn handle_failure<'a, T, E: ToString>(
+fn handle_failure<T, E: ToString>(
     result: Result<T, E>,
     errors: Arc<Mutex<Vec<String>>>,
 ) -> Option<T> {

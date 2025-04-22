@@ -27,7 +27,7 @@ pub type ClusteredIntersections = GeomWithData<Rectangle<(f32, f32)>, ClusteredG
 /// intersection search for clusters. this performance hit is taken to avoid any edge cases
 /// where manipulation via overlay operations might lead to representation errors.
 pub fn build(
-    geometries: &Vec<(OsmNodeId, Polygon<f32>)>,
+    geometries: &[(OsmNodeId, Polygon<f32>)],
 ) -> Result<RTree<ClusteredIntersections>, String> {
     // intersection performed via RTree.
 

@@ -51,8 +51,7 @@ fn summarize(rows: &Vec<GtfsProvider>) {
                         n_unique_legs += leg_ods.len();
 
                         if let Some(shape_id) = trip.shape_id {
-                            let has_shape = &gtfs.shapes.get(&shape_id).is_some();
-                            if *has_shape {
+                            if gtfs.shapes.contains_key(&shape_id) {
                                 sum += 1;
                             }
                         }
@@ -137,7 +136,7 @@ fn shapes(rows: &Vec<GtfsProvider>) {
     }
 }
 
-fn download(rows: &Vec<GtfsProvider>, parallelism: usize) {
+fn download(rows: &[GtfsProvider], parallelism: usize) {
     let par_16: u16 = parallelism.try_into().unwrap();
     let downloads = rows
         .iter()

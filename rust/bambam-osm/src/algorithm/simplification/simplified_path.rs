@@ -5,7 +5,7 @@ use crate::model::osm::{
     OsmError,
 };
 
-#[derive(Clone, Debug, Eq, Ord)]
+#[derive(Clone, Debug, Eq)]
 pub struct SimplifiedPath {
     pub src_node_id: OsmNodeId,
     pub dst_node_id: OsmNodeId,

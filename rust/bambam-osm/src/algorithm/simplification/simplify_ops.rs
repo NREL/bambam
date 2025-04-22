@@ -55,11 +55,10 @@ fn get_paths_to_simplify(
     graph: &OsmGraph,
     parallelize: bool,
 ) -> Result<Vec<Path3>, OsmError> {
-    let graph_shared = Arc::new(graph);
+    // let graph_shared = Arc::new(graph);
 
     // create pairs of (endpoint, successor)
-    let endpoint_successor_pairs =
-        create_endpoint_successor_pairs(endpoints, graph_shared.clone(), parallelize)?;
+    let endpoint_successor_pairs = create_endpoint_successor_pairs(endpoints, graph, parallelize)?;
 
     // sorted.. for determinism™
     let sort_pairs_iter = tqdm!(
@@ -70,8 +69,7 @@ fn get_paths_to_simplify(
     let sorted_pairs = sort_pairs_iter.collect_vec();
 
     // create simplified paths from (endpoint, successor) pairs
-    let result: Vec<Path3> =
-        find_simplified_paths(&sorted_pairs, endpoints, graph_shared.clone(), parallelize)?;
+    let result: Vec<Path3> = find_simplified_paths(&sorted_pairs, endpoints, graph, parallelize)?;
 
     Ok(result)
 }
@@ -79,7 +77,7 @@ fn get_paths_to_simplify(
 /// finds valid pairs of (endpoint, successor) from which we can call the build_path function.
 fn create_endpoint_successor_pairs<'a>(
     endpoints: &'a HashSet<OsmNodeId>,
-    graph: Arc<&'a OsmGraph>,
+    graph: &'a OsmGraph,
     parallelize: bool,
 ) -> Result<Vec<(&'a OsmNodeId, &'a OsmNodeId)>, OsmError> {
     // create pairs of (endpoint, successor)
@@ -102,7 +100,7 @@ fn create_endpoint_successor_pairs<'a>(
                 if let Ok(mut b) = bar.clone().lock() {
                     let _ = b.update(1);
                 }
-                find_successors_for_endpoint(src, endpoints, graph.clone())
+                find_successors_for_endpoint(src, endpoints, graph)
             })
             .collect::<Vec<(&OsmNodeId, &OsmNodeId)>>();
         eprintln!();
@@ -117,7 +115,7 @@ fn create_endpoint_successor_pairs<'a>(
             total = endpoints.len()
         );
         let pairs = successor_iter
-            .flat_map(|src| find_successors_for_endpoint(src, endpoints, graph.clone()))
+            .flat_map(|src| find_successors_for_endpoint(src, endpoints, graph))
             .collect::<Vec<(&OsmNodeId, &OsmNodeId)>>();
         eprintln!();
         Ok(pairs)
@@ -128,7 +126,7 @@ fn create_endpoint_successor_pairs<'a>(
 fn find_simplified_paths(
     pairs: &Vec<&(&OsmNodeId, &OsmNodeId)>,
     endpoints: &HashSet<OsmNodeId>,
-    graph: Arc<&OsmGraph>,
+    graph: &OsmGraph,
     parallelize: bool,
 ) -> Result<Vec<Path3>, OsmError> {
     // build progress bar
@@ -152,7 +150,7 @@ fn find_simplified_paths(
                 if let Ok(mut b) = bar.clone().lock() {
                     let _ = b.update(1);
                 }
-                build_path(endpoint, successor, endpoints, graph.clone())
+                build_path(endpoint, successor, endpoints, graph)
             })
             .collect::<Result<Vec<_>, _>>()?;
         eprintln!();
@@ -164,7 +162,7 @@ fn find_simplified_paths(
                 if let Ok(mut b) = bar.clone().lock() {
                     let _ = b.update(1);
                 }
-                build_path(endpoint, successor, endpoints, graph.clone())
+                build_path(endpoint, successor, endpoints, graph)
             })
             .collect::<Result<Vec<_>, _>>()?;
         eprintln!();
@@ -292,7 +290,7 @@ fn simplify_way(
 fn find_successors_for_endpoint<'a>(
     endpoint: &'a OsmNodeId,
     endpoints: &HashSet<OsmNodeId>,
-    graph: Arc<&'a OsmGraph>,
+    graph: &'a OsmGraph,
 ) -> Vec<(&'a OsmNodeId, &'a OsmNodeId)> {
     graph
         .neighbor_iterator(endpoint, AdjacencyDirection::Forward)
@@ -360,7 +358,7 @@ fn build_path(
     endpoint: &OsmNodeId,
     endpoint_successor: &OsmNodeId,
     endpoints: &HashSet<OsmNodeId>,
-    graph: Arc<&OsmGraph>,
+    graph: &OsmGraph,
 ) -> Result<Vec<OsmNodeId>, OsmError> {
     // # start building path from endpoint node through its successor
     let mut path = vec![*endpoint, *endpoint_successor];
