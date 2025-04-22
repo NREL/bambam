@@ -6,7 +6,7 @@ use super::{
     },
 };
 use crate::model::output_plugin::mep_score::mep_score_ops;
-use geo::{HaversineLength, LineInterpolatePoint, LineString, Point};
+use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
@@ -86,7 +86,7 @@ pub fn points_along_linestring(
         .convert(&mut stride_internal, &DistanceUnit::Meters)
         .map_err(|e| e.to_string())?;
     let stride_f32 = stride_internal.as_f64() as f32;
-    let line_length_meters = linestring.haversine_length();
+    let line_length_meters = linestring.length(&Haversine);
 
     if line_length_meters < stride_f32 {
         match (linestring.points().next(), linestring.points().last()) {
@@ -106,15 +106,17 @@ pub fn points_along_linestring(
             .map(|point_index| {
                 let distance_to_point = point_index as f32 * stride_f32;
                 let fraction = distance_to_point / line_length_meters;
-                let point = linestring.line_interpolate_point(fraction).ok_or_else(|| {
-                    format!(
-                        "unable to interpolate {}m/{}% into linestring with distance {}: {}",
-                        distance_to_point,
-                        (fraction * 10000.0).trunc() / 100.0,
-                        line_length_meters,
-                        linestring.to_wkt()
-                    )
-                })?;
+                let point = linestring
+                    .point_at_ratio_from_start(&Haversine, fraction)
+                    .ok_or_else(|| {
+                        format!(
+                            "unable to interpolate {}m/{}% into linestring with distance {}: {}",
+                            distance_to_point,
+                            (fraction * 10000.0).trunc() / 100.0,
+                            line_length_meters,
+                            linestring.to_wkt()
+                        )
+                    })?;
                 Ok(point)
             })
             .collect::<Result<Vec<_>, String>>()

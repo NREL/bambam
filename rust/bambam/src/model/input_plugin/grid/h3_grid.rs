@@ -1,6 +1,6 @@
 use super::grid_ops;
 use geo::Centroid;
-use h3o::geom::{PolyfillConfig, ToCells, ToGeo};
+use h3o::geom::{ContainmentMode, SolventBuilder, TilerBuilder};
 use itertools::Itertools;
 use wkt::ToWkt;
 
@@ -9,18 +9,21 @@ pub fn from_polygon_extent(
     template: &serde_json::Value,
     resolution: &h3o::Resolution,
 ) -> Result<Vec<serde_json::Value>, String> {
-    let h3o_polygon = h3o::geom::Polygon::from_degrees(extent.clone())
-        .map_err(|e| format!("failure reading polygon into h3o lib: {}", e))?;
-    let hex_ids = h3o_polygon
-        .to_cells(PolyfillConfig::new(*resolution))
-        .collect_vec();
+    let mut tiler = h3o::geom::TilerBuilder::new(*resolution)
+        .containment_mode(ContainmentMode::IntersectsBoundary)
+        // .with_polygon(extent.clone())
+        .build();
+    tiler
+        .add(extent.clone())
+        .map_err(|e| format!("failure adding extent to h3 tiler: {}", e))?;
 
-    hex_ids
+    let cells = tiler.into_coverage().collect_vec();
+
+    cells
         .into_iter()
         .map(|cell| {
-            let polygon = cell
-                .to_geom(true)
-                .map_err(|e| format!("internal error on CellIndex.to_geom: {}", e))?;
+            let line: geo::LineString = cell.boundary().into();
+            let polygon = geo::Polygon::new(line, vec![]);
             let centroid = polygon.centroid().ok_or_else(|| {
                 format!(
                     "unable to retrieve centroid of polygon: {}",

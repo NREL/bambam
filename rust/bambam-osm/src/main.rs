@@ -54,6 +54,7 @@ pub fn run(app: &App) -> Result<(), OsmCliError> {
                 network_filter: Some(conf.element_filter),
                 component_filter: Some(conf.component_filter),
                 truncate_by_edge: conf.truncate_by_edge,
+                ignore_errors: conf.ignore_osm_parsing_errors,
                 simplify: conf.simplify,
                 consolidate: conf.consolidate,
                 consolidation_threshold,
@@ -156,6 +157,7 @@ mod tests {
             )),
             component_filter: None,
             truncate_by_edge: true,
+            ignore_errors: true,
             simplify: false,
             consolidate: false,
             consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
@@ -171,4 +173,6 @@ mod tests {
             Err(e) => panic!("graph write failed: {}", e),
         }
     }
+
 }
+

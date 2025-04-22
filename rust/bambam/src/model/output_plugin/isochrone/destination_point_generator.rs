@@ -1,4 +1,4 @@
-use geo::{Densify, LineString, MultiPoint, Point};
+use geo::{line_measures::Densifiable, Densify, Haversine, LineString, MultiPoint, Point};
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
@@ -85,7 +85,7 @@ impl DestinationPointGenerator {
                             stride, e
                         ))
                     })?;
-                let dense_linestring = linestring.densify(meters.as_f64() as f32);
+                let dense_linestring = linestring.densify(&Haversine, meters.as_f64() as f32);
                 Ok(dense_linestring.into_points())
             }
             DestinationPointGenerator::BufferedLinestring {

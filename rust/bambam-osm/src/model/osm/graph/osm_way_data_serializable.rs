@@ -88,7 +88,7 @@ impl OsmWayDataSerializable {
         })?;
 
         let linestring = create_linestring_for_od_path(&src_node_id, &dst_node_id, way, graph)?;
-        let length_meters = linestring.length::<Haversine>();
+        let length_meters = Haversine.length(&linestring);
         let highway = top_highway(&way.highway, OsmWayData::VALUE_DELIMITER)?;
         let row = Self {
             osmid: way.osmid,

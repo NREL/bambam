@@ -25,6 +25,7 @@ pub enum OsmSource {
         extent_filter_filepath: Option<String>,
         component_filter: Option<ComponentFilter>,
         truncate_by_edge: bool,
+        ignore_errors: bool,
         simplify: bool,
         consolidate: bool,
         consolidation_threshold: (Distance, DistanceUnit),
@@ -41,6 +42,7 @@ impl OsmSource {
                 extent_filter_filepath,
                 component_filter,
                 truncate_by_edge,
+                ignore_errors,
                 simplify,
                 consolidate,
                 consolidation_threshold,
@@ -56,9 +58,6 @@ impl OsmSource {
                 log::info!("  (((1))) reading PBF source");
                 let (nodes, ways) = import_ops::read_pbf(pbf_filepath, net_ftr, &extent_opt)?;
                 let mut graph = OsmGraph::new(nodes, ways)?;
-
-                // hold aside original nodes for reconstructing the geometries
-                // let original_nodes = graph.nodes.clone();
 
                 // rjf: this is handled above in import_ops::read_pbf for performance reasons
                 // # truncate buffered graph to the buffered polygon and retain_all for
@@ -77,13 +76,13 @@ impl OsmSource {
                 eprintln!();
                 log::info!("  (((2))) truncating graph via connected components filtering");
                 truncation::filter_components(&mut graph, &cc_ftr)?;
-                // # simplify the graph topology
-                // if simplify:
-                // G_buff = simplification.simplify_graph(G_buff)
+
+                let mut apply_second_component_filter = false;
                 if *simplify {
                     eprintln!();
                     log::info!("  (((3))) simplifying graph");
                     simplification::simplify_graph(&mut graph, *parallelize)?;
+                    apply_second_component_filter = true;
                 } else {
                     eprintln!();
                     log::info!("  (((3))) simplifying graph (skipped)");
@@ -98,10 +97,16 @@ impl OsmSource {
                 if let Some(extent) = &extent_opt {
                     eprintln!();
                     log::info!("  (((4))) truncating graph via extent filtering");
-                    truncation::truncate_graph_polygon(&mut graph, extent, *truncate_by_edge)?;
+                    truncation::truncate_graph_polygon(
+                        &mut graph,
+                        extent,
+                        *truncate_by_edge,
+                        *ignore_errors,
+                    )?;
+                    apply_second_component_filter = true;
                 } else {
                     eprintln!();
-                    log::info!("  (((5))) truncating graph via extent filtering (skipped)");
+                    log::info!("  (((4))) truncating graph via extent filtering (skipped)");
                 }
 
                 // # keep only the largest weakly connected component if retain_all is False
@@ -109,9 +114,16 @@ impl OsmSource {
                 // # on the periphery
                 // if not retain_all:
                 // G = truncate.largest_component(G, strongly=False)
-                eprintln!();
-                log::info!("  (((5))) truncating graph via connected components filtering");
-                truncation::filter_components(&mut graph, &cc_ftr)?;
+                if apply_second_component_filter {
+                    eprintln!();
+                    log::info!("  (((5))) truncating graph via connected components filtering");
+                    truncation::filter_components(&mut graph, &cc_ftr)?;
+                } else {
+                    eprintln!();
+                    log::info!(
+                        "  (((5))) truncating graph via connected components filtering (skipped)"
+                    );
+                }
 
                 // if requested, consolidate nodes in the graph
                 if *consolidate {

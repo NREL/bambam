@@ -15,6 +15,7 @@ pub fn truncate_graph_polygon(
     graph: &mut OsmGraph,
     extent: &Geometry<f32>,
     truncate_by_edge: bool,
+    ignore_errors: bool,
 ) -> Result<(), OsmError> {
     // msg = "Identifying all nodes that lie outside the polygon..."
     // utils.log(msg, level=lg.INFO)
@@ -34,9 +35,9 @@ pub fn truncate_graph_polygon(
     }
 
     let n_removed = if truncate_by_edge {
-        truncate_graph_by_edge(graph, extent)?
+        truncate_graph_by_edge(graph, extent, !ignore_errors)?
     } else {
-        truncate_graph_by_node(graph, extent)?
+        truncate_graph_by_node(graph, extent, !ignore_errors)?
     };
 
     let done_msg = if truncate_by_edge {
@@ -60,7 +61,11 @@ pub fn truncate_graph_polygon(
 
 /// removes nodes which are not contained within the extent, but also keep nodes that are connected
 /// via segments to nodes which are within the extent.
-fn truncate_graph_by_edge(graph: &mut OsmGraph, extent: &Geometry<f32>) -> Result<usize, OsmError> {
+fn truncate_graph_by_edge(
+    graph: &mut OsmGraph,
+    extent: &Geometry<f32>,
+    fail_if_missing: bool,
+) -> Result<usize, OsmError> {
     let shared_extent = Arc::new(extent);
     let remove_segments = {
         let shared_graph = Arc::new(&graph);
@@ -90,14 +95,18 @@ fn truncate_graph_by_edge(graph: &mut OsmGraph, extent: &Geometry<f32>) -> Resul
     for (src, dst) in remove_segments.into_iter() {
         // perhaps fail should be "true" but i think there can be duplicates (?), so we
         // would need to be able to account for that.
-        graph.remove_way(&src, &dst, false)?;
+        graph.remove_way(&src, &dst, fail_if_missing)?;
     }
 
     Ok(n_removed)
 }
 
 /// removes nodes that are not contained by the extent.
-fn truncate_graph_by_node(graph: &mut OsmGraph, extent: &Geometry<f32>) -> Result<usize, OsmError> {
+fn truncate_graph_by_node(
+    graph: &mut OsmGraph,
+    extent: &Geometry<f32>,
+    fail_if_missing: bool,
+) -> Result<usize, OsmError> {
     let shared_extent = Arc::new(extent);
     let remove_nodes = {
         let shared_graph = Arc::new(&graph);
@@ -124,7 +133,7 @@ fn truncate_graph_by_node(graph: &mut OsmGraph, extent: &Geometry<f32>) -> Resul
     let n_removed = remove_nodes.len();
 
     for node_id in remove_nodes.into_iter() {
-        graph.disconnect_node(&node_id, true)?;
+        graph.disconnect_node(&node_id, fail_if_missing)?;
     }
 
     Ok(n_removed)

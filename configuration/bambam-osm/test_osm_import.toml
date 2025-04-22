@@ -7,7 +7,7 @@ parallelize = true
 overwrite = true
 
 [component_filter]
-type = "largest"
+type = "keep_all"
 
 [element_filter]
 type = "highway_tags"

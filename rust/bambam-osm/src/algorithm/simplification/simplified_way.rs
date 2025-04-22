@@ -5,7 +5,9 @@ use crate::model::osm::{
     },
     OsmError,
 };
-use geo::{line_string, Coord, Haversine, Length, LineString, Point};
+use geo::{
+    line_measures::LengthMeasurable, line_string, Coord, Haversine, Length, LineString, Point,
+};
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
@@ -73,7 +75,7 @@ impl SimplifiedWay {
         let geometry = LineString::new(linestring_coords);
 
         // find the segment length
-        let length_haversine_f64 = geometry.length::<Haversine>() as f64;
+        let length_haversine_f64 = Haversine.length(&geometry) as f64;
         let mut length = Cow::Owned(Distance::from(length_haversine_f64));
         if let Some(du) = distance_unit {
             DistanceUnit::Meters.convert(&mut length, du).map_err(

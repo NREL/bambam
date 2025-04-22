@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use geo::line_measures::LengthMeasurable;
 use geo::{
     line_string, Centroid, Convert, Coord, CoordFloat, Destination, Distance, GeoFloat, Geometry,
     Haversine, KNearestConcaveHull, Length, LineString, Point, Polygon, Scale, TryConvert,
@@ -77,10 +78,10 @@ fn create_buffer(point: &Point<f64>, radius: f64, resolution: usize) -> Polygon<
 
     for i in 0..=resolution {
         let angle = i as f64 * 360.0 / resolution as f64;
-        let dest = Haversine::destination(*point, angle, radius);
+        let dest = Haversine.destination(*point, angle, radius);
         coordinates.push((dest.x(), dest.y()));
     }
-    let first = Haversine::destination(*point, 0.0, radius);
+    let first = Haversine.destination(*point, 0.0, radius);
     coordinates.push((first.x(), first.y())); // close the circle!
 
     let line_string = LineString::from(coordinates);
@@ -101,10 +102,9 @@ fn create_buffer(point: &Point<f64>, radius: f64, resolution: usize) -> Polygon<
 ///
 /// # Returns
 /// The scaled geometry, a polygon
-pub fn scale_exterior<F, T>(geometry: &Geometry<T>, distance: T) -> Result<Geometry<T>, String>
+pub fn scale_exterior<T>(geometry: &Geometry<T>, distance: T) -> Result<Geometry<T>, String>
 where
     T: FromPrimitive + GeoFloat,
-    F: Distance<T, Point<T>, Point<T>>,
 {
     // find all exterior coordinates
     let exterior: Vec<Coord<T>> = match geometry {
@@ -135,7 +135,7 @@ where
     let mut max_radius: T = T::zero();
     for p in hull.exterior().points() {
         let line: LineString<T> = line_string![centroid.0, p.0];
-        let length = line.length::<F>();
+        let length = Haversine.length(&line);
         if max_radius < length {
             max_radius = length;
         }

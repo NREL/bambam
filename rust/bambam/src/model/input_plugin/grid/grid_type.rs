@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use geo::{Centroid, Geometry};
-use h3o::geom::{PolyfillConfig, ToCells, ToGeo};
+// use h3o::geom::{PolyfillConfig, ToCells, ToGeo};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

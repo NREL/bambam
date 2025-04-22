@@ -18,7 +18,7 @@ impl ExtentFormat {
     pub fn get_extent(&self, input: &mut serde_json::Value) -> Result<Geometry, String> {
         match self {
             ExtentFormat::Wkt => {
-                let extent: wkt::Geometry<f64> = input
+                let extent: Geometry<f64> = input
                     .get_config_serde(&super::EXTENT, &"<root>")
                     .map_err(|e| {
                         format!(

@@ -53,7 +53,7 @@ pub fn read_pbf(
     let ext_buffered_opt = match extent_opt {
         Some(g) => {
             log::info!("buffering extent for initial download filtering");
-            let g_buf = buffer::scale_exterior::<Haversine, _>(g, BUFFER_500M).map_err(|e| {
+            let g_buf = buffer::scale_exterior(g, BUFFER_500M).map_err(|e| {
                 OsmError::ConfigurationError(format!("failure buffering extent: {}", e))
             })?;
             Ok(Some(g_buf))
