@@ -31,9 +31,9 @@ impl FilterQuery {
     pub fn filter(&self, element: &Element<'_>) -> bool {
         let tag = match element {
             Element::Node(node) => node.tags().find(|(k, v)| *k == &self.tag),
-            Element::DenseNode(dense_node) => dense_node.tags().find(|(k, v)| *k == &self.tag),
-            Element::Way(way) => way.tags().find(|(k, v)| *k == &self.tag),
-            Element::Relation(relation) => relation.tags().find(|(k, v)| *k == &self.tag),
+            Element::DenseNode(dense_node) => dense_node.tags().find(|(k, v)| *k == self.tag),
+            Element::Way(way) => way.tags().find(|(k, v)| *k == self.tag),
+            Element::Relation(relation) => relation.tags().find(|(k, v)| *k == self.tag),
         };
         match tag {
             None => false,

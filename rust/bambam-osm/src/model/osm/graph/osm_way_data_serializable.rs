@@ -158,7 +158,7 @@ fn replace_delimiter(value: &Option<String>, delimiter: &'static str) -> Option<
         .map(|v| v.replace(OsmWayData::VALUE_DELIMITER, delimiter))
 }
 
-fn join_node_ids(value: &Vec<OsmNodeId>, delimiter: &'static str) -> Option<String> {
+fn join_node_ids(value: &[OsmNodeId], delimiter: &'static str) -> Option<String> {
     match value[..] {
         [] => None,
         _ => {
@@ -168,7 +168,7 @@ fn join_node_ids(value: &Vec<OsmNodeId>, delimiter: &'static str) -> Option<Stri
     }
 }
 
-fn join_way_ids(value: &Vec<OsmWayId>, delimiter: &'static str) -> Option<String> {
+fn join_way_ids(value: &[OsmWayId], delimiter: &'static str) -> Option<String> {
     match value[..] {
         [] => None,
         _ => {
@@ -235,11 +235,13 @@ fn top_highway(
 
 /// deals with the various ways that the maxspeed key can appear. handles
 /// valid cases such as:
-/// - 45        (45 kph)
-/// - 45 mph    (72.4203 kph)
-/// - walk      (5 kph)
+///   - 45        (45 kph)
+///   - 45 mph    (72.4203 kph)
+///   - walk      (5 kph)
+///
 /// and invalid cases that are documented, such as:
-/// - 45; 80    (takes the smaller of the two, so, 45 kph)
+///   - 45; 80    (takes the smaller of the two, so, 45 kph)
+///
 /// see https://wiki.openstreetmap.org/wiki/Key:maxspeed
 fn deserialize_maxspeed(
     s: &str,
@@ -355,7 +357,7 @@ where
 fn extract_between_nodes<'a>(
     src: &'a OsmNodeId,
     dst: &'a OsmNodeId,
-    nodes: &'a Vec<OsmNodeId>,
+    nodes: &'a [OsmNodeId],
 ) -> Option<&'a [OsmNodeId]> {
     let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
     let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'

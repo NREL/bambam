@@ -386,11 +386,13 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
 
 /// deals with the various ways that the maxspeed key can appear. handles
 /// valid cases such as:
-/// - 45        (45 kph)
-/// - 45 mph    (72.4203 kph)
-/// - walk      (5 kph)
+///   - 45        (45 kph)
+///   - 45 mph    (72.4203 kph)
+///   - walk      (5 kph)
+///
 /// and invalid cases that are documented, such as:
-/// - 45; 80    (takes the smaller of the two, so, 45 kph)
+///   - 45; 80    (takes the smaller of the two, so, 45 kph)
+///
 /// see https://wiki.openstreetmap.org/wiki/Key:maxspeed
 fn deserialize_maxspeed(
     s: &str,
