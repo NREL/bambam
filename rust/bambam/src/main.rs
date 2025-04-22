@@ -15,7 +15,7 @@ fn main() {
     // };
     match run_bambam(args) {
         Ok(_) => {}
-        Err(e) => log::error!("{}", e.to_string()),
+        Err(e) => log::error!("{}", e),
     }
 }
 
@@ -27,7 +27,7 @@ fn run_bambam(args: CliArgs) -> Result<(), CompassAppError> {
     match run::command_line_runner(&args, Some(builder), None) {
         Ok(_) => {}
         Err(e) => {
-            log::error!("{}", e.to_string())
+            log::error!("{}", e)
         }
     }
 
