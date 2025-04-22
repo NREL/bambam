@@ -85,7 +85,7 @@ struct FilterQueueElement {
 
 impl FilterQueueElement {
     /// for largest filtering, we want the smallest values to bubble to the top.
-    pub fn largest(component: &Vec<OsmNodeId>, index: usize) -> FilterQueueElement {
+    pub fn largest(component: &[OsmNodeId], index: usize) -> FilterQueueElement {
         FilterQueueElement {
             // component,
             ord: -(component.len() as i64),
@@ -93,7 +93,7 @@ impl FilterQueueElement {
         }
     }
     /// for smallest filtering, we want the largest values to bubble to the top.
-    pub fn smallest(component: &Vec<OsmNodeId>, index: usize) -> FilterQueueElement {
+    pub fn smallest(component: &[OsmNodeId], index: usize) -> FilterQueueElement {
         FilterQueueElement {
             // component,
             ord: component.len() as i64,

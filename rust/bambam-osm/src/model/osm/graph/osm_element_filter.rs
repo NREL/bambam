@@ -124,11 +124,7 @@ fn osmnx_all_public_filter(e: &Element) -> bool {
     }
 
     // ["service"!~"private"]
-    let service_private = match get_tag(e, "service") {
-        Some(service) if service == "private" => true,
-        _ => false,
-    };
-
+    let service_private = matches!(get_tag(e, "service"), Some(service) if service == "private");
     if service_private {
         log::debug!("['service'~'private']");
         return false;

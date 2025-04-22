@@ -232,18 +232,17 @@ fn generate_simplified_ways(
             .map_err(OsmError::InternalError)?,
     ));
 
-    let shared_graph = Arc::new(graph);
     let result: (Vec<Vec<OsmNodeId>>, Vec<OsmWayData>) = if parallelize {
         paths
             .into_par_iter()
-            .map(|path| simplify_way(path, shared_graph.clone()))
+            .map(|path| simplify_way(path, graph))
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .unzip()
     } else {
         paths
             .iter()
-            .map(|path| simplify_way(path, shared_graph.clone()))
+            .map(|path| simplify_way(path, graph))
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .unzip()
@@ -259,10 +258,7 @@ fn generate_simplified_ways(
 /// produces a simplified [`OsmWayData`] record by aggregating all of the [`OsmWayData`] records
 /// found along the given path. produces the list of interstitial [`OsmNodeId`]s to remove along with the
 /// newly created aggregate [`OsmWayData`].
-fn simplify_way(
-    path: &Path3,
-    graph: Arc<&OsmGraph>,
-) -> Result<(Vec<OsmNodeId>, OsmWayData), OsmError> {
+fn simplify_way(path: &Path3, graph: &OsmGraph) -> Result<(Vec<OsmNodeId>, OsmWayData), OsmError> {
     let ways = path
         .iter()
         .tuple_windows()

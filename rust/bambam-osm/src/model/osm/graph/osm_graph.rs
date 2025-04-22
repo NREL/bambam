@@ -14,6 +14,8 @@ use std::{
 };
 use wkt::ToWkt;
 
+pub type TripletRow<'a> = Result<Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)>, OsmError>;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct OsmGraph {
     /// the collection of OSM nodes associated via their OSMID
@@ -325,14 +327,7 @@ impl OsmGraph {
     pub fn connected_ways_triplet_iterator<'a>(
         &'a self,
         sorted: bool,
-    ) -> Box<
-        dyn Iterator<
-                Item = Result<Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)>, OsmError>,
-            >
-            + 'a
-            + Send
-            + Sync,
-    > {
+    ) -> Box<dyn Iterator<Item = TripletRow<'a>> + 'a + Send + Sync> {
         let iter = tqdm!(
             self.adj.iter().map(|((src, dir), adjacencies)| match dir {
                 Dir::Reverse => Ok(vec![]),

@@ -17,7 +17,7 @@ pub struct FillValueLookup {
 
 impl FillValueLookup {
     pub fn new<'a>(
-        ways: &Vec<OsmWayDataSerializable>,
+        ways: &[OsmWayDataSerializable],
         class_label_field: &str,
         value_field: &str,
         value_op: impl Fn(&OsmWayDataSerializable) -> Result<Option<f64>, OsmError>,
