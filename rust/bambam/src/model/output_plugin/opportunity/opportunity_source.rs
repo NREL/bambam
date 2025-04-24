@@ -6,6 +6,8 @@ use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use bambam_overturemaps::collection::{ api::CollectionRunConfig, OvertureMapsCollectorConfig, TaxonomyModelBuilder };
+
 
 /// an API data source for opportunities.
 #[derive(Serialize, Deserialize)]
@@ -28,8 +30,9 @@ pub enum OpportunitySource {
     /// collects opportunities from <https://docs.overturemaps.org/guides/places/>.
     #[serde(rename = "overture")]
     OvertureMapsPlaces {
-        /// maps from an OvertureMaps Place 'Category' into at least one bambam activity type
-        activity_mapping: HashMap<String, Vec<String>>,
+        taxonomy_mapping: TaxonomyModelBuilder,
+        collector_config: OvertureMapsCollectorConfig,
+        run_config: CollectionRunConfig
     },
 }
 
@@ -51,7 +54,7 @@ impl OpportunitySource {
     ) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
         match self {
             OpportunitySource::OvertureMapsPlaces {
-                activity_mapping: _,
+                ..
             } => todo!(),
             OpportunitySource::UsCensusLehdLodes {
                 activity_mapping,
