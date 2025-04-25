@@ -15,6 +15,8 @@ pub enum ExtentFormat {
 }
 
 impl ExtentFormat {
+    /// Reads `extent` key in the root of the input and parses it into [`Geometry`].
+    /// Currently only implements WKT format
     pub fn get_extent(&self, input: &mut serde_json::Value) -> Result<Geometry, String> {
         match self {
             ExtentFormat::Wkt => 
