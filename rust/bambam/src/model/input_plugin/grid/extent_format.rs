@@ -17,14 +17,13 @@ pub enum ExtentFormat {
 impl ExtentFormat {
     pub fn get_extent(&self, input: &mut serde_json::Value) -> Result<Geometry, String> {
         match self {
-            ExtentFormat::Wkt => input
-                .get_config_serde(&super::EXTENT, &"<root>")
-                .map_err(|e| {
-                    format!(
-                        "failure reading extent, are you sure you submitted a valid WKT?: {}",
-                        e
-                    )
-                }), // todo:
+            ExtentFormat::Wkt => 
+                geo::Geometry::try_from(
+                    input
+                        .get_config_serde::<wkt::Wkt<f64>>(&super::EXTENT, &"<root>")
+                        .map_err(|e| format!("failure reading extent, are you sure you submitted a valid WKT?: {}", e))?
+                ).map_err(|e| format!("failure converting wkt to geo: {}", e))
+                , // todo:
                     //   this fails with an explicit panic: thread 'main' panicked at /Users/rfitzger/.cargo/registry/src/index.crates.io-6f17d22bba15001f/wkb-0.7.1/src/lib.rs:338:14
                     //   which is a peek method checking for big vs little endianness
                     //   but we are somehow getting a value that isn't 1 or 2
