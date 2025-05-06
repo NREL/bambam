@@ -12,6 +12,7 @@ pub mod api;
 pub use record::{PlacesRecord, BuildingsRecord, RecordDataset};
 pub use filter::RowFilter;
 pub use filter::RowFilterConfig;
+pub use filter::Bbox;
 pub use version::ReleaseVersion;
 pub use error::OvertureMapsCollectionError;
 pub use object_source::ObjectStoreSource;

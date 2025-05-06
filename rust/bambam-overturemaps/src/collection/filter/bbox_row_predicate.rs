@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
 use parquet::arrow::arrow_reader::ArrowPredicate;
 use arrow::{array::{Array, BooleanArray, Float32Array, StructArray}, error::ArrowError};
+use super::RowFilterConfig;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct Bbox{
     xmin: f32,
     xmax: f32,
@@ -12,6 +14,12 @@ pub struct Bbox{
 impl Bbox {
     pub fn new(xmin: f32, xmax: f32, ymin: f32, ymax: f32) -> Self{
         Self { xmin, xmax, ymin, ymax }
+    }
+}
+
+impl Into<RowFilterConfig> for Bbox{
+    fn into(self) -> RowFilterConfig {
+        RowFilterConfig::Bbox { xmin: self.xmin, xmax: self.xmax, ymin: self.ymin, ymax: self.ymax }
     }
 }
 
@@ -28,6 +36,7 @@ impl BboxRowPredicate{
         }
     }
 }
+
 
 impl ArrowPredicate for BboxRowPredicate {
     fn projection(&self) -> &parquet::arrow::ProjectionMask {

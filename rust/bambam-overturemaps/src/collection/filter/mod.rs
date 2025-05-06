@@ -5,3 +5,4 @@ mod taxonomy_filter_predicate;
 
 pub use row_filter::RowFilter;
 pub use row_filter::RowFilterConfig;
+pub use bbox_row_predicate::Bbox;

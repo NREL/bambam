@@ -1,4 +1,4 @@
-use super::{source::lodes::lodes_ops, study_region::StudyRegion};
+use super::{source::lodes::lodes_ops, source::overture::overture_ops, study_region::StudyRegion};
 use bamsoda_app::app::lodes_tiger;
 use bamsoda_core::model::identifier::GeoidType;
 use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
@@ -6,7 +6,7 @@ use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use bambam_overturemaps::collection::{ api::CollectionRunConfig, OvertureMapsCollectorConfig, TaxonomyModelBuilder };
+use bambam_overturemaps::collection::{ Bbox, OvertureMapsCollectorConfig, ReleaseVersion };
 
 
 /// an API data source for opportunities.
@@ -30,9 +30,10 @@ pub enum OpportunitySource {
     /// collects opportunities from <https://docs.overturemaps.org/guides/places/>.
     #[serde(rename = "overture")]
     OvertureMapsPlaces {
-        taxonomy_mapping: TaxonomyModelBuilder,
         collector_config: OvertureMapsCollectorConfig,
-        run_config: CollectionRunConfig
+        bbox_boundary: Bbox,
+        activity_mapping: HashMap<String, Vec<String>>,
+        release_version: ReleaseVersion
     },
 }
 
@@ -54,8 +55,25 @@ impl OpportunitySource {
     ) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
         match self {
             OpportunitySource::OvertureMapsPlaces {
-                ..
-            } => todo!(),
+                collector_config,
+                bbox_boundary,
+                activity_mapping,
+                release_version
+            } => {
+                // Instantiate Collection Model Object which re-structures activity mapping
+                // information into a fully functional collection pipeline. This step allows
+                // to reduce repetition in the configuration file by making some assumptions
+                // the filters being used.
+                let colletor_model = overture_ops::OvertureOpportunityCollectionModel::new(
+                    *collector_config,
+                    release_version.clone(),
+                    *bbox_boundary,
+                    activity_mapping.clone()
+                ).map_err(|e| format!("Error creating Overture OpportunityCollectionModel: {e}"))?;
+
+                colletor_model.collect(activity_types)
+                    .map_err(|e| format!("Error during overturemaps collection: {e}"))
+            },
             OpportunitySource::UsCensusLehdLodes {
                 activity_mapping,
                 study_region,

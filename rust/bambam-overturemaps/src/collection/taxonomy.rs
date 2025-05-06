@@ -11,7 +11,20 @@ pub struct TaxonomyModelBuilder{
     source_url: Option<String>
 }
 
+impl From<HashMap<String, Vec<String>>> for TaxonomyModelBuilder{
+    fn from(value: HashMap<String, Vec<String>>) -> Self {
+        Self {
+            activity_mappings: value,
+            source_url: None
+        }
+    }
+}
+
 impl TaxonomyModelBuilder{
+    pub fn new(activity_mappings: HashMap<String, Vec<String>>, source_url: Option<String>) -> Self {
+        Self { activity_mappings: activity_mappings, source_url: source_url }
+    }
+
     pub fn build(&self) -> Result<TaxonomyModel, OvertureMapsCollectionError>{
         // Collect taxonomy records from CSV
         // Create a new thread to handle async operations
@@ -96,7 +109,6 @@ pub struct TaxonomyModel{
     // group_labels: Vec<String>,
     group_mappings: HashMap<String, HashSet<String>>
 }
-
 
 impl TaxonomyModel {
     pub fn new(tree_nodes: Vec<(String, Option<String>)>, group_mappings: HashMap<String, Vec<String>>) -> Self{

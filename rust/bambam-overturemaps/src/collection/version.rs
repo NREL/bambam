@@ -1,4 +1,6 @@
-#[allow(unused)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ReleaseVersion{
     Jan2025,
     Feb2025,

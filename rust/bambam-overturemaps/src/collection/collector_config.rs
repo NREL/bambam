@@ -5,10 +5,9 @@ use super::OvertureMapsCollector;
 use super::OvertureMapsCollectionError;
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct OvertureMapsCollectorConfig{
     obj_store_type: ObjectStoreSource,
-    // row_filter_config: Option<RowFilterConfig>,
     batch_size: usize
 }
 
@@ -16,7 +15,6 @@ impl Default for OvertureMapsCollectorConfig{
     fn default() -> Self {
         Self { 
             obj_store_type: ObjectStoreSource::AmazonS3,
-            // row_filter_config: None,
             batch_size: 4096 * 32 
         }
     }
@@ -25,8 +23,7 @@ impl Default for OvertureMapsCollectorConfig{
 impl OvertureMapsCollectorConfig {
     pub fn new(obj_store_type: ObjectStoreSource, batch_size: usize) -> Self{
         Self { 
-               obj_store_type, 
-            //    row_filter_config: Some(row_filter),
+               obj_store_type,
                batch_size 
             }
     }

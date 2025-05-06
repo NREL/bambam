@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::OvertureMapsCollectionError;
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub enum ObjectStoreSource{
     AmazonS3,
     Azure,

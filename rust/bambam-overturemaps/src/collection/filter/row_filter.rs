@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::collections::HashMap;
 use parquet::arrow::ProjectionMask;
 use parquet::file::metadata::FileMetaData;
 use parquet::arrow::arrow_reader::ArrowPredicate;
@@ -18,6 +19,12 @@ pub enum RowFilterConfig{
     Bbox{ xmin: f32, xmax: f32, ymin: f32, ymax: f32 },
     TaxonomyModel{ taxonomy_builder: TaxonomyModelBuilder },
     Combined {filters: Vec<Box<RowFilterConfig>>}
+}
+
+impl From<HashMap<String, Vec<String>>> for RowFilterConfig{
+    fn from(value: HashMap<String, Vec<String>>) -> Self {
+        RowFilterConfig::TaxonomyModel { taxonomy_builder: TaxonomyModelBuilder::from(value)}
+    }
 }
 
 /// This enum holds all the data to build a predicate
@@ -58,6 +65,18 @@ impl TryFrom<RowFilterConfig> for RowFilter{
                 })
             }
         }
+    }
+}
+
+impl From<Bbox> for RowFilter{
+    fn from(value: Bbox) -> Self {
+        Self::Bbox { bbox: value }
+    }
+}
+
+impl From<TaxonomyModel> for RowFilter{
+    fn from(value: TaxonomyModel) -> Self {
+        Self::TaxonomyModel { taxonomy_model: value }
     }
 }
 
