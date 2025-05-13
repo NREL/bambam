@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{ HashMap, HashSet };
 use parquet::arrow::ProjectionMask;
 use parquet::file::metadata::FileMetaData;
 use parquet::arrow::arrow_reader::ArrowPredicate;
@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::bbox_row_predicate::{Bbox, BboxRowPredicate};
 use super::has_class_row_predicate::HasClassRowPredicate;
+use crate::collection::filter::has_class_in_row_predicate::HasClassInRowPredicate;
 use crate::collection::taxonomy::TaxonomyModel;
 use crate::collection::error::OvertureMapsCollectionError;
 use crate::collection::taxonomy::TaxonomyModelBuilder;
@@ -16,6 +17,7 @@ use crate::collection::filter::taxonomy_filter_predicate::TaxonomyRowPredicate;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum RowFilterConfig{
     HasClass,
+    HasClassIn { classes: HashSet<String> },
     Bbox{ xmin: f32, xmax: f32, ymin: f32, ymax: f32 },
     TaxonomyModel{ taxonomy_builder: TaxonomyModelBuilder },
     Combined {filters: Vec<Box<RowFilterConfig>>}
@@ -33,6 +35,7 @@ impl From<HashMap<String, Vec<String>>> for RowFilterConfig{
 #[derive(Debug, Clone)]
 pub enum RowFilter{
     HasClass,
+    HasClassIn {classes: HashSet<String>},
     Bbox{ bbox: Bbox },
     TaxonomyModel{ taxonomy_model: TaxonomyModel },
     Combined { filters: Vec<Box<RowFilter>> }
@@ -46,6 +49,7 @@ impl TryFrom<RowFilterConfig> for RowFilter{
     
         match value {
             C::HasClass => Ok(Self::HasClass),
+            C::HasClassIn { classes } => Ok(Self::HasClassIn { classes }),
             C::Bbox { xmin, xmax, ymin, ymax } => {
                 Ok(Self::Bbox { bbox: Bbox::new(xmin, xmax, ymin, ymax) })
             },
@@ -85,7 +89,7 @@ impl RowFilter{
     pub fn get_column_projection(&self) -> Vec<String>{
         use RowFilter as R;
         match self{
-            R::HasClass => vec![String::from("class")],
+            R::HasClass | R::HasClassIn { .. } => vec![String::from("class")],
             R::Bbox { .. } => vec![String::from("bbox")],
             R::TaxonomyModel { .. } => vec![String::from("categories")],
             R::Combined { .. } => vec![]
@@ -101,6 +105,16 @@ impl RowFilter{
                 Ok(vec![
                     Box::new(
                         HasClassRowPredicate::new(
+                            ProjectionMask::columns(metadata.schema_descr(), column_projection.iter().map(|s| s.as_str()))
+                        )
+                    )
+                ])
+            },
+            R::HasClassIn { classes } => {
+                Ok(vec![
+                    Box::new(
+                        HasClassInRowPredicate::new(
+                            classes.clone(),
                             ProjectionMask::columns(metadata.schema_descr(), column_projection.iter().map(|s| s.as_str()))
                         )
                     )

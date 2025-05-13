@@ -65,7 +65,7 @@ impl OpportunitySource {
                 // Instantiate Collection Model Object which re-structures activity mapping
                 // information into a fully functional collection pipeline. This step allows
                 // to reduce repetition in the configuration file by making some assumptions
-                // the filters being used.
+                // about the filters being used.
                 let colletor_model = overture_ops::OvertureOpportunityCollectionModel::new(
                     *collector_config,
                     release_version.clone(),

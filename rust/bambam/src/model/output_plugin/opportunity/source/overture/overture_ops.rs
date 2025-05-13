@@ -8,6 +8,14 @@ use serde::{Deserialize, Serialize};
 use bambam_overturemaps::collection::{ Bbox, BuildingsRecord, OvertureMapsCollectionError, OvertureMapsCollector, PlacesRecord, RecordDataset };
 use bambam_overturemaps::collection::{ OvertureMapsCollectorConfig, TaxonomyModelBuilder, TaxonomyModel, RowFilterConfig, ReleaseVersion};
 
+/// Model object that encapsulates the logic of
+/// retrieving Places and Buildings data according
+/// to the specified parameters, filtering, matching
+/// and formatting into a collection of Opportunities.
+/// 
+/// The attributes of this struct are the realized instances
+/// of the objects required for this operation, built from 
+/// the configuration file.
 #[derive(Debug)]
 pub struct OvertureOpportunityCollectionModel{
     collector: OvertureMapsCollector,
@@ -19,7 +27,19 @@ pub struct OvertureOpportunityCollectionModel{
 }
 
 impl OvertureOpportunityCollectionModel {
-
+    /// Create a new instance of [`OvertureOpportunityCollectionModel`] from serializable arguments
+    /// 
+    /// # Arguments
+    /// 
+    /// * collector_config - Configuration of the [`bambam_overturemaps::collection::OvertureMapsCollector`] to be used
+    /// * release_version - OvertureMaps Release version (<https://docs.overturemaps.org/release/>),
+    /// * bbox_boundary - Bounding box boundary for query,
+    /// * places_activity_mappings - Mapping from MEP activity types to OvertureMaps categories for places dataset,
+    /// * buildings_activity_mappings - Mapping from MEP activity types to OvertureMaps classes for buildings dataset
+    ///
+    /// # Returns
+    ///
+    /// A built instance of [`OvertureOpportunityCollectionModel`] 
     pub fn new(
         collector_config: OvertureMapsCollectorConfig,
         release_version: ReleaseVersion,
@@ -37,7 +57,9 @@ impl OvertureOpportunityCollectionModel {
         let buildings_row_filter_config = RowFilterConfig::Combined {
             filters: vec![
                 Box::new(RowFilterConfig::from(bbox_boundary)),
-                Box::new(RowFilterConfig::HasClass)
+                Box::new(RowFilterConfig::HasClassIn {
+                    classes: HashSet::from_iter(buildings_activity_mappings.values().cloned().flatten())
+                })
             ]
         };
         
