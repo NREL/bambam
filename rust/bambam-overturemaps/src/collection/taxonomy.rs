@@ -41,7 +41,7 @@ impl TaxonomyModelBuilder{
         }).collect::<Vec<(String, Option<String>)>>();
 
         // Cloning here too expensive?
-        Ok(TaxonomyModel::new(processed_tree_nodes, self.activity_mappings.clone()))
+        Ok(TaxonomyModel::from_tree_nodes(processed_tree_nodes, self.activity_mappings.clone()))
     }
 
     pub fn get_mappings(&self) -> HashMap<String, Vec<String>>{
@@ -111,7 +111,7 @@ pub struct TaxonomyModel{
 }
 
 impl TaxonomyModel {
-    pub fn new(tree_nodes: Vec<(String, Option<String>)>, group_mappings: HashMap<String, Vec<String>>) -> Self{
+    pub fn from_tree_nodes(tree_nodes: Vec<(String, Option<String>)>, group_mappings: HashMap<String, Vec<String>>) -> Self{
         // Build category tree with nodes
         let category_tree = CategoryTree::new(tree_nodes);
         
@@ -129,6 +129,12 @@ impl TaxonomyModel {
         }
     }
 
+    /// This constructor receives a complete mapping, it does not expand
+    /// from a CategoryTree
+    pub fn from_mapping(mapping: HashMap<String, HashSet<String>>) -> Self {
+        Self { group_mappings: mapping }
+    }
+
     /// Compute the union of all mappings. Useful to filter points as those are retrieved from an external source.
     pub fn get_unique_categories(&self) -> HashSet<String>{
         let mut result = HashSet::<String>::new();
@@ -138,7 +144,7 @@ impl TaxonomyModel {
         result
     }
 
-    pub fn reverse_map(&self, categories: Vec<String>, group_labels: Vec<String>) -> Result<Vec<Vec<bool>>, OvertureMapsCollectionError>{
+    pub fn reverse_map(&self, categories: &Vec<String>, group_labels: Vec<String>) -> Result<Vec<Vec<bool>>, OvertureMapsCollectionError>{
         categories.iter().map(|category| {
             group_labels.iter().map(|group|{
                 Ok::<bool, OvertureMapsCollectionError>(

@@ -32,4 +32,6 @@ pub enum OvertureMapsCollectionError{
     TokioError(String),
     #[error("Group Mapping operation Failed: {0}")]
     GroupMappingError(String),
+    #[error("Processing records into opportunities failed: {0}")]
+    ProcessingError(String),
 }

@@ -17,11 +17,12 @@ impl Bbox {
     }
 }
 
-impl Into<RowFilterConfig> for Bbox{
-    fn into(self) -> RowFilterConfig {
-        RowFilterConfig::Bbox { xmin: self.xmin, xmax: self.xmax, ymin: self.ymin, ymax: self.ymax }
+impl From<Bbox> for RowFilterConfig{
+    fn from(value: Bbox) -> Self {
+        RowFilterConfig::Bbox { xmin: value.xmin, xmax: value.xmax, ymin: value.ymin, ymax: value.ymax }
     }
 }
+
 
 pub struct BboxRowPredicate{
     bbox: Bbox,

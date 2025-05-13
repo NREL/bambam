@@ -32,7 +32,8 @@ pub enum OpportunitySource {
     OvertureMapsPlaces {
         collector_config: OvertureMapsCollectorConfig,
         bbox_boundary: Bbox,
-        activity_mapping: HashMap<String, Vec<String>>,
+        places_activity_mapping: HashMap<String, Vec<String>>,
+        buildings_activity_mapping: HashMap<String, Vec<String>>,
         release_version: ReleaseVersion
     },
 }
@@ -57,7 +58,8 @@ impl OpportunitySource {
             OpportunitySource::OvertureMapsPlaces {
                 collector_config,
                 bbox_boundary,
-                activity_mapping,
+                places_activity_mapping,
+                buildings_activity_mapping,
                 release_version
             } => {
                 // Instantiate Collection Model Object which re-structures activity mapping
@@ -68,7 +70,8 @@ impl OpportunitySource {
                     *collector_config,
                     release_version.clone(),
                     *bbox_boundary,
-                    activity_mapping.clone()
+                    places_activity_mapping.clone(),
+                    buildings_activity_mapping.clone()
                 ).map_err(|e| format!("Error creating Overture OpportunityCollectionModel: {e}"))?;
 
                 colletor_model.collect(activity_types)

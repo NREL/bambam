@@ -42,3 +42,14 @@ impl RecordDataset for BuildingsRecord{
         format!("release/{release_str}/theme=buildings/type=building/").to_owned()
     }
 }
+
+impl BuildingsRecord{
+
+    pub fn get_class(&self) -> Option<String>{
+        self.class.clone()
+    }
+
+    pub fn get_geometry(&self) -> Option<Geometry>{
+        self.geometry.clone()
+    }
+}
