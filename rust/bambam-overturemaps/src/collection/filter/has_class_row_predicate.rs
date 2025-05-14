@@ -35,7 +35,6 @@ impl ArrowPredicate for HasClassRowPredicate {
             )))?;
 
         let boolean_values: Vec<bool> = (0..class_array.len())
-            .into_iter()
             .map(|i| !class_array.value(i).is_empty())
             .collect();
         Ok(BooleanArray::from(boolean_values))

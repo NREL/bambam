@@ -66,7 +66,7 @@ impl OvertureOpportunityCollectionModel {
                 Box::new(RowFilterConfig::from(bbox_boundary)),
                 Box::new(RowFilterConfig::HasClassIn {
                     classes: HashSet::from_iter(
-                        buildings_activity_mappings.values().cloned().flatten(),
+                        buildings_activity_mappings.values().flatten().cloned(),
                     ),
                 }),
             ],
@@ -74,11 +74,11 @@ impl OvertureOpportunityCollectionModel {
 
         Ok(Self {
             collector: OvertureMapsCollector::try_from(collector_config)?,
-            release_version: release_version,
+            release_version,
             places_row_filter_config: Some(places_row_filter_config),
             buildings_row_filter_config: Some(buildings_row_filter_config),
             places_taxonomy_model: taxonomy_model,
-            buildings_activity_mappings: buildings_activity_mappings,
+            buildings_activity_mappings,
         })
     }
 
@@ -100,7 +100,7 @@ impl OvertureOpportunityCollectionModel {
                 .map(|(i, (geom, _))| (geom.clone(), i))
                 .collect::<Vec<(Geometry, usize)>>(),
         )
-        .map_err(|e| OvertureMapsCollectionError::ProcessingError(e))?;
+        .map_err(OvertureMapsCollectionError::ProcessingError)?;
 
         // For each building, we are going to:
         //  1. Compute the intersection with places points
@@ -143,7 +143,7 @@ impl OvertureOpportunityCollectionModel {
             })
             .filter_map(Result::transpose)
             .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| OvertureMapsCollectionError::ProcessingError(e))?;
+            .map_err(OvertureMapsCollectionError::ProcessingError)?;
 
         println!(
             "Number of useful building records: {}",
@@ -151,7 +151,7 @@ impl OvertureOpportunityCollectionModel {
         );
 
         // Merge places_opportunities + buildings.centroid
-        places_opportunities.extend(filtered_buildings.into_iter());
+        places_opportunities.extend(filtered_buildings);
 
         Ok(places_opportunities
             .into_par_iter()
@@ -220,7 +220,7 @@ impl OvertureOpportunityCollectionModel {
             self.buildings_activity_mappings
                 .clone()
                 .into_iter()
-                .map(|(key, vec)| (key, HashSet::from_iter(vec.into_iter())))
+                .map(|(key, vec)| (key, HashSet::from_iter(vec)))
                 .collect(),
         );
 

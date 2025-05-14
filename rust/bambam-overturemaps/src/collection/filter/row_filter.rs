@@ -133,7 +133,7 @@ impl RowFilter {
                 ),
             ))]),
             R::Bbox { bbox } => Ok(vec![Box::new(BboxRowPredicate::new(
-                bbox.clone(),
+                *bbox,
                 ProjectionMask::columns(
                     metadata.schema_descr(),
                     column_projection.iter().map(|s| s.as_str()),
@@ -147,7 +147,7 @@ impl RowFilter {
                 ),
             ))]),
             R::Combined { filters } => Ok(filters
-                .into_iter()
+                .iter()
                 .map(|f| f.build(metadata))
                 .collect::<Result<Vec<Vec<Box<dyn ArrowPredicate>>>, OvertureMapsCollectionError>>(
                 )?

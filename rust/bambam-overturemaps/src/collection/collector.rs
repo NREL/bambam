@@ -40,7 +40,7 @@ impl OvertureMapsCollector {
         Self {
             obj_store: object_store,
             // row_filter_config: row_filter_config,
-            batch_size: batch_size,
+            batch_size,
         }
     }
 

@@ -26,8 +26,8 @@ impl TaxonomyModelBuilder {
         source_url: Option<String>,
     ) -> Self {
         Self {
-            activity_mappings: activity_mappings,
-            source_url: source_url,
+            activity_mappings,
+            source_url,
         }
     }
 
@@ -53,7 +53,7 @@ impl TaxonomyModelBuilder {
                 if parents.len() < 2 {
                     return (category, None);
                 };
-                return (category, Some(parents[parents.len() - 2].to_owned()));
+                (category, Some(parents[parents.len() - 2].to_owned()))
             })
             .collect::<Vec<(String, Option<String>)>>();
 
@@ -232,7 +232,7 @@ impl CategoryTree {
 
             // If parent is None, we ignore this entry
             if let Some(parent_label) = parent {
-                let parent_node = tree.entry(parent_label.clone()).or_insert(vec![]);
+                let parent_node = tree.entry(parent_label.clone()).or_default();
                 parent_node.push(category);
             }
             // We only need to take care of the second to last one
@@ -280,6 +280,6 @@ impl CategoryTree {
             .collect();
 
         // Make a HashSet with the linearized query
-        HashSet::from_iter(query.into_iter().chain(linearized_children.into_iter()))
+        HashSet::from_iter(query.into_iter().chain(linearized_children))
     }
 }
