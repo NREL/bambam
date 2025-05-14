@@ -1,4 +1,5 @@
 use super::{source::lodes::lodes_ops, source::overture::overture_ops, study_region::StudyRegion};
+use bambam_overturemaps::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
 use bamsoda_app::app::lodes_tiger;
 use bamsoda_core::model::identifier::GeoidType;
 use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
@@ -6,8 +7,6 @@ use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use bambam_overturemaps::collection::{ Bbox, OvertureMapsCollectorConfig, ReleaseVersion };
-
 
 /// an API data source for opportunities.
 #[derive(Serialize, Deserialize)]
@@ -34,7 +33,7 @@ pub enum OpportunitySource {
         bbox_boundary: Bbox,
         places_activity_mapping: HashMap<String, Vec<String>>,
         buildings_activity_mapping: HashMap<String, Vec<String>>,
-        release_version: ReleaseVersion
+        release_version: ReleaseVersion,
     },
 }
 
@@ -60,7 +59,7 @@ impl OpportunitySource {
                 bbox_boundary,
                 places_activity_mapping,
                 buildings_activity_mapping,
-                release_version
+                release_version,
             } => {
                 // Instantiate Collection Model Object which re-structures activity mapping
                 // information into a fully functional collection pipeline. This step allows
@@ -71,12 +70,14 @@ impl OpportunitySource {
                     release_version.clone(),
                     *bbox_boundary,
                     places_activity_mapping.clone(),
-                    buildings_activity_mapping.clone()
-                ).map_err(|e| format!("Error creating Overture OpportunityCollectionModel: {e}"))?;
+                    buildings_activity_mapping.clone(),
+                )
+                .map_err(|e| format!("Error creating Overture OpportunityCollectionModel: {e}"))?;
 
-                colletor_model.collect(activity_types)
+                colletor_model
+                    .collect(activity_types)
                     .map_err(|e| format!("Error during overturemaps collection: {e}"))
-            },
+            }
             OpportunitySource::UsCensusLehdLodes {
                 activity_mapping,
                 study_region,

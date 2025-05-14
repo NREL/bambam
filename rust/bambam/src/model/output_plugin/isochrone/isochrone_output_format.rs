@@ -39,13 +39,11 @@ impl IsochroneOutputFormat {
                         ))
                     })?;
 
-                Ok(
-                    out_bytes
-                        .iter()
-                        .map(|b| format!("{:02X?}", b))
-                        .collect::<Vec<String>>()
-                        .join("")
-                )
+                Ok(out_bytes
+                    .iter()
+                    .map(|b| format!("{:02X?}", b))
+                    .collect::<Vec<String>>()
+                    .join(""))
             }
             IsochroneOutputFormat::GeoJson => {
                 let geometry = geojson::Geometry::from(geometry);

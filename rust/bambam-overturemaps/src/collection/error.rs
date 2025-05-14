@@ -1,23 +1,17 @@
 use parquet::errors::ParquetError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum OvertureMapsCollectionError{
+pub enum OvertureMapsCollectionError {
     #[error("Failed to connect to S3 Bucket: {0}")]
     ConnectionError(String),
     #[error("Failed to acquire Metadata: {0}")]
     MetadataError(String),
     #[error("Failed to create ArrowBuilder instance: {source}")]
-    ArrowReaderError{
-        source: ParquetError
-    },
+    ArrowReaderError { source: ParquetError },
     #[error("Failed to create Parquet Stream instance: {source}")]
-    ParquetRecordBatchStreamError{
-        source: ParquetError
-    },
+    ParquetRecordBatchStreamError { source: ParquetError },
     #[error("Failed to retrieve Record Batch from source: {source}")]
-    RecordBatchRetrievalError{
-        source: ParquetError
-    },
+    RecordBatchRetrievalError { source: ParquetError },
     #[error("Failed to deserialize RecordBatch into native type record: {0}")]
     DeserializeError(String),
     #[error("Failed to get a valid response from URL: {0}")]

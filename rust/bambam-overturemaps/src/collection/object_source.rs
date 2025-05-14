@@ -1,19 +1,18 @@
-use std::sync::Arc;
 use object_store::{aws::AmazonS3Builder, ObjectStore};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use super::OvertureMapsCollectionError;
 
-
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
-pub enum ObjectStoreSource{
+pub enum ObjectStoreSource {
     AmazonS3,
     Azure,
-    FileSystem
+    FileSystem,
 }
 
-impl ObjectStoreSource{
-    pub fn build(&self) -> Result<Arc<dyn ObjectStore>, OvertureMapsCollectionError>{
+impl ObjectStoreSource {
+    pub fn build(&self) -> Result<Arc<dyn ObjectStore>, OvertureMapsCollectionError> {
         match self {
             ObjectStoreSource::AmazonS3 => {
                 let object_store = AmazonS3Builder::new()
@@ -24,7 +23,7 @@ impl ObjectStoreSource{
                     .map_err(|e| OvertureMapsCollectionError::ConnectionError(e.to_string()))?;
 
                 Ok(Arc::new(object_store))
-            },
+            }
             ObjectStoreSource::Azure => todo!(),
             ObjectStoreSource::FileSystem => todo!(),
         }

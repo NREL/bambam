@@ -31,7 +31,7 @@ pub enum OpportunityModelConfig {
         table_orientation: OpportunityTableOrientation,
     },
     /// This collection of opportunities comes from an API.
-    /// 
+    ///
     /// # Fields
     /// - `vertex_input_file`: Path to CSV file containing the input vertices for the Opportunity Model.
     /// Should match the CSV file used for constructing the traversal model graph.
