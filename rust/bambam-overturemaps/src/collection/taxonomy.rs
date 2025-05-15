@@ -217,13 +217,6 @@ impl CategoryTree {
     /// * `nodes` - Vector of cateogry, parent node relationships. All nodes are
     ///             expected to be represented by strings. If no parent is given,
     ///             i.e. the second element is None, the entry is ignored
-    ///
-    ///             Example input:
-    ///                 [("restaurant", "eat_and_drink"), ("chilean_restaurant", "restaurant"), ("burger_restaurant", "restaurant"), ("eat_and_drink", None)]
-    ///             Example output tree:
-    ///                 eat_and_drink -> restaurant -> chilean_restaurant
-    ///                                           |
-    ///                                           ---> burger_restaurant
     fn new(nodes: Vec<(String, Option<String>)>) -> Self {
         let mut tree: HashMap<String, Vec<String>> = HashMap::new();
 
