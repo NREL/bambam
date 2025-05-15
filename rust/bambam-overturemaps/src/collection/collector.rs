@@ -119,14 +119,14 @@ impl OvertureMapsCollector {
             streams.push(stream);
         }
 
-        println!("Started collection");
+        log::info!("Started collection");
         let start_collection = Instant::now();
         let result_vec = runtime.block_on(
             stream::iter(streams)
                 .flatten_unordered(None)
                 .collect::<Vec<_>>(),
         );
-        println!("Collection time {:?}", start_collection.elapsed());
+        log::info!("Collection time {:?}", start_collection.elapsed());
 
         let records: Vec<Vec<D::Record>> = result_vec
             .into_iter()
@@ -135,11 +135,11 @@ impl OvertureMapsCollector {
             .into_par_iter()
             .map(deserialize_batch::<D::Record>)
             .collect::<Result<Vec<_>, OvertureMapsCollectionError>>()?;
-        println!("Deserialization time {:?}", start_collection.elapsed());
+        log::info!("Deserialization time {:?}", start_collection.elapsed());
 
         // Flatten the collection
         let flatten_records = records.into_iter().flatten().collect();
-        println!("Total time {:?}", start_collection.elapsed());
+        log::info!("Total time {:?}", start_collection.elapsed());
         Ok(flatten_records)
     }
 

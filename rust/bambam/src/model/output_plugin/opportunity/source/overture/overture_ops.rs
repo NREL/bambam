@@ -145,7 +145,7 @@ impl OvertureOpportunityCollectionModel {
             .collect::<Result<Vec<_>, String>>()
             .map_err(OvertureMapsCollectionError::ProcessingError)?;
 
-        println!(
+        log::debug!(
             "Number of useful building records: {}",
             filtered_buildings.len()
         );
@@ -167,7 +167,7 @@ impl OvertureOpportunityCollectionModel {
             self.release_version.clone(),
             self.places_row_filter_config.clone(),
         )?;
-        println!("Total places records {}", places_records.len());
+        log::info!("Total places records {}", places_records.len());
 
         // Compute MEP category vectors
         let mep_vectors = map_taxonomy_model(
@@ -179,7 +179,7 @@ impl OvertureOpportunityCollectionModel {
             activity_types,
         )?;
 
-        println!(
+        log::info!(
             "Total opportunities per category {:?}",
             (0..mep_vectors[0].len())
                 .map(|i| mep_vectors.iter().map(|row| row[i] as i16 as f64).sum())
@@ -192,7 +192,7 @@ impl OvertureOpportunityCollectionModel {
             .map(|record| record.get_geometry())
             .collect();
 
-        println!(
+        log::debug!(
             "Non-empty geometries: {:?}",
             mep_geometries
                 .iter()
@@ -229,7 +229,7 @@ impl OvertureOpportunityCollectionModel {
             self.release_version.clone(),
             self.buildings_row_filter_config.clone(),
         )?;
-        println!("Total buildings records {}", buildings_records.len());
+        log::info!("Total buildings records {}", buildings_records.len());
 
         // Compute MEP category vectors
         let mep_vectors = map_taxonomy_model(
@@ -242,7 +242,7 @@ impl OvertureOpportunityCollectionModel {
             activity_types,
         )?;
 
-        println!(
+        log::info!(
             "Total opportunities per category {:?}",
             (0..mep_vectors[0].len())
                 .map(|i| mep_vectors.iter().map(|row| row[i] as i16 as f64).sum())
