@@ -83,12 +83,12 @@ impl OvertureMapsCollector {
 
         // Get the latest date from tuples
         version_tuples.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        Ok(version_tuples
+        version_tuples
             .pop()
             .ok_or(OvertureMapsCollectionError::ConnectionError(String::from(
                 "No version tuples generated while getting latest version string",
             )))
-            .map(|(_, v)| v)?)
+            .map(|(_, v)| v)
     }
 
     pub fn collect_from_path<D: RecordDataset>(
