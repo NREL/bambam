@@ -242,6 +242,13 @@ impl OvertureOpportunityCollectionModel {
             activity_types,
         )?;
 
+        println!(
+            "Total opportunities per category {:?}",
+            (0..mep_vectors[0].len())
+                .map(|i| mep_vectors.iter().map(|row| row[i] as i16 as f64).sum())
+                .collect::<Vec<f64>>()
+        );
+
         // Collect geometries
         let mep_geometries: Vec<Option<Geometry>> = buildings_records
             .par_iter()
