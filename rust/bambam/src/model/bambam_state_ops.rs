@@ -1,7 +1,7 @@
 use super::traversal::time_delay::time_delay_lookup::TimeDelayLookup;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{StateFeature, StateModel, StateModelError, StateVariable},
+    state::{OutputFeature, StateModel, StateModelError, StateVariable},
     traversal::TraversalModelError,
     unit::{Distance, DistanceUnit, Speed, SpeedUnit, Time, TimeUnit},
 };
@@ -20,27 +20,30 @@ pub mod field {
 
 /// the default set of state features used by different MEP traversal
 /// models, where time is assumed in minutes and distance in miles.
-pub fn default_state_features() -> Vec<(String, StateFeature)> {
+pub fn default_state_features() -> Vec<(String, OutputFeature)> {
     vec![
         (
             String::from(field::ARRIVAL_DELAY),
-            StateFeature::Time {
+            OutputFeature::Time {
                 time_unit: TimeUnit::Minutes,
                 initial: Time::ZERO,
+                accumulator: false,
             },
         ),
         (
             String::from(field::TRAVERSAL_TIME),
-            StateFeature::Time {
+            OutputFeature::Time {
                 time_unit: TimeUnit::Minutes,
                 initial: Time::ZERO,
+                accumulator: true,
             },
         ),
         (
             String::from(field::DISTANCE),
-            StateFeature::Distance {
+            OutputFeature::Distance {
                 distance_unit: DistanceUnit::Miles,
                 initial: Distance::ZERO,
+                accumulator: true,
             },
         ),
     ]
@@ -52,9 +55,10 @@ pub fn get_reachability_time_minutes(
     state: &[StateVariable],
     state_model: &StateModel,
 ) -> Result<Time, StateModelError> {
-    let traversal =
-        state_model.get_time(state, &field::TRAVERSAL_TIME.into(), &TimeUnit::Minutes)?;
-    let arrival = state_model.get_time(state, &field::ARRIVAL_DELAY.into(), &TimeUnit::Minutes)?;
+    let (traversal, _) =
+        state_model.get_time(state, &field::TRAVERSAL_TIME, Some(&TimeUnit::Minutes))?;
+    let (arrival, _) =
+        state_model.get_time(state, &field::ARRIVAL_DELAY, Some(&TimeUnit::Minutes))?;
 
     Ok(traversal + arrival)
 }
@@ -85,19 +89,14 @@ pub fn default_mep_traversal(
 
     state_model.add_distance(
         state,
-        &field::DISTANCE.into(),
+        &field::DISTANCE,
         &edge.distance,
         &DistanceUnit::Meters,
     )?;
 
     let (traversal_time, time_unit) =
         Time::create((&edge.distance, &DistanceUnit::Meters), (speed, speed_unit))?;
-    state_model.add_time(
-        state,
-        &field::TRAVERSAL_TIME.into(),
-        &traversal_time,
-        &time_unit,
-    )?;
+    state_model.add_time(state, &field::TRAVERSAL_TIME, &traversal_time, &time_unit)?;
 
     assign_arrival_delay(dst, state, state_model, arrival_delay)?;
 
@@ -112,7 +111,7 @@ pub fn assign_arrival_delay(
     delay_lookup: &Option<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
     if let Some((delay, tu)) = get_delay(dst, delay_lookup) {
-        state_model.add_time(state, &field::TRAVERSAL_TIME.into(), &delay, tu)?
+        state_model.add_time(state, &field::TRAVERSAL_TIME, &delay, tu)?
     };
     Ok(())
 }
@@ -127,11 +126,11 @@ pub fn assign_departure_delay(
     state_model: &StateModel,
     delay_lookup: &Option<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
-    let initial_distance =
-        state_model.get_distance(state, &field::DISTANCE.into(), &DistanceUnit::Meters)?;
+    let (initial_distance, _) =
+        state_model.get_distance(state, &field::DISTANCE, Some(&DistanceUnit::Meters))?;
     if initial_distance == Distance::ZERO {
         if let Some((delay, tu)) = get_delay(src, delay_lookup) {
-            state_model.add_time(state, &field::TRAVERSAL_TIME.into(), &delay, tu)?;
+            state_model.add_time(state, &field::TRAVERSAL_TIME, &delay, tu)?;
         }
     }
     Ok(())

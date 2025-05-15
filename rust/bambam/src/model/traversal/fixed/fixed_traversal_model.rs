@@ -2,7 +2,7 @@ use super::fixed_traversal_engine::FixedTraversalEngine;
 use crate::model::bambam_state_ops;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{StateFeature, StateModel, StateVariable},
+    state::{InputFeature, OutputFeature, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::sync::Arc;
@@ -13,8 +13,12 @@ pub struct FixedTraversalModel {
 }
 
 impl TraversalModel for FixedTraversalModel {
-    fn state_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, OutputFeature)> {
         bambam_state_ops::default_state_features()
+    }
+
+    fn input_features(&self) -> Vec<(String, InputFeature)> {
+        vec![]
     }
 
     /// computes the cost of traversing a link for some fixed-speed

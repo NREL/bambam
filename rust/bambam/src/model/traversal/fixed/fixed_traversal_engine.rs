@@ -1,8 +1,14 @@
+use std::sync::Arc;
+
 use crate::model::traversal::time_delay::time_delay_lookup::TimeDelayLookup;
 use routee_compass_core::{
     config::{CompassConfigurationField, ConfigJsonExtensions},
     model::{
-        traversal::TraversalModelError,
+        access::default::CombinedAccessModel,
+        traversal::{
+            default::{combined::CombinedTraversalModel, distance::DistanceTraversalModel},
+            TraversalModel, TraversalModelError,
+        },
         unit::{DistanceUnit, Speed, SpeedUnit, TimeUnit},
     },
 };
@@ -50,6 +56,10 @@ impl FixedTraversalEngine {
             Some(Ok(delays)) => Ok(Some(delays)),
             None => Ok(None),
         }?;
+
+        let dist: Arc<dyn TraversalModel> = Arc::new(DistanceTraversalModel::new(distance_unit));
+        let speed = Arc::new() 
+        let model = CombinedTraversalModel::new(vec![dist]);
 
         let engine = FixedTraversalEngine {
             mode,
