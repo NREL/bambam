@@ -223,6 +223,7 @@ impl OvertureOpportunityCollectionModel {
                 .map(|(key, vec)| (key, HashSet::from_iter(vec)))
                 .collect(),
         );
+        let arc_buildings_taxonomy = Arc::new(buildings_taxonomy_model);
 
         // Use the collector to retrieve buildings data
         let buildings_records = self.collector.collect_from_release::<BuildingsRecord>(
@@ -233,7 +234,7 @@ impl OvertureOpportunityCollectionModel {
 
         // Compute MEP category vectors
         let mep_vectors = map_taxonomy_model(
-            self.places_taxonomy_model.clone(),
+            arc_buildings_taxonomy,
             buildings_records
                 .iter()
                 .filter_map(|record| record.get_class())
