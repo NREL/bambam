@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// OvertureMaps release identifiers
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ReleaseVersion {
     Jan2025,
     Feb2025,
     Mar2025,
+    Apr2025,
     Latest,
     Custom { version: String },
 }
@@ -15,6 +17,7 @@ impl From<ReleaseVersion> for String {
             ReleaseVersion::Jan2025 => "2025-01-22.0".into(),
             ReleaseVersion::Feb2025 => "2025-02-19.0".into(),
             ReleaseVersion::Mar2025 => "2025-03-19.0".into(),
+            ReleaseVersion::Apr2025 => "2025-04-23.0".into(),
             ReleaseVersion::Custom { version } => version,
             ReleaseVersion::Latest => "latest".into(),
         }

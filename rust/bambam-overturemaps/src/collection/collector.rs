@@ -1,9 +1,9 @@
 use arrow::array::RecordBatch;
 use arrow::json::writer::JsonArray;
 use arrow::json::WriterBuilder;
+use chrono::NaiveDate;
 use futures::stream::{self, StreamExt};
-use object_store::path::Path;
-use object_store::{ObjectMeta, ObjectStore};
+use object_store::{path::Path, ListResult, ObjectMeta, ObjectStore};
 use parquet::arrow::arrow_reader::ArrowPredicate;
 use parquet::arrow::async_reader::ParquetObjectReader;
 use parquet::arrow::async_reader::ParquetRecordBatchStreamBuilder;
@@ -19,7 +19,8 @@ use super::ReleaseVersion;
 use super::RowFilter;
 use super::RowFilterConfig;
 
-#[allow(unused)]
+/// Stores the initialized object store and allows to collect
+/// records by `collect_from_release` and `collect_from_path`
 #[derive(Debug)]
 pub struct OvertureMapsCollector {
     obj_store: Arc<dyn ObjectStore>,
@@ -34,18 +35,63 @@ impl TryFrom<OvertureMapsCollectorConfig> for OvertureMapsCollector {
     }
 }
 
-#[allow(unused)]
 impl OvertureMapsCollector {
     pub fn new(object_store: Arc<dyn ObjectStore>, batch_size: usize) -> Self {
         Self {
             obj_store: object_store,
-            // row_filter_config: row_filter_config,
             batch_size,
         }
     }
 
     fn get_latest_release(&self) -> Result<String, OvertureMapsCollectionError> {
-        Ok("2025-02-19.0".to_string())
+        // Get runtime to consume async functions
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| {
+                OvertureMapsCollectionError::TokioError(format!(
+                    "failure creating async rust tokio runtime: {}",
+                    e
+                ))
+            })?;
+
+        // Get the folder names for all releases
+        let common_path = Path::from("release/");
+        let ListResult {
+            common_prefixes, ..
+        } = runtime
+            .block_on(self.obj_store.list_with_delimiter(Some(&common_path)))
+            .map_err(|e| {
+                OvertureMapsCollectionError::ConnectionError(format!(
+                    "Could not retrieve list of folders to get latest OvertureMaps release: {}",
+                    e
+                ))
+            })?;
+
+        // Process all common prefixes to find latest date
+        let mut version_tuples: Vec<(NaiveDate, String)> = common_prefixes
+            .iter()
+            .filter_map(|p| {
+                let clean_str = p
+                    .to_string()
+                    .strip_prefix("release/")?
+                    .to_string();
+                
+                let mut string_parts = clean_str.split(".");
+                let date_part = NaiveDate::parse_from_str(string_parts.next()?, "%Y-%m-%d").ok()?;
+
+                Some((date_part, clean_str))
+            })
+            .collect();
+
+        // Get the latest date from tuples
+        version_tuples.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        Ok(version_tuples
+            .pop()
+            .ok_or(OvertureMapsCollectionError::ConnectionError(String::from(
+                "No version tuples generated while getting latest version string",
+            )))
+            .map(|(_, v)| v)?)
     }
 
     pub fn collect_from_path<D: RecordDataset>(
@@ -86,7 +132,7 @@ impl OvertureMapsCollector {
             // println!("File Name: {}, Size: {}", meta.location, meta.size);
 
             // Parquet objects in charge of processing the incoming stream
-            let mut reader = ParquetObjectReader::new(self.obj_store.clone(), meta.location)
+            let reader = ParquetObjectReader::new(self.obj_store.clone(), meta.location)
                 .with_runtime(io_runtime.handle().clone());
             let builder = runtime
                 .block_on(ParquetRecordBatchStreamBuilder::new(reader))
@@ -152,6 +198,7 @@ impl OvertureMapsCollector {
             ReleaseVersion::Latest => self.get_latest_release()?,
             other => String::from(other),
         };
+        log::info!("Collecting OvertureMaps records from release {}", release_str);
         let path = Path::from(D::format_url(release_str));
         self.collect_from_path::<D>(path, row_filter_config)
     }

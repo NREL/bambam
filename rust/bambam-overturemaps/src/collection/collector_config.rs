@@ -4,6 +4,8 @@ use super::ObjectStoreSource;
 use super::OvertureMapsCollectionError;
 use super::OvertureMapsCollector;
 
+/// Serializable configuration for OvertureMapsCollector Object.
+/// Builds to a [`OvertureMapsCollector`]
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct OvertureMapsCollectorConfig {
     obj_store_type: ObjectStoreSource,
