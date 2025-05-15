@@ -63,7 +63,7 @@ impl DestinationPointGenerator {
     ) -> Result<Vec<Point<f32>>, OutputPluginError> {
         match self {
             DestinationPointGenerator::DestinationPoint => {
-                let last_point = linestring.points().last().ok_or_else(|| {
+                let last_point = linestring.points().next_back().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
                         "geometry for edge_id {} has no points",
                         edge_id,
