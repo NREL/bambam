@@ -145,7 +145,7 @@ impl OvertureOpportunityCollectionModel {
             .collect::<Result<Vec<_>, String>>()
             .map_err(OvertureMapsCollectionError::ProcessingError)?;
 
-        log::debug!(
+        log::info!(
             "Number of useful building records: {}",
             filtered_buildings.len()
         );
