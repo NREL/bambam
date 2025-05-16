@@ -126,7 +126,7 @@ impl OvertureMapsCollector {
         // Instantiate Stream Builders
         let mut streams = vec![];
         for meta in meta_objects {
-            // println!("File Name: {}, Size: {}", meta.location, meta.size);
+            log::debug!("File Name: {}, Size: {}", meta.location, meta.size);
 
             // Parquet objects in charge of processing the incoming stream
             let reader = ParquetObjectReader::new(self.obj_store.clone(), meta.location)

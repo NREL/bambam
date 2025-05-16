@@ -139,9 +139,6 @@ impl TaxonomyModel {
         // Build category tree with nodes
         let category_tree = CategoryTree::new(tree_nodes);
 
-        // Extract activity types
-        // let activity_fields: Vec<String> = group_mappings.keys().into_iter().cloned().collect::<Vec<String>>();
-
         // Linearize each query
         let activity_mappings = group_mappings
             .into_iter()

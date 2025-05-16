@@ -32,7 +32,7 @@ pub enum OpportunitySource {
         collector_config: OvertureMapsCollectorConfig,
         bbox_boundary: Bbox,
         places_activity_mapping: HashMap<String, Vec<String>>,
-        buildings_activity_mapping: HashMap<String, Vec<String>>,
+        buildings_activity_mapping: Option<HashMap<String, Vec<String>>>,
         release_version: ReleaseVersion,
     },
 }
