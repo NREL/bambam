@@ -2,7 +2,7 @@ use super::{super::super::bambam_state_ops, schedule_traversal_engine::ScheduleT
 use chrono::{DateTime, Utc};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomFeatureFormat, StateFeature, StateVariable},
+    state::{CustomFeatureFormat, InputFeature, OutputFeature, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::sync::Arc;
@@ -14,16 +14,21 @@ pub struct ScheduleTraversalModel {
 }
 
 impl TraversalModel for ScheduleTraversalModel {
-    fn state_features(&self) -> Vec<(String, StateFeature)> {
+    fn input_features(&self) -> Vec<(String, InputFeature)> {
+        vec![]
+    }
+
+    fn output_features(&self) -> Vec<(String, OutputFeature)> {
         let mut features = bambam_state_ops::default_state_features();
         features.push((
             String::from(bambam_state_ops::field::ROUTE_ID),
-            StateFeature::Custom {
+            OutputFeature::Custom {
                 r#type: String::from("route id"),
                 unit: String::from("signed integer"),
                 format: CustomFeatureFormat::SignedInteger {
                     initial: bambam_state_ops::field::EMPTY_ROUTE_ID,
                 },
+                accumulator: false,
             },
         ));
         features
