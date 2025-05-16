@@ -17,22 +17,23 @@ use std::rc::Rc;
 
 use super::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
 use super::traversal::fixed_speed::FixedSpeedBuilder;
+use super::traversal::time_delay::TripArrivalDelayBuilder;
+use super::traversal::time_delay::TripDepartureDelayBuilder;
 
 pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
     let mut builder = compass_tomtom::builder::tomtom_builder();
 
-    // traversal models
-    let fixed_speed_key = String::from("fixed_speed");
-    let _scheduled_key = String::from("scheduled");
-    let switch_key = String::from("switch");
-
     // MEP Traversal Models
     let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedSpeedBuilder {});
+    let departure_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripDepartureDelayBuilder {});
+    let arrival_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripArrivalDelayBuilder {});
 
     let switch_model: Rc<dyn TraversalModelBuilder> =
         Rc::new(SwitchTraversalBuilder::new(HashMap::from([])));
-    builder.add_traversal_model(fixed_speed_key.clone(), fixed_speed_model);
-    builder.add_traversal_model(switch_key.clone(), switch_model.clone());
+    builder.add_traversal_model(String::from("fixed_speed"), fixed_speed_model);
+    builder.add_traversal_model(String::from("switch"), switch_model.clone());
+    builder.add_traversal_model(String::from("departure"), departure_model);
+    builder.add_traversal_model(String::from("arrival"), arrival_model);
 
     // MEP Frontier Models
     let no_restriction: Rc<dyn FrontierModelBuilder> = Rc::new(NoRestrictionBuilder {});

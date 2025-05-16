@@ -1,4 +1,4 @@
-use super::traversal::time_delay::time_delay_lookup::TimeDelayLookup;
+use super::traversal::time_delay::TimeDelayLookup;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
     state::{OutputFeature, StateModel, StateModelError, StateVariable},

@@ -1,10 +1,14 @@
-use super::{delay_aggregation_type::DelayAggregationType, time_delay_record::TimeDelayRecord};
+use super::{
+    delay_aggregation_type::DelayAggregationType, time_delay_record::TimeDelayRecord,
+    TimeDelayConfig,
+};
 use crate::util::geo_utils;
 use geo::{Geometry, Point};
 use kdam::Bar;
 use routee_compass_core::{
     config::{CompassConfigurationError, ConfigJsonExtensions},
     model::{
+        network::Vertex,
         traversal::TraversalModelError,
         unit::{Time, TimeUnit},
     },
@@ -14,47 +18,16 @@ use rstar::{RTree, AABB};
 use std::path::Path;
 
 pub struct TimeDelayLookup {
-    lookup: RTree<TimeDelayRecord>,
-    time_unit: TimeUnit,
-    agg: DelayAggregationType,
+    pub lookup: RTree<TimeDelayRecord>,
+    pub config: TimeDelayConfig,
 }
 
 impl TimeDelayLookup {
-    /// builds a new lookup function for zonal time delays at either trip departure or arrival
-    ///
-    /// # Arguments
-    ///
-    /// * `lookup_file` - file containing geometries tagged with time values
-    /// * `access_type` - "departure" or "arrival" data
-    /// * `time_unit`   - time unit in source data
-    ///
-    /// # Returns
-    ///
-    /// * an object that can be used to lookup time delay values, or an error
-    pub fn new(
-        lookup_file: &Path,
-        time_unit: TimeUnit,
-        agg: DelayAggregationType,
-    ) -> Result<TimeDelayLookup, TraversalModelError> {
-        let data: Box<[TimeDelayRecord]> = read_utils::from_csv(
-            &lookup_file,
-            true,
-            Some(Bar::builder().desc("time delay lookup")),
-            None,
-        )
-        .map_err(|e| {
-            TraversalModelError::BuildError(format!(
-                "failure reading time delay rows from {}: {}",
-                lookup_file.to_str().unwrap_or_default(),
-                e
-            ))
-        })?;
-        let lookup = RTree::bulk_load(data.to_vec());
-        Ok(TimeDelayLookup {
-            lookup,
-            time_unit,
-            agg,
-        })
+    /// helper function for finding delays from graph vertices. in the case of multiple overlapping
+    /// delay polygons, the first is selected.
+    pub fn get_delay_for_vertex<'a>(&self, lookup_vertex: &Vertex) -> Option<(Time, TimeUnit)> {
+        let g = geo::Geometry::Point(geo::Point(lookup_vertex.coordinate.0));
+        self.find_first_delay(&g).map(|(t, tu)| (t, *tu))
     }
 
     /// gets a delay value from this lookup function and returns it in the base time unit.
@@ -79,7 +52,7 @@ impl TimeDelayLookup {
                 .next();
             lookup_result
         });
-        result.map(|t| (t.time, &self.time_unit))
+        result.map(|t| (t.time, &self.config.time_unit))
     }
 
     /// gets a delay value from this lookup function and returns it in the base time unit.
@@ -103,14 +76,14 @@ impl TimeDelayLookup {
                 .locate_in_envelope_intersecting(&envelope)
                 .map(|record| record.time)
                 .collect();
-            self.agg.apply(values)
+            self.config.aggregation.apply(values)
         });
-        time.map(|t| (t, &self.time_unit))
+        time.map(|t| (t, &self.config.time_unit))
     }
 }
 
-impl TryFrom<&serde_json::Value> for TimeDelayLookup {
-    type Error = CompassConfigurationError;
+impl TryFrom<TimeDelayConfig> for TimeDelayLookup {
+    type Error = TraversalModelError;
 
     /// builds a new lookup function for zonal time delays at either trip departure or arrival
     ///
@@ -121,15 +94,20 @@ impl TryFrom<&serde_json::Value> for TimeDelayLookup {
     /// # Returns
     ///
     /// * an object that can be used to lookup time delay values, or an error
-    fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
-        let parent_key = String::from("time delay lookup");
-        let lookup_file = value.get_config_path(&String::from("lookup_file"), &parent_key)?;
-        let time_unit =
-            value.get_config_serde::<TimeUnit>(&String::from("time_unit"), &parent_key)?;
-        let agg = value
-            .get_config_serde_optional::<DelayAggregationType>(&"aggregation", &parent_key)?
-            .unwrap_or_default();
-        let lookup = TimeDelayLookup::new(&lookup_file, time_unit, agg)?;
-        Ok(lookup)
+    fn try_from(config: TimeDelayConfig) -> Result<Self, Self::Error> {
+        let data: Box<[TimeDelayRecord]> = read_utils::from_csv(
+            &config.lookup_file,
+            true,
+            Some(Bar::builder().desc("time delay lookup")),
+            None,
+        )
+        .map_err(|e| {
+            TraversalModelError::BuildError(format!(
+                "failure reading time delay rows from {}: {}",
+                config.lookup_file, e
+            ))
+        })?;
+        let lookup = RTree::bulk_load(data.to_vec());
+        Ok(TimeDelayLookup { lookup, config })
     }
 }

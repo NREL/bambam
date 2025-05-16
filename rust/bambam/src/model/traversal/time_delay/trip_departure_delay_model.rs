@@ -1,0 +1,96 @@
+use crate::model::fieldname;
+
+use super::TimeDelayLookup;
+use routee_compass_core::model::{
+    network::{Edge, Vertex},
+    state::{InputFeature, OutputFeature, StateModel, StateVariable},
+    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+    unit::{Distance, Time},
+};
+use std::sync::Arc;
+
+/// assigns time delays for trips that have a delay from the start of their trip.
+/// for within-trip delays assigned to beginning travel in a mode, use a delay
+/// during mode switch instead (doesn't exist yet)
+pub struct TripDepartureDelayModel(Arc<TimeDelayLookup>);
+
+impl TripDepartureDelayModel {
+    pub fn new(lookup: Arc<TimeDelayLookup>) -> TripDepartureDelayModel {
+        TripDepartureDelayModel(lookup)
+    }
+}
+
+impl TraversalModelService for TripDepartureDelayModel {
+    fn build(
+        &self,
+        query: &serde_json::Value,
+    ) -> Result<Arc<dyn TraversalModel>, TraversalModelError> {
+        let model: Arc<dyn TraversalModel> = Arc::new(Self::new(self.0.clone()));
+        Ok(model)
+    }
+}
+
+impl TraversalModel for TripDepartureDelayModel {
+    fn input_features(&self) -> Vec<(String, InputFeature)> {
+        vec![]
+    }
+
+    fn output_features(&self) -> Vec<(String, OutputFeature)> {
+        vec![
+            (
+                fieldname::TRIP_TIME.to_string(),
+                OutputFeature::Time {
+                    time_unit: self.0.config.time_unit,
+                    initial: Time::ZERO,
+                    accumulator: false,
+                },
+            ),
+            (
+                fieldname::TRIP_DEPARTURE_DELAY.to_string(),
+                OutputFeature::Time {
+                    time_unit: self.0.config.time_unit,
+                    initial: Time::ZERO,
+                    accumulator: false,
+                },
+            ),
+        ]
+    }
+
+    fn traverse_edge(
+        &self,
+        trajectory: (&Vertex, &Edge, &Vertex),
+        state: &mut Vec<StateVariable>,
+        state_model: &StateModel,
+    ) -> Result<(), TraversalModelError> {
+        let (origin, _, _) = trajectory;
+        add_delay_time(origin, state, state_model, self.0.clone())
+    }
+
+    fn estimate_traversal(
+        &self,
+        od: (&Vertex, &Vertex),
+        state: &mut Vec<StateVariable>,
+        state_model: &StateModel,
+    ) -> Result<(), TraversalModelError> {
+        let (origin, _) = od;
+        add_delay_time(origin, state, state_model, self.0.clone())
+    }
+}
+
+/// if trip is departing from the origin, apply the trip departure delay.
+fn add_delay_time(
+    origin: &Vertex,
+    state: &mut Vec<StateVariable>,
+    state_model: &StateModel,
+    lookup: Arc<TimeDelayLookup>,
+) -> Result<(), TraversalModelError> {
+    let (distance, _) = state_model.get_distance(state, fieldname::TRIP_DISTANCE, None)?;
+    if distance == Distance::ZERO {
+        return Ok(());
+    }
+    if let Some((delay, delay_unit)) = lookup.get_delay_for_vertex(origin) {
+        state_model.set_time(state, fieldname::TRIP_DEPARTURE_DELAY, &delay, &delay_unit)?;
+        state_model.add_time(state, fieldname::TRIP_TIME, &delay, &delay_unit)?;
+    }
+    Ok(())
+}
