@@ -29,7 +29,7 @@ pub struct OvertureOpportunityCollectionModel {
     places_row_filter_config: Option<RowFilterConfig>,
     buildings_row_filter_config: Option<RowFilterConfig>,
     places_taxonomy_model: Arc<TaxonomyModel>,
-    buildings_activity_mappings: Option<HashMap<String, Vec<String>>>
+    buildings_activity_mappings: Option<HashMap<String, Vec<String>>>,
 }
 
 impl OvertureOpportunityCollectionModel {
@@ -61,18 +61,17 @@ impl OvertureOpportunityCollectionModel {
                 Box::new(RowFilterConfig::from(places_activity_mappings)),
             ],
         };
-        let buildings_row_filter_config = buildings_activity_mappings.clone().map(|mappings|
-            RowFilterConfig::Combined {
-                filters: vec![
-                    Box::new(RowFilterConfig::from(bbox_boundary)),
-                    Box::new(RowFilterConfig::HasClassIn {
-                        classes: HashSet::from_iter(
-                            mappings.values().flatten().cloned(),
-                        ),
-                    }),
-                ],
-            }
-        );
+        let buildings_row_filter_config =
+            buildings_activity_mappings
+                .clone()
+                .map(|mappings| RowFilterConfig::Combined {
+                    filters: vec![
+                        Box::new(RowFilterConfig::from(bbox_boundary)),
+                        Box::new(RowFilterConfig::HasClassIn {
+                            classes: HashSet::from_iter(mappings.values().flatten().cloned()),
+                        }),
+                    ],
+                });
 
         Ok(Self {
             collector: OvertureMapsCollector::try_from(collector_config)?,
@@ -93,9 +92,10 @@ impl OvertureOpportunityCollectionModel {
         // Collect raw opportunities
         let mut places_opportunities = self.collect_places_opportunities(activity_types)?;
 
-        if let Some(building_mappings) = &self.buildings_activity_mappings{
-            let buildings_opportunities = self.collect_building_opportunities(activity_types, building_mappings)?;
-    
+        if let Some(building_mappings) = &self.buildings_activity_mappings {
+            let buildings_opportunities =
+                self.collect_building_opportunities(activity_types, building_mappings)?;
+
             // Build RTree for places
             let rtree = PolygonalRTree::new(
                 places_opportunities
@@ -105,7 +105,7 @@ impl OvertureOpportunityCollectionModel {
                     .collect::<Vec<(Geometry, usize)>>(),
             )
             .map_err(OvertureMapsCollectionError::ProcessingError)?;
-    
+
             // For each building, we are going to:
             //  1. Compute the intersection with places points
             //  2. Compare the MEP vectors
@@ -126,7 +126,7 @@ impl OvertureOpportunityCollectionModel {
                             }
                             acc
                         });
-    
+
                     // TODO: This logic potentially duplicates an opportunity, but was the logic implemented by the researchers
                     // Compare node (Places) MEP vector to building MEP vector
                     // We want to know if for any MEP category of the building is not contained in the points
@@ -135,10 +135,10 @@ impl OvertureOpportunityCollectionModel {
                         .iter()
                         .zip(places_mep_agg)
                         .any(|(b_flag, p_flag)| b_flag & !p_flag);
-    
+
                     // Compute centroid if available
                     let centroid = building.0.centroid();
-    
+
                     Ok::<_, String>(if keep_building {
                         centroid.map(|p| (p.into(), building.1))
                     } else {
@@ -148,12 +148,12 @@ impl OvertureOpportunityCollectionModel {
                 .filter_map(Result::transpose)
                 .collect::<Result<Vec<_>, String>>()
                 .map_err(OvertureMapsCollectionError::ProcessingError)?;
-    
+
             log::info!(
                 "Number of useful building records: {}",
                 filtered_buildings.len()
             );
-    
+
             // Merge places_opportunities + buildings.centroid
             places_opportunities.extend(filtered_buildings);
         }
@@ -219,7 +219,7 @@ impl OvertureOpportunityCollectionModel {
     fn collect_building_opportunities(
         &self,
         activity_types: &[String],
-        buildings_activity_mappings: &HashMap<String, Vec<String>>
+        buildings_activity_mappings: &HashMap<String, Vec<String>>,
     ) -> Result<Vec<(Geometry, Vec<bool>)>, OvertureMapsCollectionError> {
         // Build the taxonomy model from the mapping by transforming the vectors into HashSets
         let buildings_taxonomy_model = TaxonomyModel::from_mapping(
