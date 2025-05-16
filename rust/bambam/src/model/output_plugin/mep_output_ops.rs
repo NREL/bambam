@@ -63,7 +63,7 @@ pub fn points_along_linestring(
     let line_length_meters = linestring.length(&Haversine);
 
     if line_length_meters < stride_f32 {
-        match (linestring.points().next(), linestring.points().last()) {
+        match (linestring.points().next(), linestring.points().next_back()) {
             (Some(first), Some(last)) => Ok(vec![first, last]),
             _ => Err(format!(
                 "invalid linestring, should have at least two points: {:?}",

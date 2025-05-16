@@ -56,9 +56,9 @@ pub fn get_reachability_time_minutes(
     state_model: &StateModel,
 ) -> Result<Time, StateModelError> {
     let (traversal, _) =
-        state_model.get_time(state, &field::TRAVERSAL_TIME, Some(&TimeUnit::Minutes))?;
+        state_model.get_time(state, field::TRAVERSAL_TIME, Some(&TimeUnit::Minutes))?;
     let (arrival, _) =
-        state_model.get_time(state, &field::ARRIVAL_DELAY, Some(&TimeUnit::Minutes))?;
+        state_model.get_time(state, field::ARRIVAL_DELAY, Some(&TimeUnit::Minutes))?;
 
     Ok(traversal + arrival)
 }
@@ -89,14 +89,14 @@ pub fn default_mep_traversal(
 
     state_model.add_distance(
         state,
-        &field::DISTANCE,
+        field::DISTANCE,
         &edge.distance,
         &DistanceUnit::Meters,
     )?;
 
     let (traversal_time, time_unit) =
         Time::create((&edge.distance, &DistanceUnit::Meters), (speed, speed_unit))?;
-    state_model.add_time(state, &field::TRAVERSAL_TIME, &traversal_time, &time_unit)?;
+    state_model.add_time(state, field::TRAVERSAL_TIME, &traversal_time, &time_unit)?;
 
     assign_arrival_delay(dst, state, state_model, arrival_delay)?;
 
@@ -111,7 +111,7 @@ pub fn assign_arrival_delay(
     delay_lookup: &Option<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
     if let Some((delay, tu)) = get_delay(dst, delay_lookup) {
-        state_model.add_time(state, &field::TRAVERSAL_TIME, &delay, tu)?
+        state_model.add_time(state, field::TRAVERSAL_TIME, &delay, tu)?
     };
     Ok(())
 }
@@ -127,10 +127,10 @@ pub fn assign_departure_delay(
     delay_lookup: &Option<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
     let (initial_distance, _) =
-        state_model.get_distance(state, &field::DISTANCE, Some(&DistanceUnit::Meters))?;
+        state_model.get_distance(state, field::DISTANCE, Some(&DistanceUnit::Meters))?;
     if initial_distance == Distance::ZERO {
         if let Some((delay, tu)) = get_delay(src, delay_lookup) {
-            state_model.add_time(state, &field::TRAVERSAL_TIME, &delay, tu)?;
+            state_model.add_time(state, field::TRAVERSAL_TIME, &delay, tu)?;
         }
     }
     Ok(())
