@@ -77,7 +77,7 @@ impl OvertureOpportunityCollectionModel {
             collector: OvertureMapsCollector::try_from(collector_config)?,
             release_version,
             places_row_filter_config: Some(places_row_filter_config),
-            buildings_row_filter_config: buildings_row_filter_config,
+            buildings_row_filter_config,
             places_taxonomy_model: taxonomy_model,
             buildings_activity_mappings,
         })
