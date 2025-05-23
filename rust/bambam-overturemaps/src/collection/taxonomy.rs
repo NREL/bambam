@@ -69,7 +69,6 @@ impl TaxonomyModelBuilder {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
 struct TaxonomyCSVRecord {
     #[serde(rename = "Category code")]

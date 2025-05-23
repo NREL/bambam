@@ -112,7 +112,7 @@ impl OvertureOpportunityCollectionModel {
             //  3. If the building has a category not contained in the places data
             //     we return it as a new opportunity. Otherwise we skip it.
             let mut filtered_buildings: Vec<(Geometry, Vec<bool>)> = buildings_opportunities
-                .into_par_iter()
+                .into_iter()
                 .map(|building| {
                     // Aggregate the values of all matching points into a single MEP vector
                     let places_mep_agg = rtree
@@ -159,7 +159,7 @@ impl OvertureOpportunityCollectionModel {
         }
 
         Ok(places_opportunities
-            .into_par_iter()
+            .into_iter()
             .map(|(g, vec)| (g, vec.into_iter().map(|v| v as i16 as f64).collect()))
             .collect())
     }
@@ -193,7 +193,7 @@ impl OvertureOpportunityCollectionModel {
 
         // Collect POI geometries
         let mep_geometries: Vec<Option<Geometry>> = places_records
-            .into_par_iter()
+            .into_iter()
             .map(|record| record.get_geometry())
             .collect();
 
@@ -258,7 +258,7 @@ impl OvertureOpportunityCollectionModel {
 
         // Collect geometries
         let mep_geometries: Vec<Option<Geometry>> = buildings_records
-            .par_iter()
+            .iter()
             .map(|record| record.get_geometry())
             .collect();
 
@@ -282,7 +282,7 @@ fn map_taxonomy_model(
     group_labels: &[String],
 ) -> Result<Vec<Vec<bool>>, OvertureMapsCollectionError> {
     categories
-        .par_iter()
+        .iter()
         .map(|category_vec| {
             Ok(
                 taxonomy_model
@@ -295,10 +295,6 @@ fn map_taxonomy_model(
                         acc
                     })
                     .unwrap_or_default(), // Map bool to f64 - it is easier to merge different datasets like this
-                                          // TODO: Is this limiting in any capacity?
-                                          // .into_par_iter()
-                                          // .map(|v| v as i16 as f64)
-                                          // .collect::<Vec<f64>>()
             )
         })
         .collect()

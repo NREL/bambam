@@ -1,25 +1,41 @@
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 /// OvertureMaps release identifiers
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub enum ReleaseVersion {
-    Jan2025,
-    Feb2025,
-    Mar2025,
-    Apr2025,
+    #[default]
     Latest,
-    Custom { version: String },
+    Monthly {
+        datetime: NaiveDate,
+        version: Option<u8>,
+    },
 }
 
 impl From<ReleaseVersion> for String {
     fn from(version: ReleaseVersion) -> Self {
         match version {
-            ReleaseVersion::Jan2025 => "2025-01-22.0".into(),
-            ReleaseVersion::Feb2025 => "2025-02-19.0".into(),
-            ReleaseVersion::Mar2025 => "2025-03-19.0".into(),
-            ReleaseVersion::Apr2025 => "2025-04-23.0".into(),
-            ReleaseVersion::Custom { version } => version,
+            ReleaseVersion::Monthly { datetime, version } => {
+                format!("{}.{}", datetime.format("%Y-%m-%d"), version.unwrap_or(0)).to_string()
+            }
             ReleaseVersion::Latest => "latest".into(),
         }
+    }
+}
+
+impl From<&ReleaseVersion> for String {
+    fn from(version: &ReleaseVersion) -> Self {
+        match version {
+            ReleaseVersion::Monthly { datetime, version } => {
+                format!("{}.{}", datetime.format("%Y-%m-%d"), version.unwrap_or(0)).to_string()
+            }
+            ReleaseVersion::Latest => "latest".into(),
+        }
+    }
+}
+
+impl std::fmt::Display for ReleaseVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(self))
     }
 }

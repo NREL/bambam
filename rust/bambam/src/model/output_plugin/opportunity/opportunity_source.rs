@@ -33,6 +33,7 @@ pub enum OpportunitySource {
         bbox_boundary: Bbox,
         places_activity_mapping: HashMap<String, Vec<String>>,
         buildings_activity_mapping: Option<HashMap<String, Vec<String>>>,
+        #[serde(default)]
         release_version: ReleaseVersion,
     },
 }
