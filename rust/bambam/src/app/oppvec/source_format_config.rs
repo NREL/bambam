@@ -13,6 +13,7 @@ pub enum SourceFormatConfig {
     LongFormat {
         geometry_format: GeometryFormat,
         category_column: String,
+        count_column: Option<String>,
     },
     // OvertureMaps {
     //     geometry_column: Option<String>,
@@ -25,35 +26,13 @@ pub enum SourceFormatConfig {
     },
 }
 
-impl SourceFormatConfig {
-    fn description(&self) -> String {
-        match self {
-            SourceFormatConfig::LongFormat {
-                geometry_format: _,
-                category_column: _,
-            } => String::from("long format data contains one opportunity count per row"),
-            // SourceFormatConfig::OvertureMaps {
-            //     geometry_column: _,
-            //     category_column: _,
-            // } => String::from(
-            //     r#"overture_maps category format is a json object with root parent at '.alternate[0]' position,
-            //         which is the most general category for this entry. for example, a
-            //         record with primary entry 'elementary_school' will have a '.alternate[0]' value of 'school'"#,
-            // ),
-            SourceFormatConfig::WideFormat {
-                geometry_format: _,
-                column_mapping: _,
-            } => String::from("wide format data contains aggregated opportunity counts per row"),
-        }
-    }
-}
-
 impl std::fmt::Display for SourceFormatConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SourceFormatConfig::LongFormat {
                 geometry_format,
                 category_column,
+                count_column,
             } => {
                 write!(
                     f,

@@ -2,6 +2,7 @@ mod app;
 pub mod default;
 mod geometry_format;
 mod opportunity_record;
+pub mod oppvec_ops;
 mod source_format;
 mod source_format_config;
 

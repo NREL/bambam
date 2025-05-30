@@ -15,6 +15,7 @@ pub enum SourceFormat {
     LongFormat {
         geometry_format: GeometryFormat,
         category_column: String,
+        count_column: Option<String>,
     },
     // OvertureMaps {
     //     geometry_format: String,
@@ -36,9 +37,11 @@ impl TryFrom<&SourceFormatConfig> for SourceFormat {
             SourceFormatConfig::LongFormat {
                 geometry_format,
                 category_column,
+                count_column,
             } => Ok(Self::LongFormat {
                 geometry_format: geometry_format.clone(),
                 category_column: category_column.clone(),
+                count_column: count_column.clone(),
             }),
             // SourceFormatConfig::OvertureMaps {
             //     geometry_format,
@@ -78,12 +81,10 @@ impl SourceFormat {
 
         let geometry_format = match self {
             SourceFormat::LongFormat {
-                geometry_format,
-                category_column: _,
+                geometry_format, ..
             } => geometry_format,
             SourceFormat::WideFormat {
-                geometry_format,
-                column_mapping: _,
+                geometry_format, ..
             } => geometry_format,
         };
 
@@ -106,9 +107,23 @@ impl SourceFormat {
             SourceFormat::LongFormat {
                 geometry_format: _,
                 category_column,
+                count_column,
             } => {
                 let name = get_activity_name(record, category_column, headers)?;
-                Ok(HashMap::from([(name, 1)]))
+                let (_, count) = match count_column {
+                    Some(col) => get_activity_count(record, &category_column, &name, headers)?,
+                    None => (name.clone(), 1),
+                };
+                // let count = match count_column {
+                //     Some(col) => match record.get(col) {
+                //         Some(count_str) => count_str
+                //             .parse::<u64>()
+                //             .map_err(|e| format!("failure reading count column '{}': {}", col, e)),
+                //         None => Err(format!("expected count column '{}' not found", col)),
+                //     },
+                //     None => Ok(Some(1)),
+                // }?;
+                Ok(HashMap::from([(name, count)]))
             }
             SourceFormat::WideFormat {
                 geometry_format: _,
@@ -139,15 +154,15 @@ fn get_activity_name(
 /// opportunity counts
 fn get_activity_count(
     record: &StringRecord,
-    category_column: &str,
+    count_column: &str,
     category_name: &str,
     headers: &HashMap<String, usize>,
 ) -> Result<(String, u64), String> {
-    let count_str = get_value(record, category_column, headers)?;
+    let count_str = get_value(record, count_column, headers)?;
     let count = count_str.parse::<u64>().map_err(|e| {
         format!(
             "unable to parse count '{}' for column '{}' as a non-negative integer",
-            count_str, category_column
+            count_str, count_column
         )
     })?;
     Ok((category_name.to_string(), count))
