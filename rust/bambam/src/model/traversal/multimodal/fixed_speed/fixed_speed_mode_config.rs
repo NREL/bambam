@@ -39,7 +39,7 @@ impl TryFrom<&serde_json::Value> for FixedSpeedModeConfig {
 impl FixedSpeedModeConfig {
     pub fn build(&self) -> CombinedTraversalService {
         let d = Arc::new(DistanceTraversalService {
-            distance_unit: self.distance_unit.unwrap_or_else(|| DistanceUnit::Miles),
+            distance_unit: self.distance_unit.unwrap_or(DistanceUnit::Miles),
         });
         let s = Arc::new(FixedSpeedModel {
             speed: self.speed,
@@ -48,12 +48,12 @@ impl FixedSpeedModeConfig {
         // should be fixed Wednesday
         let t = TimeTraversalBuilder {}
             .build(&json!({
-                "time_unit": self.time_unit.unwrap_or_else(|| TimeUnit::Minutes)
+                "time_unit": self.time_unit.unwrap_or(TimeUnit::Minutes)
             }))
             .expect("");
         let services: Vec<Arc<dyn TraversalModelService>> = vec![d, s, t];
 
-        let service = CombinedTraversalService::new(services);
-        service
+        
+        CombinedTraversalService::new(services)
     }
 }

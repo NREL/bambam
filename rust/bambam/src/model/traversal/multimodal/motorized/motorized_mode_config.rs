@@ -37,8 +37,8 @@ impl TryFrom<&serde_json::Value> for MotorizedModeConfig {
 
 impl MotorizedModeConfig {
     pub fn build(&self) -> CombinedTraversalService {
-        let distance_unit = self.distance_unit.unwrap_or_else(|| DistanceUnit::Miles);
-        let time_unit = self.time_unit.unwrap_or_else(|| TimeUnit::Minutes);
+        let distance_unit = self.distance_unit.unwrap_or(DistanceUnit::Miles);
+        let time_unit = self.time_unit.unwrap_or(TimeUnit::Minutes);
 
         let d = Arc::new(DistanceTraversalService { distance_unit });
         let t = Arc::new(TimeTraversalModel::new(&time_unit));
@@ -47,7 +47,7 @@ impl MotorizedModeConfig {
         let s: Arc<dyn TraversalModelService> = todo!();
         let services: Vec<Arc<dyn TraversalModelService>> = vec![d, s, t];
 
-        let service = CombinedTraversalService::new(services);
-        service
+        
+        CombinedTraversalService::new(services)
     }
 }

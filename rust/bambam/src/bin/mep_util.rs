@@ -172,7 +172,7 @@ impl App {
                     y_column.as_ref(),
                 )?;
 
-                let column_mapping = oppvec_ops::create_column_mapping(&column_mapping)?;
+                let column_mapping = oppvec_ops::create_column_mapping(column_mapping)?;
                 let source_format = oppvec::SourceFormat::WideFormat {
                     geometry_format,
                     column_mapping,

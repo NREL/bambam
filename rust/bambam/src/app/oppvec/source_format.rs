@@ -111,7 +111,7 @@ impl SourceFormat {
             } => {
                 let name = get_activity_name(record, category_column, headers)?;
                 let (_, count) = match count_column {
-                    Some(col) => get_activity_count(record, &category_column, &name, headers)?,
+                    Some(col) => get_activity_count(record, category_column, &name, headers)?,
                     None => (name.clone(), 1),
                 };
                 // let count = match count_column {
