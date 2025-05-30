@@ -1,13 +1,7 @@
-mod fixed_mode_traversal_builder;
-mod mode_tracker_config;
-mod mode_tracker_traversal_builder;
-mod multimodal_constraint;
-mod multimodal_constraint_config;
-mod multimodal_tracker_config;
+mod mode_based_time_model;
+mod mode_based_time_model_configuration;
+mod mode_configuration;
 
-pub use fixed_mode_traversal_builder::FixedModeTraversalBuilder;
-pub use mode_tracker_config::ModeTrackerConfig;
-pub use mode_tracker_traversal_builder::ModeTrackingTraversalBuilder;
-pub use multimodal_constraint::MultimodalConstraint;
-pub use multimodal_constraint_config::MultimodalConstraintConfig;
-pub use multimodal_tracker_config::MultimodalTrackerConfig;
+pub use mode_based_time_model::ModeBasedTimeModel;
+pub use mode_based_time_model_configuration::ModeBasedTimeModelConfiguration;
+pub use mode_configuration::ModeConfiguration;

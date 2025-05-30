@@ -5,7 +5,7 @@ pub fn transit_network_id() -> (String, OutputFeature) {
     (
         String::from("transit_network_id"),
         OutputFeature::Custom {
-            r#type: String::from("identifier: 0 => Unassigned, _ => TripId"),
+            name: String::from("identifier: 0 => Unassigned, _ => TripId"),
             unit: String::from("unsigned int"),
             format: CustomFeatureFormat::UnsignedInteger { initial: 0 },
             accumulator: false,
@@ -18,7 +18,7 @@ pub fn trip_id_enumeration() -> (String, OutputFeature) {
     (
         String::from("trip_id_enumeration"),
         OutputFeature::Custom {
-            r#type: String::from("identifier: 0 => Unassigned, _ => TripId"),
+            name: String::from("identifier: 0 => Unassigned, _ => TripId"),
             unit: String::from("unsigned int"),
             format: CustomFeatureFormat::UnsignedInteger { initial: 0 },
             accumulator: false,

@@ -23,7 +23,7 @@ impl TraversalModel for ScheduleTraversalModel {
         features.push((
             String::from(bambam_state_ops::field::ROUTE_ID),
             OutputFeature::Custom {
-                r#type: String::from("route id"),
+                name: String::from("route id"),
                 unit: String::from("signed integer"),
                 format: CustomFeatureFormat::SignedInteger {
                     initial: bambam_state_ops::field::EMPTY_ROUTE_ID,
