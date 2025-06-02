@@ -132,7 +132,7 @@ impl SourceFormat {
                 .iter()
                 .map(|(category_column, category_name)| {
                     let (name, count) =
-                        get_activity_count(record, category_name, category_name, headers)?;
+                        get_activity_count(record, category_column, category_name, headers)?;
                     Ok((name, count))
                 })
                 .collect::<Result<HashMap<String, u64>, String>>(),
@@ -164,8 +164,8 @@ fn get_activity_count(
     } else {
         let count = count_str.parse::<u64>().map_err(|e| {
             format!(
-                "unable to parse count '{}' for column '{}' as a non-negative integer",
-                count_str, count_column
+                "for column '{}', category '{}', unable to parse count '{}' as a non-negative integer",
+                count_str, count_column, category_name
             )
         })?;
         Ok((category_name.to_string(), count))
