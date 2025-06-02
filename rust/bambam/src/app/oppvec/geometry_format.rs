@@ -50,7 +50,7 @@ impl GeometryFormat {
         &self,
         row: &StringRecord,
         column_index_lookup: &HashMap<String, usize>,
-    ) -> Result<geo::Point<f32>, String> {
+    ) -> Result<geo::Geometry<f32>, String> {
         match self {
             GeometryFormat::WktColumn { column_name } => {
                 let idx = column_index_lookup
@@ -63,10 +63,11 @@ impl GeometryFormat {
                         column_name, e
                     )
                 })?;
-                match g {
-                    Geometry::Point(point) => Ok(point),
-                    _ => Err(format!("geometry must be point, found '{}'", value)),
-                }
+                Ok(g)
+                // match g {
+                //     Geometry::Point(point) => Ok(point),
+                //     _ => Err(format!("geometry must be point, found '{}'", value)),
+                // }
             }
             GeometryFormat::XYColumns { x_column, y_column } => {
                 let x_idx = column_index_lookup
@@ -84,7 +85,7 @@ impl GeometryFormat {
                     format!("failure reading number in column '{}': {}", y_column, e)
                 })?;
                 let point = geo::Point::new(x, y);
-                Ok(point)
+                Ok(geo::Geometry::Point(point))
             }
         }
     }

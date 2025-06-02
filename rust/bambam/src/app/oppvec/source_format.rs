@@ -76,7 +76,7 @@ impl SourceFormat {
         &self,
         record: &StringRecord,
         headers: &HashMap<String, usize>,
-    ) -> Result<Option<Point<f32>>, String> {
+    ) -> Result<Option<Geometry<f32>>, String> {
         // log::debug!("SourceFormat::read with '{}'", value);
 
         let geometry_format = match self {
@@ -132,7 +132,7 @@ impl SourceFormat {
                 .iter()
                 .map(|(category_column, category_name)| {
                     let (name, count) =
-                        get_activity_count(record, category_column, category_name, headers)?;
+                        get_activity_count(record, category_name, category_name, headers)?;
                     Ok((name, count))
                 })
                 .collect::<Result<HashMap<String, u64>, String>>(),
@@ -159,13 +159,17 @@ fn get_activity_count(
     headers: &HashMap<String, usize>,
 ) -> Result<(String, u64), String> {
     let count_str = get_value(record, count_column, headers)?;
-    let count = count_str.parse::<u64>().map_err(|e| {
-        format!(
-            "unable to parse count '{}' for column '{}' as a non-negative integer",
-            count_str, count_column
-        )
-    })?;
-    Ok((category_name.to_string(), count))
+    if count_str.is_empty() {
+        Ok((category_name.to_string(), 0))
+    } else {
+        let count = count_str.parse::<u64>().map_err(|e| {
+            format!(
+                "unable to parse count '{}' for column '{}' as a non-negative integer",
+                count_str, count_column
+            )
+        })?;
+        Ok((category_name.to_string(), count))
+    }
 }
 
 fn get_value(

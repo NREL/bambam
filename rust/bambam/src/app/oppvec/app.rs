@@ -1,8 +1,11 @@
 use super::{OpportunityRecord, SourceFormat};
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
+use geo::{BoundingRect, Contains};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
+use rand;
+use rand::prelude::*;
 use rayon::prelude::*;
 use routee_compass_core::{
     model::{
@@ -18,7 +21,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use wkt;
+use wkt::{self, ToWkt};
 
 /// reads in opportunity data from some long-formatted opportunity dataset and aggregates
 /// it to some vertex dataset
@@ -241,6 +244,7 @@ pub fn read_opportunity_rows_v2(
                 Some(r) => r,
                 None => return vec![],
             };
+            //
             let geometry_opt = match handle_failure(
                 source_format.read_geometry(&record, &headers),
                 errors.clone(),
@@ -257,15 +261,24 @@ pub fn read_opportunity_rows_v2(
             };
             match geometry_opt {
                 None => vec![],
-                Some(geometry) => counts_by_category
+                Some(geo::Geometry::Point(point)) => counts_by_category
                     .into_iter()
                     .map(|(act, cnt)| OppRow {
-                        geometry,
+                        geometry: point,
                         index: idx,
                         category: act.clone(),
                         count: cnt,
                     })
                     .collect_vec(),
+                Some(geo::Geometry::Polygon(polygon)) => {
+                    downsample_polygon(&geo::Geometry::Polygon(polygon), &counts_by_category)
+                        .expect("failed to downsample polygon")
+                }
+                Some(geo::Geometry::MultiPolygon(mp)) => {
+                    downsample_polygon(&geo::Geometry::MultiPolygon(mp), &counts_by_category)
+                        .expect("failed to downsample multipolygon")
+                }
+                Some(other) => panic!("unsupported geometry type: {}", other.to_wkt().to_string()),
             }
         })
         .collect_vec_list()
@@ -299,6 +312,55 @@ fn handle_failure<T, E: ToString>(
             None
         }
     }
+}
+
+/// uniformly samples locations for each opportunity in the counts collection
+fn downsample_polygon(
+    polygon: &geo::Geometry<f32>,
+    counts: &HashMap<String, u64>,
+) -> Result<Vec<OppRow>, String> {
+    let rect = polygon.bounding_rect().ok_or_else(|| {
+        format!(
+            "unable to build bounding rect for polygon {}",
+            polygon.to_wkt().to_string()
+        )
+    })?;
+    let (sw, ne) = (rect.min(), rect.max());
+    let (minx, miny, maxx, maxy) = (sw.x, sw.y, ne.x, ne.y);
+    let (stride_x, stride_y) = (maxx - minx, maxy - miny);
+    let mut rng = rand::rng();
+    let samples = 250;
+    let mut unif_sample = || {
+        for _ in 0..samples {
+            let x: f32 = minx + stride_x * rng.random::<f32>();
+            let y: f32 = miny + stride_y * rng.random::<f32>();
+            let point = geo::Point::new(x, y);
+            if polygon.contains(&point) {
+                return Ok(point);
+            }
+        }
+        Err(format!("failed to sample a point in {} tries", samples))
+    };
+    let mut idx = 0;
+    let result = counts
+        .iter()
+        .map(|(act, cnt)| {
+            (0..*cnt as usize)
+                .map(|_| {
+                    let pt = unif_sample()?;
+                    let row = OppRow {
+                        geometry: pt,
+                        index: idx,
+                        category: act.clone(),
+                        count: 1,
+                    };
+                    idx += 1;
+                    Ok(row)
+                })
+                .collect::<Result<Vec<OppRow>, String>>()
+        })
+        .collect::<Result<Vec<Vec<OppRow>>, String>>()?;
+    Ok(result.into_iter().flatten().collect_vec())
 }
 
 // pub fn read_opportunity_rows(
