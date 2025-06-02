@@ -53,7 +53,6 @@ impl FixedSpeedModeConfig {
             .expect("");
         let services: Vec<Arc<dyn TraversalModelService>> = vec![d, s, t];
 
-        
         CombinedTraversalService::new(services)
     }
 }

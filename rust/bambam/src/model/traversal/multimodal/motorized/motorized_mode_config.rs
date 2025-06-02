@@ -47,7 +47,6 @@ impl MotorizedModeConfig {
         let s: Arc<dyn TraversalModelService> = todo!();
         let services: Vec<Arc<dyn TraversalModelService>> = vec![d, s, t];
 
-        
         CombinedTraversalService::new(services)
     }
 }
