@@ -278,7 +278,7 @@ pub fn read_opportunity_rows_v2(
                     downsample_polygon(&geo::Geometry::MultiPolygon(mp), &counts_by_category)
                         .expect("failed to downsample multipolygon")
                 }
-                Some(other) => panic!("unsupported geometry type: {}", other.to_wkt().to_string()),
+                Some(other) => panic!("unsupported geometry type: {}", other.to_wkt()),
             }
         })
         .collect_vec_list()
@@ -322,7 +322,7 @@ fn downsample_polygon(
     let rect = polygon.bounding_rect().ok_or_else(|| {
         format!(
             "unable to build bounding rect for polygon {}",
-            polygon.to_wkt().to_string()
+            polygon.to_wkt()
         )
     })?;
     let (sw, ne) = (rect.min(), rect.max());
