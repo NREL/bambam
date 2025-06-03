@@ -4,17 +4,19 @@ use arrow::{
 };
 use parquet::arrow::arrow_reader::ArrowPredicate;
 
-pub struct HasClassRowPredicate {
+/// RowFilter predicate that evaluates to true if
+/// the row has a non-empty value in the `class` column.
+pub struct NonEmptyClassRowPredicate {
     projection_mask: parquet::arrow::ProjectionMask,
 }
 
-impl HasClassRowPredicate {
+impl NonEmptyClassRowPredicate {
     pub fn new(projection_mask: parquet::arrow::ProjectionMask) -> Self {
         Self { projection_mask }
     }
 }
 
-impl ArrowPredicate for HasClassRowPredicate {
+impl ArrowPredicate for NonEmptyClassRowPredicate {
     fn projection(&self) -> &parquet::arrow::ProjectionMask {
         &self.projection_mask
     }

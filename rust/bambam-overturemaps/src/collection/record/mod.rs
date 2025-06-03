@@ -1,12 +1,16 @@
-mod buildings;
-mod dataset;
-mod places;
+mod building;
+mod common;
+mod overture_record;
+mod place;
+mod record_type;
 
-pub use buildings::BuildingsRecord;
-pub use dataset::RecordDataset;
-pub use places::PlacesRecord;
+pub use building::BuildingsRecord;
+pub use overture_record::OvertureRecord;
+pub use place::PlacesRecord;
+pub use record_type::OvertureRecordType;
 
-use dataset::deserialize_geometry;
-use dataset::OvertureMapsBbox;
-use dataset::OvertureMapsNames;
-use dataset::OvertureMapsSource;
+// Common structs and functions for many record types
+use common::deserialize_geometry;
+use common::OvertureMapsBbox;
+use common::OvertureMapsNames;
+use common::OvertureMapsSource;

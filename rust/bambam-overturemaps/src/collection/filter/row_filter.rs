@@ -1,46 +1,17 @@
 use parquet::arrow::arrow_reader::ArrowPredicate;
 use parquet::arrow::ProjectionMask;
 use parquet::file::metadata::FileMetaData;
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use super::bbox_row_predicate::{Bbox, BboxRowPredicate};
-use super::has_class_row_predicate::HasClassRowPredicate;
+use super::bbox_row_predicate::BboxRowPredicate;
+use super::non_empty_class_row_predicate::NonEmptyClassRowPredicate;
+use super::Bbox;
+use super::RowFilterConfig;
 use crate::collection::error::OvertureMapsCollectionError;
 use crate::collection::filter::has_class_in_row_predicate::HasClassInRowPredicate;
 use crate::collection::filter::taxonomy_filter_predicate::TaxonomyRowPredicate;
 use crate::collection::taxonomy::TaxonomyModel;
-use crate::collection::taxonomy::TaxonomyModelBuilder;
-
-#[allow(unused)]
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum RowFilterConfig {
-    HasClass,
-    HasClassIn {
-        classes: HashSet<String>,
-    },
-    Bbox {
-        xmin: f32,
-        xmax: f32,
-        ymin: f32,
-        ymax: f32,
-    },
-    TaxonomyModel {
-        taxonomy_builder: TaxonomyModelBuilder,
-    },
-    Combined {
-        filters: Vec<Box<RowFilterConfig>>,
-    },
-}
-
-impl From<HashMap<String, Vec<String>>> for RowFilterConfig {
-    fn from(value: HashMap<String, Vec<String>>) -> Self {
-        RowFilterConfig::TaxonomyModel {
-            taxonomy_builder: TaxonomyModelBuilder::from(value),
-        }
-    }
-}
 
 /// This enum holds all the data to build a predicate
 /// except for the schema projection, which must be
@@ -119,7 +90,7 @@ impl RowFilter {
         let column_projection = self.get_column_projection();
 
         match self {
-            R::HasClass => Ok(vec![Box::new(HasClassRowPredicate::new(
+            R::HasClass => Ok(vec![Box::new(NonEmptyClassRowPredicate::new(
                 ProjectionMask::columns(
                     metadata.schema_descr(),
                     column_projection.iter().map(|s| s.as_str()),

@@ -1,22 +1,19 @@
 use geo::Geometry;
 use geozero::{wkb::Wkb, ToGeo};
-use std::collections::HashMap;
-
-use serde::de::DeserializeOwned;
 use serde::de::Deserializer;
+use serde::de::Error;
 use serde::{Deserialize, Serialize};
-
-pub trait RecordDataset {
-    type Record: DeserializeOwned + Send;
-    fn format_url(release_str: String) -> String;
-}
+use std::collections::HashMap;
 
 pub fn deserialize_geometry<'de, D>(deserializer: D) -> Result<Option<Geometry>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let hex_str: String = Option::deserialize(deserializer)?.unwrap();
-    let wkb_bytes: Vec<u8> = hex::decode(&hex_str).ok().unwrap();
+    let hex_str: String = Option::deserialize(deserializer)?.ok_or(D::Error::custom(
+        String::from("Could not deserialize hex string"),
+    ))?;
+    let wkb_bytes: Vec<u8> = hex::decode(&hex_str)
+        .map_err(|e| D::Error::custom(format!("Could not decode wkb: {e}")))?;
     Ok(Wkb(&wkb_bytes).to_geo().ok())
 }
 

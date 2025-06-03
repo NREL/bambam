@@ -1,4 +1,8 @@
-use super::{source::lodes::lodes_ops, source::overture::overture_ops, study_region::StudyRegion};
+use super::{
+    source::lodes::lodes_ops,
+    source::overture_opportunity_collection_model::OvertureOpportunityCollectionModel,
+    study_region::StudyRegion,
+};
 use bambam_overturemaps::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
 use bamsoda_app::app::lodes_tiger;
 use bamsoda_core::model::identifier::GeoidType;
@@ -66,7 +70,7 @@ impl OpportunitySource {
                 // information into a fully functional collection pipeline. This step allows
                 // to reduce repetition in the configuration file by making some assumptions
                 // about the filters being used.
-                let colletor_model = overture_ops::OvertureOpportunityCollectionModel::new(
+                let colletor_model = OvertureOpportunityCollectionModel::new(
                     *collector_config,
                     release_version.clone(),
                     *bbox_boundary,

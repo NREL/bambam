@@ -1,6 +1,6 @@
 use bambam_overturemaps::collection::{
-    Bbox, BuildingsRecord, OvertureMapsCollectionError, OvertureMapsCollector, PlacesRecord,
-    RecordDataset,
+    Bbox, BuildingsRecord, OvertureMapsCollectionError, OvertureMapsCollector, OvertureRecordType,
+    PlacesRecord,
 };
 use bambam_overturemaps::collection::{
     OvertureMapsCollectorConfig, ReleaseVersion, RowFilterConfig, TaxonomyModel,
@@ -168,10 +168,16 @@ impl OvertureOpportunityCollectionModel {
         &self,
         activity_types: &[String],
     ) -> Result<Vec<(Geometry, Vec<bool>)>, OvertureMapsCollectionError> {
-        let places_records = self.collector.collect_from_release::<PlacesRecord>(
-            self.release_version.clone(),
-            self.places_row_filter_config.clone(),
-        )?;
+        let places_records = self
+            .collector
+            .collect_from_release(
+                self.release_version.clone(),
+                &OvertureRecordType::Places,
+                self.places_row_filter_config.clone(),
+            )?
+            .into_iter()
+            .map(PlacesRecord::try_from)
+            .collect::<Result<Vec<PlacesRecord>, OvertureMapsCollectionError>>()?;
         log::info!("Total places records {}", places_records.len());
 
         // Compute MEP category vectors
@@ -232,10 +238,16 @@ impl OvertureOpportunityCollectionModel {
         let arc_buildings_taxonomy = Arc::new(buildings_taxonomy_model);
 
         // Use the collector to retrieve buildings data
-        let buildings_records = self.collector.collect_from_release::<BuildingsRecord>(
-            self.release_version.clone(),
-            self.buildings_row_filter_config.clone(),
-        )?;
+        let buildings_records = self
+            .collector
+            .collect_from_release(
+                self.release_version.clone(),
+                &OvertureRecordType::Buildings,
+                self.buildings_row_filter_config.clone(),
+            )?
+            .into_iter()
+            .map(BuildingsRecord::try_from)
+            .collect::<Result<Vec<BuildingsRecord>, OvertureMapsCollectionError>>()?;
         log::info!("Total buildings records {}", buildings_records.len());
 
         // Compute MEP category vectors

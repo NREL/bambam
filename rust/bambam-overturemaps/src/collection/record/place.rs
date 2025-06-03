@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
 use super::deserialize_geometry;
-use super::{OvertureMapsBbox, OvertureMapsNames, OvertureMapsSource, RecordDataset};
+use super::{OvertureMapsBbox, OvertureMapsNames, OvertureMapsSource, OvertureRecord};
+use crate::collection::OvertureMapsCollectionError;
 
 /// OvertureMaps Places record schema according to schema of example parquet
 /// The schema online does not mention some of the fields are nullable
@@ -27,6 +28,20 @@ pub struct PlacesRecord {
     addresses: Option<Vec<OvertureMapsPlacesAddresses>>,
 }
 
+impl TryFrom<OvertureRecord> for PlacesRecord {
+    type Error = OvertureMapsCollectionError;
+
+    fn try_from(value: OvertureRecord) -> Result<Self, Self::Error> {
+        match value {
+            OvertureRecord::Places(record) => Ok(record),
+            _ => Err(OvertureMapsCollectionError::DeserializeTypeError(format!(
+                "Cannot transform record {:#?} into PlacesRecord",
+                value
+            ))),
+        }
+    }
+}
+
 impl fmt::Display for PlacesRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let categories = self
@@ -39,14 +54,6 @@ impl fmt::Display for PlacesRecord {
             "Geometry: {:#?}, Categories: {}",
             self.geometry, categories
         )
-    }
-}
-
-impl RecordDataset for PlacesRecord {
-    type Record = PlacesRecord;
-
-    fn format_url(release_str: String) -> String {
-        format!("release/{release_str}/theme=places/type=place/").to_owned()
     }
 }
 

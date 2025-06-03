@@ -12,7 +12,11 @@ use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use std::time::Instant;
 
-use super::record::RecordDataset;
+use crate::collection::BuildingsRecord;
+use crate::collection::PlacesRecord;
+
+use super::record::OvertureRecord;
+use super::record::OvertureRecordType;
 use super::OvertureMapsCollectionError;
 use super::OvertureMapsCollectorConfig;
 use super::ReleaseVersion;
@@ -91,14 +95,16 @@ impl OvertureMapsCollector {
             .map(|(_, v)| v)
     }
 
-    pub fn collect_from_path<D: RecordDataset>(
+    pub fn collect_from_path(
         &self,
         path: Path,
+        record_type: &OvertureRecordType,
         row_filter_config: Option<RowFilterConfig>,
-    ) -> Result<Vec<D::Record>, OvertureMapsCollectionError> {
+    ) -> Result<Vec<OvertureRecord>, OvertureMapsCollectionError> {
         let filemeta_stream = self.obj_store.list(Some(&path));
 
-        let io_runtime = tokio::runtime::Runtime::new().unwrap();
+        let io_runtime = tokio::runtime::Runtime::new()
+            .map_err(|e| OvertureMapsCollectionError::TokioError(e.to_string()))?;
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -171,13 +177,31 @@ impl OvertureMapsCollector {
         );
         log::info!("Collection time {:?}", start_collection.elapsed());
 
-        let records: Vec<Vec<D::Record>> = result_vec
+        // Unpack record batches
+        let record_batches: Vec<RecordBatch> = result_vec
             .into_iter()
             .collect::<Result<Vec<RecordBatch>, _>>()
-            .map_err(|e| OvertureMapsCollectionError::RecordBatchRetrievalError { source: e })?
-            .into_par_iter()
-            .map(deserialize_batch::<D::Record>)
-            .collect::<Result<Vec<_>, OvertureMapsCollectionError>>()?;
+            .map_err(|e| OvertureMapsCollectionError::RecordBatchRetrievalError { source: e })?;
+
+        // Deserialize batches into recor types
+        let records: Vec<Vec<OvertureRecord>> = match record_type {
+            OvertureRecordType::Places => record_batches
+                .into_par_iter()
+                .map(deserialize_batch::<PlacesRecord>)
+                .map(|records_result| {
+                    records_result
+                        .map(|records| records.into_iter().map(OvertureRecord::Places).collect())
+                })
+                .collect::<Result<Vec<_>, OvertureMapsCollectionError>>()?,
+            OvertureRecordType::Buildings => record_batches
+                .into_par_iter()
+                .map(deserialize_batch::<BuildingsRecord>)
+                .map(|records_result| {
+                    records_result
+                        .map(|records| records.into_iter().map(OvertureRecord::Buildings).collect())
+                })
+                .collect::<Result<Vec<_>, OvertureMapsCollectionError>>()?,
+        };
         log::info!("Deserialization time {:?}", start_collection.elapsed());
 
         // Flatten the collection
@@ -186,11 +210,12 @@ impl OvertureMapsCollector {
         Ok(flatten_records)
     }
 
-    pub fn collect_from_release<D: RecordDataset>(
+    pub fn collect_from_release(
         &self,
         release: ReleaseVersion,
+        record_type: &OvertureRecordType,
         row_filter_config: Option<RowFilterConfig>,
-    ) -> Result<Vec<D::Record>, OvertureMapsCollectionError> {
+    ) -> Result<Vec<OvertureRecord>, OvertureMapsCollectionError> {
         let release_str = match release {
             ReleaseVersion::Latest => self.get_latest_release()?,
             other => String::from(other),
@@ -199,8 +224,8 @@ impl OvertureMapsCollector {
             "Collecting OvertureMaps records from release {}",
             release_str
         );
-        let path = Path::from(D::format_url(release_str));
-        self.collect_from_path::<D>(path, row_filter_config)
+        let path = Path::from(record_type.format_url(release_str));
+        self.collect_from_path(path, record_type, row_filter_config)
     }
 }
 

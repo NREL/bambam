@@ -1,2 +1,2 @@
 pub mod lodes;
-pub mod overture;
+pub mod overture_opportunity_collection_model;

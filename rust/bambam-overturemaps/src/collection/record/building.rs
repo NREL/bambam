@@ -1,8 +1,9 @@
 use geo::Geometry;
 use serde::{Deserialize, Serialize};
 
-use super::deserialize_geometry;
-use super::{OvertureMapsBbox, OvertureMapsNames, OvertureMapsSource, RecordDataset};
+use super::{deserialize_geometry, OvertureRecord};
+use super::{OvertureMapsBbox, OvertureMapsNames, OvertureMapsSource};
+use crate::collection::OvertureMapsCollectionError;
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,14 +35,6 @@ pub struct BuildingsRecord {
     roof_color: Option<String>,
 }
 
-impl RecordDataset for BuildingsRecord {
-    type Record = BuildingsRecord;
-
-    fn format_url(release_str: String) -> String {
-        format!("release/{release_str}/theme=buildings/type=building/").to_owned()
-    }
-}
-
 impl BuildingsRecord {
     pub fn get_class(&self) -> Option<String> {
         self.class.clone()
@@ -49,5 +42,19 @@ impl BuildingsRecord {
 
     pub fn get_geometry(&self) -> Option<Geometry> {
         self.geometry.clone()
+    }
+}
+
+impl TryFrom<OvertureRecord> for BuildingsRecord {
+    type Error = OvertureMapsCollectionError;
+
+    fn try_from(value: OvertureRecord) -> Result<Self, Self::Error> {
+        match value {
+            OvertureRecord::Buildings(record) => Ok(record),
+            _ => Err(OvertureMapsCollectionError::DeserializeTypeError(format!(
+                "Cannot transform record {:#?} into BuildingRecord",
+                value
+            ))),
+        }
     }
 }

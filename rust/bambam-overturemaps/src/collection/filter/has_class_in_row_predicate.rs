@@ -6,6 +6,8 @@ use arrow::{
 };
 use parquet::arrow::arrow_reader::ArrowPredicate;
 
+/// RowFilter predicate that evaluates to true if the row
+/// has any of the classes in the `class` column.
 pub struct HasClassInRowPredicate {
     classes: HashSet<String>,
     projection_mask: parquet::arrow::ProjectionMask,

@@ -1,40 +1,9 @@
-use super::RowFilterConfig;
+use super::Bbox;
 use arrow::{
     array::{Array, BooleanArray, Float32Array, StructArray},
     error::ArrowError,
 };
 use parquet::arrow::arrow_reader::ArrowPredicate;
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
-pub struct Bbox {
-    xmin: f32,
-    xmax: f32,
-    ymin: f32,
-    ymax: f32,
-}
-
-impl Bbox {
-    pub fn new(xmin: f32, xmax: f32, ymin: f32, ymax: f32) -> Self {
-        Self {
-            xmin,
-            xmax,
-            ymin,
-            ymax,
-        }
-    }
-}
-
-impl From<Bbox> for RowFilterConfig {
-    fn from(value: Bbox) -> Self {
-        RowFilterConfig::Bbox {
-            xmin: value.xmin,
-            xmax: value.xmax,
-            ymin: value.ymin,
-            ymax: value.ymax,
-        }
-    }
-}
 
 pub struct BboxRowPredicate {
     bbox: Bbox,

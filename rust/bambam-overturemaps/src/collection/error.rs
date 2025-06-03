@@ -14,6 +14,8 @@ pub enum OvertureMapsCollectionError {
     RecordBatchRetrievalError { source: ParquetError },
     #[error("Failed to deserialize RecordBatch into native type record: {0}")]
     DeserializeError(String),
+    #[error("Failed to deserialize general OvertureRecord type into specific record type: {0}")]
+    DeserializeTypeError(String),
     #[error("Failed to get a valid response from URL: {0}")]
     TaxonomyLoadingError(String),
     #[error("Failed to deserialize CSV row into Taxonomy record: {0}")]
