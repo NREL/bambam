@@ -1,6 +1,7 @@
 use super::{OpportunityRecord, SourceFormat};
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
+use geo::algorithm::TriangulateDelaunay;
 use geo::{triangulate_delaunay::DelaunayTriangulationConfig, Area, BoundingRect, Contains};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
@@ -290,7 +291,6 @@ fn downsample_polygon(
     polygon: &geo::Geometry<f32>,
     counts: &HashMap<String, u64>,
 ) -> Result<Vec<OppRow>, String> {
-    use geo::algorithm::TriangulateDelaunay;
     let triangles = match polygon {
         geo::Geometry::Polygon(g) => g
             .unconstrained_triangulation()
