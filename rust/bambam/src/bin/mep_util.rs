@@ -3,7 +3,6 @@ use bambam::app::{
     overlay::{self, OverlayOperation},
 };
 use clap::{Parser, Subcommand};
-use itertools::Itertools;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
@@ -36,19 +35,21 @@ pub enum App {
         #[arg(long)]
         geometry_column: Option<String>,
 
-        // /// column name containing activity category name
+        /// column name containing activity category name
         #[arg(long)]
         category_column: String,
 
         // /// optional column name containing activity counts. if omitted, counts each row as 1 opportunity.
         #[arg(long)]
         count_column: Option<String>,
-        // /// the format of the category type
-        // #[arg(long, default_value_t = CategoryFormat::String)]
-        // category_format: CategoryFormat,
-        // / comma-delimited list of categories to keep
+        /// mapping from column name to activity type as comma-delimited string of "col->acts" statements, where
+        /// "col" is the source column name, and "acts" is a hyphen-delminited non-empty list of target activity categories.
+        /// example: "CNS07->retail-jobs,CNS16->healthcare-jobs,CNS05->jobs"
         #[arg(long)]
-        activity_categories: String,
+        column_mapping: String,
+        // // / comma-delimited list of categories to keep
+        // #[arg(long)]
+        // activity_categories: String,
     },
     #[command(
         name = "opps-wide",
@@ -77,9 +78,9 @@ pub enum App {
         /// example: "CNS07->retail-jobs,CNS16->healthcare-jobs,CNS05->jobs"
         #[arg(long)]
         column_mapping: String,
-        /// comma-delimited list of categories to keep
-        #[arg(long)]
-        activity_categories: String,
+        // /// comma-delimited list of categories to keep
+        // #[arg(long)]
+        // activity_categories: String,
     },
     #[command(
         name = "overlay",
@@ -132,28 +133,31 @@ impl App {
                 y_column,
                 category_column,
                 count_column,
-                activity_categories,
+                column_mapping,
+                // activity_categories,
             } => {
                 let geometry_format = oppvec::GeometryFormat::new(
                     geometry_column.as_ref(),
                     x_column.as_ref(),
                     y_column.as_ref(),
                 )?;
+                let category_mapping = oppvec_ops::create_mapping(column_mapping)?;
+                log::debug!(
+                    "category mapping:\n{}",
+                    serde_json::to_string_pretty(&category_mapping).unwrap_or_default()
+                );
                 let source_format = oppvec::SourceFormat::LongFormat {
                     geometry_format,
                     category_column: category_column.clone(),
                     count_column: count_column.clone(),
+                    category_mapping,
                 };
-                let cats = activity_categories
-                    .split(",")
-                    .map(|c| c.to_owned())
-                    .collect_vec();
                 oppvec::run(
                     vertices_compass_filename,
                     opportunities_filename,
                     output_filename,
                     &source_format,
-                    &cats,
+                    // &cats,
                 )
             }
             Self::OpportunitiesWideFormat {
@@ -164,29 +168,37 @@ impl App {
                 x_column,
                 y_column,
                 column_mapping,
-                activity_categories,
+                // activity_categories,
             } => {
                 let geometry_format = oppvec::GeometryFormat::new(
                     geometry_column.as_ref(),
                     x_column.as_ref(),
                     y_column.as_ref(),
                 )?;
-
-                let column_mapping = oppvec_ops::create_column_mapping(column_mapping)?;
+                if column_mapping.is_empty() {
+                    return Err(String::from(
+                        "cannot build wide-format source with empty column mapping",
+                    ));
+                }
+                let column_mapping = oppvec_ops::create_mapping(column_mapping)?;
+                log::debug!(
+                    "column mapping:\n{}",
+                    serde_json::to_string_pretty(&column_mapping).unwrap_or_default()
+                );
                 let source_format = oppvec::SourceFormat::WideFormat {
                     geometry_format,
                     column_mapping,
                 };
-                let cats = activity_categories
-                    .split(",")
-                    .map(|c| c.to_owned())
-                    .collect_vec();
+                // let cats = activity_categories
+                //     .split(",")
+                //     .map(|c| c.to_owned())
+                //     .collect_vec();
                 oppvec::run(
                     vertices_compass_filename,
                     opportunities_filename,
                     output_filename,
                     &source_format,
-                    &cats,
+                    // &cats,
                 )
             }
         }
@@ -200,17 +212,36 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use bambam::app::oppvec;
 
     #[allow(unused)]
     #[ignore = "working test case"]
     fn test_vec() {
+        let source_format = oppvec::SourceFormat::LongFormat {
+            geometry_format: oppvec::GeometryFormat::XYColumns {
+                x_column: String::from("longitude"),
+                y_column: String::from("latitude"),
+            },
+            category_column: String::from("activity_type"),
+            count_column: None,
+            category_mapping: HashMap::from([
+                (String::from("retail"), vec![String::from("retail")]),
+                (String::from("services"), vec![String::from("services")]),
+                (String::from("food"), vec![String::from("food")]),
+                (String::from("healthcare"), vec![String::from("healthcare")]),
+                (
+                    String::from("entertainment"),
+                    vec![String::from("entertainment")],
+                ),
+            ]),
+        };
         let result = oppvec::run(
             &String::from("/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"),
-            &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/us-places.csv"),
+            &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar-mep-long.csv"),
             "",
-            &oppvec::SourceFormat::LongFormat { geometry_format: oppvec::GeometryFormat::XYColumns { x_column: String::from("longitude"), y_column: String::from("latitude") }, category_column: String::from("activity_type"), count_column: None},
-            &[String::from("retail"),String::from("entertainment"),String::from("healthcare"),String::from("services"),String::from("food")],
+            &source_format,
         );
         match result {
             Ok(_) => {}

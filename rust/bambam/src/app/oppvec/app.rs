@@ -1,7 +1,7 @@
 use super::{OpportunityRecord, SourceFormat};
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
-use geo::{BoundingRect, Contains};
+use geo::{triangulate_delaunay::DelaunayTriangulationConfig, BoundingRect, Contains};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use rand;
@@ -30,7 +30,7 @@ pub fn run(
     opportunities_filename: &str,
     output_filename: &str,
     source_format: &SourceFormat,
-    activity_categories: &[String],
+    // activity_categories: &[String],
 ) -> Result<(), String> {
     // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
@@ -49,22 +49,9 @@ pub fn run(
     // load opportunity data, build activity types lookup
     let opportunities: Vec<OppRow> =
         read_opportunity_rows_v2(opportunities_filename, source_format)?;
-    // let acts_iter = tqdm!(
-    //     opportunities.iter(),
-    //     desc = "find all present unique categories",
-    //     total = opportunities.len()
-    // );
-    // let activity_types_lookup = acts_iter
-    //     .map(|(_, (_, cat))| cat.clone())
-    //     .unique()
-    //     .sorted()
-    //     .enumerate()
-    //     .map(|(i, c)| (c, i))
-    //     .collect::<HashMap<_, _>>();
-    // eprintln!();
-    let activity_types_lookup = activity_categories
-        .iter()
-        .cloned()
+    let activity_types_lookup = source_format
+        .activity_categories()
+        .into_iter()
         .enumerate()
         .map(|(i, s)| (s, i))
         .collect::<HashMap<_, _>>();
@@ -314,40 +301,47 @@ fn handle_failure<T, E: ToString>(
     }
 }
 
-/// uniformly samples locations for each opportunity in the counts collection
+/// uniformly samples locations for each opportunity in the counts collection.
+/// first triangulates the (multi)polygon
 fn downsample_polygon(
     polygon: &geo::Geometry<f32>,
     counts: &HashMap<String, u64>,
 ) -> Result<Vec<OppRow>, String> {
-    let rect = polygon.bounding_rect().ok_or_else(|| {
-        format!(
-            "unable to build bounding rect for polygon {}",
-            polygon.to_wkt()
-        )
-    })?;
-    let (sw, ne) = (rect.min(), rect.max());
-    let (minx, miny, maxx, maxy) = (sw.x, sw.y, ne.x, ne.y);
-    let (stride_x, stride_y) = (maxx - minx, maxy - miny);
+    use geo::algorithm::TriangulateDelaunay;
+    let triangles = match polygon {
+        geo::Geometry::Polygon(g) => g
+            .unconstrained_triangulation()
+            .map_err(|e| format!("failure triangulating polygon: {}", e)),
+        geo::Geometry::MultiPolygon(g) => g
+            .unconstrained_triangulation()
+            .map_err(|e| format!("failure triangulating polygon: {}", e)),
+        _ => Err(format!(
+            "cannot triangulate non-polygonal geometry: {}",
+            polygon.to_wkt().to_string()
+        )),
+    }?;
+    if triangles.is_empty() {
+        return Err(format!(
+            "triangulation of polygon produced no triangles: {}",
+            polygon.to_wkt().to_string()
+        ));
+    }
+
+    // for each activity count, sample a point to assign it
     let mut rng = rand::rng();
-    let samples = 250;
-    let mut unif_sample = || {
-        for _ in 0..samples {
-            let x: f32 = minx + stride_x * rng.random::<f32>();
-            let y: f32 = miny + stride_y * rng.random::<f32>();
-            let point = geo::Point::new(x, y);
-            if polygon.contains(&point) {
-                return Ok(point);
-            }
-        }
-        Err(format!("failed to sample a point in {} tries", samples))
-    };
     let mut idx = 0;
     let result = counts
         .iter()
         .map(|(act, cnt)| {
             (0..*cnt as usize)
                 .map(|_| {
-                    let pt = unif_sample()?;
+                    let triangle = triangles.choose(&mut rng).ok_or_else(|| {
+                        format!(
+                            "internal error: we have {} triangles but 0 could be chosen",
+                            triangles.len()
+                        )
+                    })?;
+                    let pt = sample_point_from_triangle(triangle, &mut rng);
                     let row = OppRow {
                         geometry: pt,
                         index: idx,
@@ -363,106 +357,22 @@ fn downsample_polygon(
     Ok(result.into_iter().flatten().collect_vec())
 }
 
-// pub fn read_opportunity_rows(
-//     opportunities_filename: &String,
-//     source_format: &SourceFormat,
-//     category_filter: Option<&String>,
-// ) -> Result<Vec<(geo::Point<f32>, (usize, String))>, String> {
-//     // rust/bambam/src/app/oppvec/overture_categories.csv
-//     // let overture_categories_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-//     //     .join("src")
-//     //     .join("app")
-//     //     .join("oppvec")
-//     //     .join("overture_categories.csv");
-
-//     // let mut cats_reader = csv::ReaderBuilder::new()
-//     //     .has_headers(true)
-//     //     .delimiter(b';')
-//     //     .from_path(&overture_categories_filepath)
-//     //     .map_err(|e| format!("failed to open overture_categories.csv file: {}", e))?;
-
-//     // let parent_lookup = cats_reader
-//     //     .into_records()
-//     //     .map(|record| {
-//     //         let r = record
-//     //             .map_err(|e| format!("failure reading overture_categories.csv row: {}", e))?;
-//     //         let category_code = r
-//     //             .get(0)
-//     //             .map(String::from)
-//     //             .ok_or_else(|| String::from("row missing column 0"))?;
-//     //         let taxonomy_str = r
-//     //             .get(1)
-//     //             .ok_or_else(|| String::from("row missing column 1"))?;
-//     //         let taxonomy_vec = taxonomy_str
-//     //             .replace("[", "")
-//     //             .replace("]", "")
-//     //             .split(",")
-//     //             .map(String::from)
-//     //             .collect_vec();
-//     //         let parent = taxonomy_vec
-//     //             .first()
-//     //             .ok_or_else(|| format!("taxonomy for {} has no parent", category_code))?
-//     //             .trim()
-//     //             .to_string();
-//     //         Ok((category_code, parent))
-//     //     })
-//     //     .collect::<Result<HashMap<_, _>, String>>()?;
-
-//     let mut opps_reader = csv::ReaderBuilder::new()
-//         .has_headers(true)
-//         .from_path(opportunities_filename)
-//         .map_err(|e| format!("failed to load {}: {}", opportunities_filename, e))?;
-//     let headers = build_header_lookup(&mut opps_reader)?;
-//     // let geom_idx = headers
-//     //     .get(geometry_column)
-//     //     .ok_or_else(|| String::from("internal error"))?;
-//     let iter = tqdm!(
-//         opps_reader.records().enumerate(),
-//         desc = "deserialize opportunities"
-//     );
-//     let result = iter
-//         .map(|(idx, row)| {
-//             let record = row.map_err(|e| format!("failed to read row {}: {}", idx, e))?;
-//             // let geometry_str = &record
-//             //     .get(*geom_idx)
-//             //     .ok_or_else(|| format!("row {} missing '{}' column", idx, geometry_column))?;
-//             // let geometry: geo::Point<f32> = wkt::TryFromWkt::try_from_wkt_str(geometry_str)
-//             //     .map_err(|e| format!("row {} has invalid Point geometry: {}", idx, e))?;
-//             let geometry_opt = source_format.read_geometry(&record, &headers)?;
-//             let category_opt = source_format.get_counts_by_category(&record, &headers)?;
-//             match geometry_opt {
-//                 None => Ok(None),
-//                 Some(geometry) => {}
-//             }
-
-//             // match (geometry_opt, category_opt) {
-//             //     (Some(geometry), Some(category)) => {
-//             //         // let parent = parent_lookup.get(&category).ok_or_else(|| {
-//             //         //     format!("missing parent lookup value for category '{}' where the cat_str was '{}'", category, cat_str)
-//             //         // // })?;
-//             //         match parent_lookup.get(&category) {
-//             //             Some(parent) => {
-//             //                 if accept_category_fn(parent) {
-//             //                     Ok(Some((geometry, (idx, category))))
-//             //                 } else {
-//             //                     Ok(None)
-//             //                 }
-//             //             }
-//             //             None => Ok(None),
-//             //         }
-
-//             //         // log::debug!("accepting row {} with category {}", idx, category);
-//             //     }
-//             //     _ => Ok(None),
-//             // }
-//         })
-//         .collect::<Result<Vec<_>, String>>()?
-//         .into_iter()
-//         .flatten()
-//         .collect_vec();
-//     eprintln!();
-//     Ok(result)
-// }
+/// samples a point from within a triangle using a barycentric coordinate representation and sampling
+/// along vectors between point 1 and the other two points.
+fn sample_point_from_triangle(t: &geo::Triangle<f32>, rng: &mut ThreadRng) -> geo::Point<f32> {
+    let (mut r1, mut r2) = (rng.random::<f32>(), rng.random::<f32>());
+    // ensure point will fall within the triangle
+    if r1 + r2 > 1.0 {
+        r1 = 1.0 - r1;
+        r2 = 1.0 - r2;
+    }
+    let (p1, p2, p3) = (t.0, t.1, t.2);
+    // apply vectors to p1 that stretch it randomly towards p2 + p3
+    let t1 = geo::Point(p1.clone());
+    let t2 = geo::Point((p2 - p1)) * r1;
+    let t3 = geo::Point((p3 - p1)) * r2;
+    return t1 + t2 + t3;
+}
 
 pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, usize>, String> {
     // We nest this call in its own scope because of lifetimes.
@@ -474,14 +384,6 @@ pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, 
         .enumerate()
         .map(|(idx, col)| (String::from(col), idx))
         .collect::<HashMap<_, _>>();
-    // for col in columns {
-    //     if !lookup.contains_key(*col) {
-    //         let header_str = lookup.keys().join(",");
-    //         return Err(format!(
-    //             "column '{}' not found in headers: [{}]",
-    //             col, header_str
-    //         ));
-    //     }
-    // }
+
     Ok(lookup)
 }

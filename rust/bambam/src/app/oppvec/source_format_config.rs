@@ -14,6 +14,7 @@ pub enum SourceFormatConfig {
         geometry_format: GeometryFormat,
         category_column: String,
         count_column: Option<String>,
+        category_mapping: HashMap<String, Vec<String>>,
     },
     // OvertureMaps {
     //     geometry_column: Option<String>,
@@ -22,7 +23,7 @@ pub enum SourceFormatConfig {
     WideFormat {
         geometry_format: GeometryFormat,
         /// maps fields of a [`csv::StringRecord`] to opportunity categories
-        column_mapping: HashMap<String, String>,
+        column_mapping: HashMap<String, Vec<String>>,
     },
 }
 
@@ -33,10 +34,11 @@ impl std::fmt::Display for SourceFormatConfig {
                 geometry_format,
                 category_column,
                 count_column,
+                category_mapping,
             } => {
                 write!(
                     f,
-                    "geometry from '{}' and single activity with category from '{}'",
+                    "geometry from '{}' and single activity row with category from '{}'",
                     geometry_format, category_column
                 )
             }
@@ -62,7 +64,7 @@ impl std::fmt::Display for SourceFormatConfig {
             } => {
                 let cats_middle = column_mapping
                     .iter()
-                    .map(|(k, v)| format!("'{}': '{}'", k, v))
+                    .map(|(k, v)| format!("'{}': '{:?}'", k, v))
                     .join(",");
                 let cats = format!("{{{}}}", cats_middle);
                 write!(
