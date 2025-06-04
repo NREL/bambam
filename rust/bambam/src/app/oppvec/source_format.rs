@@ -137,7 +137,7 @@ impl SourceFormat {
                 count_column,
                 category_mapping,
             } => {
-                let upstream_category = get_value_from_record(record, &category_column, headers)?;
+                let upstream_category = get_value_from_record(record, category_column, headers)?;
                 let activity_categories =
                     get_long_activity_names(&upstream_category, category_mapping)?;
                 let count = match count_column {

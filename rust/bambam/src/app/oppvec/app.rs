@@ -317,13 +317,13 @@ fn downsample_polygon(
             .map_err(|e| format!("failure triangulating polygon: {}", e)),
         _ => Err(format!(
             "cannot triangulate non-polygonal geometry: {}",
-            polygon.to_wkt().to_string()
+            polygon.to_wkt()
         )),
     }?;
     if triangles.is_empty() {
         return Err(format!(
             "triangulation of polygon produced no triangles: {}",
-            polygon.to_wkt().to_string()
+            polygon.to_wkt()
         ));
     }
 
@@ -368,10 +368,10 @@ fn sample_point_from_triangle(t: &geo::Triangle<f32>, rng: &mut ThreadRng) -> ge
     }
     let (p1, p2, p3) = (t.0, t.1, t.2);
     // apply vectors to p1 that stretch it randomly towards p2 + p3
-    let t1 = geo::Point(p1.clone());
+    let t1 = geo::Point(p1);
     let t2 = geo::Point((p2 - p1)) * r1;
     let t3 = geo::Point((p3 - p1)) * r2;
-    return t1 + t2 + t3;
+    t1 + t2 + t3
 }
 
 pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, usize>, String> {
