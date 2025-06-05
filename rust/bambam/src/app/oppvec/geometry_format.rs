@@ -12,19 +12,24 @@ pub enum GeometryFormat {
 }
 
 impl GeometryFormat {
+    pub fn new_wkt_format(column_name: String) -> GeometryFormat {
+        GeometryFormat::WktColumn { column_name }
+    }
+
+    pub fn new_xy_format(x_column: String, y_column: String) -> GeometryFormat {
+        GeometryFormat::XYColumns { x_column, y_column }
+    }
+
+    /// validates the provided column parameters and creates the appropriate [`GeometryFormat`] instance
+    /// as a result.
     pub fn new(
         geometry_column: Option<&String>,
         x_column: Option<&String>,
         y_column: Option<&String>,
     ) -> Result<GeometryFormat, String> {
         match (geometry_column, x_column, y_column) {
-            (Some(col), None, None) => Ok(Self::WktColumn {
-                column_name: col.clone(),
-            }),
-            (None, Some(x), Some(y)) => Ok(Self::XYColumns {
-                x_column: x.clone(),
-                y_column: y.clone(),
-            }),
+            (Some(col), None, None) => Ok(Self::new_wkt_format(col.clone())),
+            (None, Some(x), Some(y)) => Ok(Self::new_xy_format(x.clone(), y.clone())),
             _ => Err(String::from(
                 "specify only a geometry_column or provide x and y columns, not both",
             )),
