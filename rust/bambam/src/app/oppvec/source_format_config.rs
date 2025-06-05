@@ -13,6 +13,8 @@ pub enum SourceFormatConfig {
     LongFormat {
         geometry_format: GeometryFormat,
         category_column: String,
+        count_column: Option<String>,
+        category_mapping: HashMap<String, Vec<String>>,
     },
     // OvertureMaps {
     //     geometry_column: Option<String>,
@@ -21,31 +23,8 @@ pub enum SourceFormatConfig {
     WideFormat {
         geometry_format: GeometryFormat,
         /// maps fields of a [`csv::StringRecord`] to opportunity categories
-        column_mapping: HashMap<String, String>,
+        column_mapping: HashMap<String, Vec<String>>,
     },
-}
-
-impl SourceFormatConfig {
-    fn description(&self) -> String {
-        match self {
-            SourceFormatConfig::LongFormat {
-                geometry_format: _,
-                category_column: _,
-            } => String::from("long format data contains one opportunity count per row"),
-            // SourceFormatConfig::OvertureMaps {
-            //     geometry_column: _,
-            //     category_column: _,
-            // } => String::from(
-            //     r#"overture_maps category format is a json object with root parent at '.alternate[0]' position,
-            //         which is the most general category for this entry. for example, a
-            //         record with primary entry 'elementary_school' will have a '.alternate[0]' value of 'school'"#,
-            // ),
-            SourceFormatConfig::WideFormat {
-                geometry_format: _,
-                column_mapping: _,
-            } => String::from("wide format data contains aggregated opportunity counts per row"),
-        }
-    }
 }
 
 impl std::fmt::Display for SourceFormatConfig {
@@ -54,10 +33,12 @@ impl std::fmt::Display for SourceFormatConfig {
             SourceFormatConfig::LongFormat {
                 geometry_format,
                 category_column,
+                count_column,
+                category_mapping,
             } => {
                 write!(
                     f,
-                    "geometry from '{}' and single activity with category from '{}'",
+                    "geometry from '{}' and single activity row with category from '{}'",
                     geometry_format, category_column
                 )
             }
@@ -83,7 +64,7 @@ impl std::fmt::Display for SourceFormatConfig {
             } => {
                 let cats_middle = column_mapping
                     .iter()
-                    .map(|(k, v)| format!("'{}': '{}'", k, v))
+                    .map(|(k, v)| format!("'{}': '{:?}'", k, v))
                     .join(",");
                 let cats = format!("{{{}}}", cats_middle);
                 write!(

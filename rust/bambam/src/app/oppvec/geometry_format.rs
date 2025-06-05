@@ -11,6 +11,32 @@ pub enum GeometryFormat {
     XYColumns { x_column: String, y_column: String },
 }
 
+impl GeometryFormat {
+    pub fn new_wkt_format(column_name: String) -> GeometryFormat {
+        GeometryFormat::WktColumn { column_name }
+    }
+
+    pub fn new_xy_format(x_column: String, y_column: String) -> GeometryFormat {
+        GeometryFormat::XYColumns { x_column, y_column }
+    }
+
+    /// validates the provided column parameters and creates the appropriate [`GeometryFormat`] instance
+    /// as a result.
+    pub fn new(
+        geometry_column: Option<&String>,
+        x_column: Option<&String>,
+        y_column: Option<&String>,
+    ) -> Result<GeometryFormat, String> {
+        match (geometry_column, x_column, y_column) {
+            (Some(col), None, None) => Ok(Self::new_wkt_format(col.clone())),
+            (None, Some(x), Some(y)) => Ok(Self::new_xy_format(x.clone(), y.clone())),
+            _ => Err(String::from(
+                "specify only a geometry_column or provide x and y columns, not both",
+            )),
+        }
+    }
+}
+
 impl std::fmt::Display for GeometryFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -29,7 +55,7 @@ impl GeometryFormat {
         &self,
         row: &StringRecord,
         column_index_lookup: &HashMap<String, usize>,
-    ) -> Result<geo::Point<f32>, String> {
+    ) -> Result<geo::Geometry<f32>, String> {
         match self {
             GeometryFormat::WktColumn { column_name } => {
                 let idx = column_index_lookup
@@ -42,10 +68,11 @@ impl GeometryFormat {
                         column_name, e
                     )
                 })?;
-                match g {
-                    Geometry::Point(point) => Ok(point),
-                    _ => Err(format!("geometry must be point, found '{}'", value)),
-                }
+                Ok(g)
+                // match g {
+                //     Geometry::Point(point) => Ok(point),
+                //     _ => Err(format!("geometry must be point, found '{}'", value)),
+                // }
             }
             GeometryFormat::XYColumns { x_column, y_column } => {
                 let x_idx = column_index_lookup
@@ -63,7 +90,7 @@ impl GeometryFormat {
                     format!("failure reading number in column '{}': {}", y_column, e)
                 })?;
                 let point = geo::Point::new(x, y);
-                Ok(point)
+                Ok(geo::Geometry::Point(point))
             }
         }
     }
