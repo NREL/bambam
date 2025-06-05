@@ -1,4 +1,4 @@
-use super::{OpportunityRecord, SourceFormat};
+use super::SourceFormat;
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
 use geo::algorithm::TriangulateDelaunay;
