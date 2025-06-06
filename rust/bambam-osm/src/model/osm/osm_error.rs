@@ -32,6 +32,10 @@ pub enum OsmError {
     NoNodesFound,
     #[error("pbf does not contain any OSM 'way' elements")]
     NoWaysFound,
+    #[error("unable to deserialize WKT into geometry: {0}")]
+    InvalidWKT(String),
+    #[error("Geometry of WKT is not a valid extent: {0}")]
+    InvalidExtentWKT(String),
     #[error("{0}")]
     InternalError(String),
 }

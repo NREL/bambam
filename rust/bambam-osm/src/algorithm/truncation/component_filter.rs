@@ -10,6 +10,8 @@ use kdam::tqdm;
 use routee_compass_core::util::priority_queue::InternalPriorityQueue;
 use serde::{Deserialize, Serialize};
 
+/// Enumeration containing all policies for filtering connected components of
+/// a graph
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum ComponentFilter {
