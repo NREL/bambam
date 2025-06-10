@@ -2,7 +2,8 @@ use super::SourceFormat;
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
 use geo::{
-    triangulate_delaunay::DelaunayTriangulationConfig, BoundingRect, Contains, TriangulateDelaunay,
+    triangulate_delaunay::DelaunayTriangulationConfig, Area, BoundingRect, Contains,
+    TriangulateDelaunay,
 };
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
