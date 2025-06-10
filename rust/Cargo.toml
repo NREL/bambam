@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bambam", "bambam-osm", "bambam-util"]
+members = ["bambam", "bambam-osm", "bambam-util", "bambam-overturemaps"]
 
 [workspace.dependencies]
 kdam = "0.6.2"

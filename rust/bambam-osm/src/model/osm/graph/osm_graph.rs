@@ -328,6 +328,11 @@ impl OsmGraph {
         &'a self,
         sorted: bool,
     ) -> Box<dyn Iterator<Item = TripletRow<'a>> + 'a + Send + Sync> {
+        let desc = if sorted {
+            "collect sorted adjacencies for edge list"
+        } else {
+            "collect adjancencies for edge list"
+        };
         let iter = tqdm!(
             self.adj.iter().map(|((src, dir), adjacencies)| match dir {
                 Dir::Reverse => Ok(vec![]),
@@ -351,7 +356,7 @@ impl OsmGraph {
                     Ok(inner)
                 }
             }),
-            desc = "sort adjacencies for iteration",
+            desc = desc,
             total = self.adj.len()
         );
         if sorted {

@@ -132,10 +132,10 @@ impl SourceFormat {
 
         match self {
             SourceFormat::LongFormat {
-                geometry_format: _,
                 category_column,
                 count_column,
                 category_mapping,
+                ..
             } => {
                 let upstream_category = get_value_from_record(record, category_column, headers)?;
                 let activity_categories =
@@ -150,10 +150,7 @@ impl SourceFormat {
                     .collect::<HashMap<_, _>>();
                 Ok(result)
             }
-            SourceFormat::WideFormat {
-                geometry_format: _,
-                column_mapping,
-            } => {
+            SourceFormat::WideFormat { column_mapping, .. } => {
                 let mut counts_by_category: HashMap<String, u64> = HashMap::new();
                 for (category_column, category_names) in column_mapping.iter() {
                     let count = get_count_from_record(record, category_column, headers)?;

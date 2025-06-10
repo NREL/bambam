@@ -1,4 +1,4 @@
-use super::{OpportunityRecord, SourceFormat};
+use super::SourceFormat;
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
 use geo::{triangulate_delaunay::DelaunayTriangulationConfig, BoundingRect, Contains};
@@ -171,23 +171,6 @@ pub fn run(
     }
     eprintln!();
 
-    // // write activity types from this dataset to a file, preserving vector ordering
-    // let opportunities_list_file = Path::new(output_filename).join("activity_types.json");
-    // let act_types_list = activity_types_lookup
-    //     .iter()
-    //     .sorted_by_key(|(_, idx)| *idx)
-    //     .map(|(c, _)| c.clone())
-    //     .collect_vec();
-    // let act_types_str = serde_json::to_string_pretty(&act_types_list)
-    //     .map_err(|e| format!("failure JSON-encoding activity types by index: {}", e))?;
-    // std::fs::write(&opportunities_list_file, act_types_str).map_err(|e| {
-    //     format!(
-    //         "failure writing {}: {}",
-    //         &opportunities_list_file.to_string_lossy(),
-    //         e
-    //     )
-    // })?;
-
     Ok(())
 }
 
@@ -307,7 +290,6 @@ fn downsample_polygon(
     polygon: &geo::Geometry<f32>,
     counts: &HashMap<String, u64>,
 ) -> Result<Vec<OppRow>, String> {
-    use geo::algorithm::TriangulateDelaunay;
     let triangles = match polygon {
         geo::Geometry::Polygon(g) => g
             .unconstrained_triangulation()
@@ -326,6 +308,10 @@ fn downsample_polygon(
             polygon.to_wkt()
         ));
     }
+    let weighted_triangles = triangles
+        .into_iter()
+        .map(|t| (t, t.unsigned_area()))
+        .collect_vec();
 
     // for each activity count, sample a point to assign it
     let mut rng = rand::rng();
@@ -335,12 +321,14 @@ fn downsample_polygon(
         .map(|(act, cnt)| {
             (0..*cnt as usize)
                 .map(|_| {
-                    let triangle = triangles.choose(&mut rng).ok_or_else(|| {
-                        format!(
-                            "internal error: we have {} triangles but 0 could be chosen",
-                            triangles.len()
-                        )
-                    })?;
+                    let (triangle, _) = weighted_triangles
+                        .choose_weighted(&mut rng, |t| t.1)
+                        .map_err(|e| {
+                            format!(
+                                "failure sampling from {} triangles using weighted sampling algorithm: {}",
+                                weighted_triangles.len(), e
+                            )
+                        })?;
                     let pt = sample_point_from_triangle(triangle, &mut rng);
                     let row = OppRow {
                         geometry: pt,

@@ -49,7 +49,10 @@ impl OsmSource {
                 parallelize,
             } => {
                 let net_ftr = network_filter.clone().unwrap_or_default();
-                let extent_opt = read_extent_wkt(extent_filter_filepath)?;
+                let extent_opt = extent_filter_filepath
+                    .as_deref()
+                    .map(read_extent_wkt)
+                    .transpose()?;
                 let cc_ftr = component_filter.clone().unwrap_or_default();
 
                 // # download the network data from OSM within buffered polygon
@@ -150,22 +153,70 @@ impl OsmSource {
 }
 
 /// helper function that attempts to read an optional WKT from a file if provided.
-fn read_extent_wkt(
-    extent_filter_filepath: &Option<String>,
-) -> Result<Option<Geometry<f32>>, OsmError> {
-    let extent_filter_result = extent_filter_filepath.as_ref().map(|eff| {
-        let wkt_str = std::fs::read_to_string(eff).map_err(|e| {
-            OsmError::ConfigurationError(format!("unable to read file {}: {}", eff, e))
-        })?;
-        let geom: Result<Geometry<f32>, OsmError> =
-            Geometry::try_from_wkt_str(&wkt_str).map_err(|e| {
-                OsmError::ConfigurationError(format!("unable to read WKT in {}: {}", eff, e))
-            });
-        geom
-    });
-    match extent_filter_result {
-        Some(Ok(f)) => Ok(Some(f)),
-        Some(Err(e)) => Err(e),
-        None => Ok(None),
+fn read_extent_wkt(extent_filter_filepath: &str) -> Result<Geometry<f32>, OsmError> {
+    let wkt_str = std::fs::read_to_string(extent_filter_filepath).map_err(|e| {
+        OsmError::ConfigurationError(format!(
+            "unable to read file {}: {}",
+            extent_filter_filepath, e
+        ))
+    })?;
+
+    deserialize_validate_extent_str(&wkt_str)
+}
+
+/// Try to deserialize a string into geometry and validate if said geometry is useful as a extent (Polygon or Multipolygon)
+fn deserialize_validate_extent_str(wkt_str: &str) -> Result<Geometry<f32>, OsmError> {
+    let geometry: Geometry<f32> = Geometry::try_from_wkt_str(wkt_str).map_err(|e| {
+        OsmError::InvalidWKT(format!("unable to deserialize WKT in {}: {}", wkt_str, e))
+    })?;
+
+    match geometry {
+        Geometry::Polygon(..) | Geometry::MultiPolygon(..) => Ok(geometry),
+        _ => Err(OsmError::InvalidExtentWKT(format!(
+            "Invalid extent provided. Only Polygon or Multipolygon can be a valid extent: {:?}",
+            geometry
+        ))),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use geo::{Geometry, LineString, Polygon};
+
+    use crate::model::osm::{osm_source::deserialize_validate_extent_str, OsmError};
+
+    #[test]
+    fn test_deserialize_wkt_polygon() {
+        // Should pass and produce expected geometry
+        let poly_str = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))";
+        let exterior_coords: Vec<(f32, f32)> = vec![(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
+        let polygon = Polygon::new(LineString::from(exterior_coords), vec![]);
+        assert!(matches!(
+            deserialize_validate_extent_str(poly_str),
+            Ok::<Geometry::<f32>, OsmError>(polygon)
+        ));
+    }
+
+    #[test]
+    fn test_deserialize_wkt_notpolygon_or_multipolygon() {
+        // Should fail: Extent cannot be Points/Lines
+        let point_str = "POINT(0 0)";
+        assert!(matches!(
+            deserialize_validate_extent_str(point_str),
+            Err(OsmError::InvalidExtentWKT(_))
+        ));
+
+        let line_str = "LINESTRING (30 10, 10 30, 40 40)";
+        assert!(matches!(
+            deserialize_validate_extent_str(line_str),
+            Err(OsmError::InvalidExtentWKT(_))
+        ));
+
+        let poly_str = "POLYGON ((30 10, 40 40, 20 40, 10 20, 30 10))";
+        assert!(deserialize_validate_extent_str(poly_str).is_ok());
+
+        let mpoly_str =
+            "MULTIPOLYGON (((30 20, 45 40, 10 40, 30 20)), ((15  5, 40 10, 10 20,  5 10, 15  5)))";
+        assert!(deserialize_validate_extent_str(mpoly_str).is_ok());
     }
 }

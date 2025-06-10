@@ -38,13 +38,12 @@ impl IsochroneOutputFormat {
                             e
                         ))
                     })?;
-                let out_string = String::from_utf8(out_bytes).map_err(|e| {
-                    OutputPluginError::OutputPluginFailed(format!(
-                        "failed to read WKB as utf8: {}",
-                        e
-                    ))
-                })?;
-                Ok(out_string)
+
+                Ok(out_bytes
+                    .iter()
+                    .map(|b| format!("{:02X?}", b))
+                    .collect::<Vec<String>>()
+                    .join(""))
             }
             IsochroneOutputFormat::GeoJson => {
                 let geometry = geojson::Geometry::from(geometry);

@@ -30,7 +30,7 @@ impl OpportunityCollectFormat {
     ///
     /// # Arguments
     ///
-    /// * `opportunities` - the output of the [`OpportunityModel`]
+    /// * `opportunities` - the output of the [`super::opportunity_model::OpportunityModel`]
     /// * `activity_types` - the names of each activity in each opportunity row
     ///
     /// # Returns
