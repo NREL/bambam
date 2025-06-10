@@ -1,7 +1,9 @@
 use super::SourceFormat;
 use crate::util::polygonal_rtree::PolygonalRTree;
 use csv::Reader;
-use geo::{triangulate_delaunay::DelaunayTriangulationConfig, BoundingRect, Contains};
+use geo::{
+    triangulate_delaunay::DelaunayTriangulationConfig, BoundingRect, Contains, TriangulateDelaunay,
+};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use rand;
@@ -357,8 +359,8 @@ fn sample_point_from_triangle(t: &geo::Triangle<f32>, rng: &mut ThreadRng) -> ge
     let (p1, p2, p3) = (t.0, t.1, t.2);
     // apply vectors to p1 that stretch it randomly towards p2 + p3
     let t1 = geo::Point(p1);
-    let t2 = geo::Point((p2 - p1)) * r1;
-    let t3 = geo::Point((p3 - p1)) * r2;
+    let t2 = geo::Point(p2 - p1) * r1;
+    let t3 = geo::Point(p3 - p1) * r2;
     t1 + t2 + t3
 }
 

@@ -6,7 +6,7 @@ use bambam_overturemaps::collection::{
     OvertureMapsCollectorConfig, ReleaseVersion, RowFilterConfig, TaxonomyModel,
     TaxonomyModelBuilder,
 };
-use compass_tomtom::model::traversal::time_of_day::record;
+use compass_tomtom::model::traversal::speed_profile::record;
 use geo::{centroid, Centroid, Geometry};
 use rayon::prelude::*;
 use routee_compass_core::util::geo::PolygonalRTree;
