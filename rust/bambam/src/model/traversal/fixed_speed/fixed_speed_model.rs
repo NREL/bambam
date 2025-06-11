@@ -1,4 +1,5 @@
-use crate::model::fieldname;
+use crate::model::traversal::fixed_speed::FixedSpeedConfig;
+use chrono::format::Fixed;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
     state::{InputFeature, OutputFeature, StateModel, StateVariable},
@@ -8,16 +9,25 @@ use routee_compass_core::model::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct FixedSpeedModel {
-    pub speed: Speed,
-    pub speed_unit: SpeedUnit,
+    /// configuration of this model
+    pub config: Arc<FixedSpeedConfig>,
+    /// name of state feature where these speed values are assigned
+    pub fieldname: String,
+}
+
+impl FixedSpeedModel {
+    pub fn new(config: Arc<FixedSpeedConfig>) -> FixedSpeedModel {
+        let fieldname = format!("{}_speed", config.name);
+        FixedSpeedModel { config, fieldname }
+    }
 }
 
 impl TraversalModelService for FixedSpeedModel {
     fn build(
         &self,
-        query: &serde_json::Value,
+        _query: &serde_json::Value,
     ) -> Result<Arc<dyn TraversalModel>, TraversalModelError> {
         let model: Arc<dyn TraversalModel> = Arc::new(self.clone());
         Ok(model)
@@ -31,9 +41,9 @@ impl TraversalModel for FixedSpeedModel {
 
     fn output_features(&self) -> Vec<(String, OutputFeature)> {
         vec![(
-            fieldname::EDGE_SPEED.to_string(),
+            self.fieldname.clone(),
             OutputFeature::Speed {
-                speed_unit: self.speed_unit,
+                speed_unit: self.config.speed_unit,
                 initial: Speed::ZERO,
                 accumulator: false,
             },
@@ -46,7 +56,12 @@ impl TraversalModel for FixedSpeedModel {
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        state_model.set_speed(state, fieldname::EDGE_SPEED, &self.speed, &self.speed_unit)?;
+        state_model.set_speed(
+            state,
+            &self.fieldname,
+            &self.config.speed,
+            &self.config.speed_unit,
+        )?;
         Ok(())
     }
 
@@ -56,7 +71,12 @@ impl TraversalModel for FixedSpeedModel {
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        state_model.set_speed(state, fieldname::EDGE_SPEED, &self.speed, &self.speed_unit)?;
+        state_model.set_speed(
+            state,
+            &self.fieldname,
+            &self.config.speed,
+            &self.config.speed_unit,
+        )?;
         Ok(())
     }
 }
