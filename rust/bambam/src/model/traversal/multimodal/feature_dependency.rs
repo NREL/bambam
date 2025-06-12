@@ -57,8 +57,8 @@ impl FeatureDependency {
         match self {
             FeatureDependency::TimeDependency { time_feature } => {
                 let (time, time_unit) = state_model.get_time(state, time_feature, None)?;
-                state_model.add_time(state, fieldname::EDGE_TIME, &time, &time_unit)?;
-                state_model.add_time(state, fieldname::TRIP_TIME, &time, &time_unit)?;
+                state_model.add_time(state, fieldname::EDGE_TIME, &time, time_unit)?;
+                state_model.add_time(state, fieldname::TRIP_TIME, &time, time_unit)?;
                 Ok(())
             }
             FeatureDependency::SpeedDependency { speed_feature } => {
