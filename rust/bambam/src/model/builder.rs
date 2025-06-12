@@ -4,6 +4,7 @@ use crate::model::output_plugin::finalize::finalize_output_plugin_builder::Final
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::mep_score::mep_score_plugin_builder::MepScoreOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::opportunity_output_plugin_builder::OpportunityOutputPluginBuilder;
+use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use routee_compass::app::compass::CompassAppError;
 use routee_compass::app::compass::CompassAppBuilder;
@@ -27,13 +28,12 @@ pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
     let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedSpeedBuilder {});
     let departure_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripDepartureDelayBuilder {});
     let arrival_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripArrivalDelayBuilder {});
+    let multimodal_model: Rc<dyn TraversalModelBuilder> = Rc::new(MultimodalTraversalBuilder {});
 
-    let switch_model: Rc<dyn TraversalModelBuilder> =
-        Rc::new(SwitchTraversalBuilder::new(HashMap::from([])));
     builder.add_traversal_model(String::from("fixed_speed"), fixed_speed_model);
-    builder.add_traversal_model(String::from("switch"), switch_model.clone());
     builder.add_traversal_model(String::from("departure"), departure_model);
     builder.add_traversal_model(String::from("arrival"), arrival_model);
+    builder.add_traversal_model(String::from("multimodal"), multimodal_model);
 
     // MEP Frontier Models
     let no_restriction: Rc<dyn FrontierModelBuilder> = Rc::new(NoRestrictionBuilder {});
