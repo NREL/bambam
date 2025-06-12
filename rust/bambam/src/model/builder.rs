@@ -29,27 +29,14 @@ pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
     let departure_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripDepartureDelayBuilder {});
     let arrival_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripArrivalDelayBuilder {});
     let multimodal_model: Rc<dyn TraversalModelBuilder> = Rc::new(MultimodalTraversalBuilder {});
-
     builder.add_traversal_model(String::from("fixed_speed"), fixed_speed_model);
     builder.add_traversal_model(String::from("departure"), departure_model);
     builder.add_traversal_model(String::from("arrival"), arrival_model);
     builder.add_traversal_model(String::from("multimodal"), multimodal_model);
 
     // MEP Frontier Models
-    let no_restriction: Rc<dyn FrontierModelBuilder> = Rc::new(NoRestrictionBuilder {});
-    let road_class: Rc<dyn FrontierModelBuilder> = Rc::new(RoadClassBuilder {});
-    let turn_restruction: Rc<dyn FrontierModelBuilder> = Rc::new(TurnRestrictionBuilder {});
     let isochrone_fm = Rc::new(IsochroneFrontierBuilder {});
-    let base_frontier_builders: HashMap<String, Rc<dyn FrontierModelBuilder>> = HashMap::from([
-        (String::from("no_restriction"), no_restriction),
-        (String::from("road_class"), road_class),
-        (String::from("turn_restriction"), turn_restruction),
-        (String::from("isochrone"), isochrone_fm),
-    ]);
-    let combined = Rc::new(CombinedFrontierModelBuilder {
-        builders: base_frontier_builders.clone(),
-    });
-    builder.add_frontier_model(String::from("combined"), combined);
+    builder.add_frontier_model(String::from("isochrone"), isochrone_fm);
 
     // MEP Input Plugins
     builder.add_input_plugin(String::from("grid"), Rc::new(GridInputPluginBuilder {}));
