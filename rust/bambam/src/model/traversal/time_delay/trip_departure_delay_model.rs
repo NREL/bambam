@@ -46,7 +46,7 @@ impl TraversalModel for TripDepartureDelayModel {
                 },
             ),
             (
-                fieldname::TRIP_DEPARTURE_DELAY.to_string(),
+                fieldname::TRIP_ENROUTE_DELAY.to_string(),
                 OutputFeature::Time {
                     time_unit: self.0.config.time_unit,
                     initial: Time::ZERO,
@@ -89,7 +89,7 @@ fn add_delay_time(
         return Ok(());
     }
     if let Some((delay, delay_unit)) = lookup.get_delay_for_vertex(origin) {
-        state_model.set_time(state, fieldname::TRIP_DEPARTURE_DELAY, &delay, &delay_unit)?;
+        state_model.set_time(state, fieldname::TRIP_ENROUTE_DELAY, &delay, &delay_unit)?;
         state_model.add_time(state, fieldname::TRIP_TIME, &delay, &delay_unit)?;
     }
     Ok(())

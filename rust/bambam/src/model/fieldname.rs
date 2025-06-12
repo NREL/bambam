@@ -1,7 +1,8 @@
-/// time delays on trip departure, such as wait times
-pub const TRIP_DEPARTURE_DELAY: &str = "trip_departure_delay";
+/// time delays accumulated throughout the trip
+pub const TRIP_ENROUTE_DELAY: &str = "trip_enroute_delay";
 
-/// time delays on arriving at a destination, such as parking
+/// time delays on arriving at a destination, such as parking, which
+/// are not incorporated into the search cost function.
 pub const TRIP_ARRIVAL_DELAY: &str = "trip_arrival_delay";
 
 /// used to penalize an edge. convention is to design this
