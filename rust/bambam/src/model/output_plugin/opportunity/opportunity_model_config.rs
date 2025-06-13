@@ -100,7 +100,11 @@ impl OpportunityModelConfig {
 
                 // deserialize each CSV row, collecting the id and counts into a vector
                 let mut activity_counts: Vec<Vec<f64>> = vec![];
-                for row_result in reader.into_records() {
+                let rows_iter = tqdm!(
+                    reader.into_records(),
+                    desc = format!("opportunity source {}", opportunity_input_file)
+                );
+                for row_result in rows_iter {
                     let row = row_result.map_err(|e| {
                         OutputPluginError::BuildFailed(format!(
                             "failure reading row from {}: {}",
