@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::opportunity_format::OpportunityCollectFormat;
 use super::opportunity_model::OpportunityModel;
 use super::opportunity_model_config::OpportunityModelConfig;
@@ -15,6 +17,7 @@ use serde_json::json;
 /// row.
 pub struct OpportunityOutputPlugin {
     pub model: OpportunityModel,
+    pub totals: HashMap<String, f64>,
     pub opportunity_format: OpportunityCollectFormat,
 }
 
@@ -27,9 +30,12 @@ impl OutputPlugin for OpportunityOutputPlugin {
     ) -> Result<(), OutputPluginError> {
         // write down info about this opportunity format
         output[field::OPPORTUNITY_FORMAT] = json![self.opportunity_format.to_string()];
+
+        // write down the opportunity totals
+        output[field::OPPORTUNITY_TOTALS] = json![self.totals];
+
         // we use only destinations that changed from the last time bin, so we do "walk"
         // the previous TimeBin.min_time during iteration
-
         let walk_time_bin = true;
         let bin_iter = field::time_bins_iter_mut(output, walk_time_bin)
             .map_err(OutputPluginError::OutputPluginFailed)?;
@@ -67,8 +73,20 @@ impl OpportunityOutputPlugin {
         output_format: OpportunityCollectFormat,
     ) -> Result<OpportunityOutputPlugin, OutputPluginError> {
         let model = config.build()?;
+        let totals = model.opportunity_totals().map_err(|e| {
+            OutputPluginError::BuildFailed(format!("failed to collect opportunity totals: {}", e))
+        })?;
+        for (act, total) in totals.iter() {
+            if total == &0.0 {
+                return Err(OutputPluginError::BuildFailed(format!(
+                    "opportunity totals for activity type {} are zero, which is invalid",
+                    act
+                )));
+            }
+        }
         let plugin = OpportunityOutputPlugin {
             model,
+            totals,
             opportunity_format: output_format,
         };
         Ok(plugin)

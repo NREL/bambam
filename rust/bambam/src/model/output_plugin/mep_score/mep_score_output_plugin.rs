@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::activity_parameters::ActivityParameters;
 use super::mep_score_ops as ops;
 use super::modal_intensity_values::ModalIntensityValues;
@@ -28,8 +30,17 @@ impl OutputPlugin for MepScoreOutputPlugin {
             .get_config_serde(&field::OPPORTUNITY_FORMAT, &String::from("response"))
             .map_err(|e| {
                 OutputPluginError::InternalError(format!(
-                    "cannot decode {}: {}",
+                    "during mep score plugin, cannot decode {}: {}",
                     field::OPPORTUNITY_FORMAT,
+                    e
+                ))
+            })?;
+        let opp_totals: HashMap<String, f64> = output
+            .get_config_serde(&field::OPPORTUNITY_TOTALS, &String::from("response"))
+            .map_err(|e| {
+                OutputPluginError::InternalError(format!(
+                    "during mep score plugin, cannot decode {} from output row: {}",
+                    field::OPPORTUNITY_TOTALS,
                     e
                 ))
             })?;

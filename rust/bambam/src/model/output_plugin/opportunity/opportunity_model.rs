@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{
     opportunity_spatial_row::OpportunitySpatialRow,
     opportunity_table_orientation::OpportunityTableOrientation,
@@ -13,6 +11,7 @@ use routee_compass_core::{
     model::network::VertexId,
 };
 use rstar::{RTree, RTreeObject};
+use std::collections::HashMap;
 
 /// represents activities which can become opportunities if they
 /// are reached by some travel mode.
@@ -60,6 +59,37 @@ impl OpportunityModel {
             } => activity_types.to_vec(),
             OpportunityModel::Combined { models } => {
                 models.iter().flat_map(|m| m.activity_types()).collect_vec()
+            }
+        }
+    }
+
+    /// get the overall total number of opportunities available in the system given the provided
+    /// opportunity model
+    pub fn opportunity_totals(&self) -> Result<HashMap<String, f64>, String> {
+        match self {
+            OpportunityModel::Tabular {
+                activity_types,
+                activity_counts,
+                ..
+            } => activity_totals(activity_types, activity_counts),
+            OpportunityModel::Spatial {
+                activity_types,
+                activity_counts,
+                ..
+            } => activity_totals(activity_types, activity_counts),
+            OpportunityModel::Combined { models } => {
+                // sums inner model totals, appending when same activity type is present in multiple models
+                let mut result: HashMap<String, f64> = HashMap::new();
+                for m in models.iter() {
+                    let totals = m.opportunity_totals()?;
+                    for (act, cnt) in totals.into_iter() {
+                        result
+                            .entry(act)
+                            .and_modify(|acc| *acc += cnt)
+                            .or_insert(cnt);
+                    }
+                }
+                Ok(result)
             }
         }
     }
@@ -251,5 +281,31 @@ fn collect_opps(
         .into_iter()
         .flatten()
         .collect_vec();
+    Ok(result)
+}
+
+/// sums all counts into a global total for each category
+fn activity_totals(
+    activity_types: &Vec<String>,
+    activity_counts: &Vec<Vec<f64>>,
+) -> Result<HashMap<String, f64>, String> {
+    let mut sums = vec![0.0; activity_types.len()];
+    for row in activity_counts {
+        if activity_types.len() != row.len() {
+            return Err(format!(
+                "number of activity types and row columns must match, found {} != {}",
+                activity_types.len(),
+                row.len()
+            ));
+        }
+        for idx in 0..row.len() {
+            sums[idx] += row[idx];
+        }
+    }
+    let result = activity_types
+        .clone()
+        .into_iter()
+        .zip(sums)
+        .collect::<HashMap<_, _>>();
     Ok(result)
 }

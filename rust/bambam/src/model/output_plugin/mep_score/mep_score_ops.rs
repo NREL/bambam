@@ -11,6 +11,39 @@ use routee_compass_core::config::ConfigJsonExtensions;
 use serde_json::json;
 use std::collections::HashMap;
 
+/// computes the opportunity term in a MEP calculation using the form:
+///   o_{ijkt} * \frac{N^*}{n_j} * \frac{f_j}{\sum_j f_j}
+/// producing the o_{ikt} value.
+pub fn opportunity_term(
+    activity_type: &str,
+    activity_count: Option<&f64>,
+    activity_location: Option<&geo::Point<f32>>,
+    opportunity_totals: &HashMap<String, f64>,
+    activity_parameters: &ActivityParameters,
+    benchmark_activity: &str,
+) -> Result<f64, OutputPluginError> {
+    let count = match activity_count {
+        None => return Ok(0.0),
+        Some(count) => count,
+    };
+    let n_star: &f64 = opportunity_totals.get(benchmark_activity).ok_or_else(|| {
+        OutputPluginError::OutputPluginFailed(format!(
+            "benchmark activity {} missing from opportunity totals",
+            benchmark_activity
+        ))
+    })?;
+    let n_j: &f64 = opportunity_totals.get(activity_type).ok_or_else(|| {
+        OutputPluginError::OutputPluginFailed(format!(
+            "activity type {} missing from opportunity totals",
+            activity_type
+        ))
+    })?;
+    let n_term = n_star / n_j;
+    let freq_term = activity_parameters.get_frequency_term(activity_type, activity_location)?;
+    let result = count * n_term * freq_term;
+    Ok(result)
+}
+
 pub fn get_mode(output: &serde_json::Value) -> Result<String, OutputPluginError> {
     let request: &serde_json::Value = output.get("request").ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(String::from("request missing from output JSON"))
@@ -157,7 +190,7 @@ pub fn compute_mep_from_aggregate_opportunities<'a>(
     let result = iter
         .map(|(act, cnt)| {
             let count = cnt.unwrap_or_default();
-            let freq = activity_parameters.get_frequency(act, id_integer, search_result)?;
+            let freq = activity_parameters.get_frequency_term(act, None)?;
             let mep = compute_mep_row(count, freq, intensity_sum);
             Ok((act.clone(), mep))
         })
@@ -177,7 +210,8 @@ pub fn compute_mep_from_opportunities<'a>(
     let result = opportunities
         .map(|(act, cnt)| {
             let count = cnt.unwrap_or_default();
-            let freq = activity_parameters.get_frequency(act, id, result)?;
+            // todo: rewrite for locations using Point values
+            let freq = activity_parameters.get_frequency_term(act, None)?;
             let mep = compute_mep_row(count, freq, intensity_sum);
             Ok((act.clone(), mep))
         })
