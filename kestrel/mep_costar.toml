@@ -94,55 +94,76 @@ type = "solution_size"
 limit = 50_000_000
 
 [traversal]
-type = "switch"
+type = "combined"
 
 [[traversal.models]]
-mode = "walk"
-type = "fixed_speed"
+type = "distance"
 distance_unit = "miles"
-time_unit = "minutes"
-speed_unit = "kph"
-speed = 5
-access_model = []
-departure_agg = "sum"
-arrival_agg = "sum"
 
 [[traversal.models]]
-mode = "bike"
 type = "fixed_speed"
-distance_unit = "miles"
-time_unit = "minutes"
+name = "walk"
+speed = 5.0
 speed_unit = "kph"
-speed = 16
-access_model = []
-departure_agg = "sum"
-arrival_agg = "sum"
 
 [[traversal.models]]
-mode = "drive"
-type = "link_speed"
-underlying_type = "time_of_day"
-edge_to_speed_profile_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/edges-speed-profile-id-mapping-enumerated.txt.gz"
-speed_profile_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/speed-profile.csv.gz"
+type = "fixed_speed"
+name = "bike"
+speed = 16.0
+speed_unit = "kph"
+
+[[traversal.models]]
+type = "speed_profile"
+edge_to_speed_profile_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-speed-profile-id-mapping-enumerated.txt.gz"
+speed_profile_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-profile.csv.gz"
 # 35.704525623444134 is the average of all weekday_speed and weekend_speed entries
 fallback = { type = "global", fill_value = 35.704, speed_unit = "kph" }
 max_speed = 128
 distance_unit = "kilometers"
-time_unit = "hours"
+time_unit = "minutes"
 speed_unit = "kph"
 [traversal.models.speed_trace]
 type = "dense"
-speed_trace_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/speed-trace.csv.gz"
+speed_trace_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-trace.csv.gz"
 stride = 300
 
-# underlying_type = "speed_table"
-# speed_table_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/speed-weekday-avg-fill-enumerated.txt.gz"
-# speed_unit = "kph"
-# output_time_unit = "minutes"
-# departure_agg = "sum"
-# arrival_agg = "sum"
+[[traversal.models]]
+type = "multimodal"
+[traversal.models.output_features]
+trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
+edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
+# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
 
-[[traversal.models.access_model]]
+[traversal.models.modes]
+walk = [
+    { speed_feature = "walk_speed", destinations = [
+        "edge_time",
+        "trip_time",
+    ] },
+]
+bike = [
+    { speed_feature = "bike_speed", destinations = [
+        "edge_time",
+        "trip_time",
+    ] },
+]
+drive = [
+    { speed_feature = "edge_speed", destinations = ["edge_time", "trip_time"] },
+    # { time_feature = "trip_enroute_delay", destinations = [
+    #     "edge_time",
+    #     "trip_time",
+    # ] },
+]
+
+# use a time-optimal routing strategy
+[cost]
+weights = { trip_time = 1.0 }
+vehicle_rates = { trip_time = { type = "raw" } }
+# weights = { trip_time = 1.0, penalty_factor = 1.0 }
+# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
+cost_aggregation = "mul"
+
+[access]
 type = "turn_delay"
 edge_heading_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/edges-headings-enumerated.csv.gz"
 [access.turn_delay_model]
@@ -157,33 +178,6 @@ slight_left = 1.0
 left = 2.5
 sharp_left = 3.5
 u_turn = 9.5
-
-# use a time-optimal routing strategy
-[cost.weights]
-time = 1.0
-
-[cost.vehicle_rates.time]
-type = "raw" # default
-
-# # based on 65.5 cents per mile 2023 IRS mileage rate, $/mile
-# [cost.vehicle_rates.distance]
-# type = "factor"
-# factor = 0.655
-
-# # based on $20/hr approximation of 2023 median hourly wages, $/second
-# [cost.vehicle_rates.time]
-# type = "factor"
-# factor = 0.333336
-
-# # based on AAA regular unleaded gas prices sampled 12/21/2023
-# [cost.vehicle_rates.energy_liquid]
-# type = "factor"
-# factor = 3.120
-
-# # based on $0.50/kWh approximation of DCFC charge rates, $/kWhtype = "factor"
-# [cost.vehicle_rates.energy_electric]
-# type = "factor"
-# factor = 0.50
 
 
 [frontier]
@@ -215,27 +209,53 @@ acs_categories = ["B01001_001E"]
 
 [[plugin.input_plugins]]
 type = "inject"
+format = "key_value"
+write_mode = "overwrite"
 key = "grid_search"
-value = '{"modes":[{"mode":"walk","road_classes":[4,5,6,7]},{"mode":"bike","road_classes":[4,5,6,7]},{"mode":"drive","road_classes":[1,2,3,4,5,6]}]}'
-format = "json"
+[plugin.input_plugins.value]
+modes = [
+    { mode = "walk", road_classes = [
+        4,
+        5,
+        6,
+        7,
+    ] },
+    { mode = "bike", road_classes = [
+        4,
+        5,
+        6,
+        7,
+    ] },
+    { mode = "drive", road_classes = [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ] },
+]
 
 [[plugin.input_plugins]]
 type = "inject"
 key = "start_time"
 value = "08:00:00"
-format = "string"
+format = "key_value"
+write_mode = "overwrite"
 
 [[plugin.input_plugins]]
 type = "inject"
 key = "start_weekday"
 value = "monday"
-format = "string"
+format = "key_value"
+write_mode = "overwrite"
 
 [[plugin.input_plugins]]
 type = "inject"
 key = "time_limit"
-value = '40.0'
-format = "json"
+value = 40.0
+format = "key_value"
+write_mode = "overwrite"
 
 [[plugin.input_plugins]]
 type = "grid_search"
