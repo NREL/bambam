@@ -101,9 +101,9 @@ impl FeatureDependency {
                     Ok(())
                 }
                 DependencyUnitType::UnsignedInteger => {
-                    let value = state_model.get_custom_f64(state, source)?;
+                    let value = state_model.get_custom_u64(state, source)?;
                     for destination in destinations.iter() {
-                        state_model.set_custom_f64(state, destination, &value)?;
+                        state_model.set_custom_u64(state, destination, &value)?;
                     }
                     Ok(())
                 }
