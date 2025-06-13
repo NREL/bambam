@@ -8,7 +8,7 @@ bamsoda-core = { git = "https://github.nrel.gov/BAM/bamsoda.git", branch = "main
 bamsoda-acs = { git = "https://github.nrel.gov/BAM/bamsoda.git", branch = "main" }
 bamsoda-app = { git = "https://github.nrel.gov/BAM/bamsoda.git", branch = "main" }
 bamsoda-lehd = { git = "https://github.nrel.gov/BAM/bamsoda.git", branch = "main" }
-routee-compass = { version = "0.11.2" }
-routee-compass-core = { version = "0.11.2" }
-routee-compass-powertrain = { version = "0.11.2" }
+routee-compass = { version = "0.11.3" }
+routee-compass-core = { version = "0.11.3" }
+routee-compass-powertrain = { version = "0.11.3" }
 compass-tomtom = { git = "https://github.nrel.gov/MBAP/routee-compass-tomtom.git", branch = "release/v0.4.0" }
