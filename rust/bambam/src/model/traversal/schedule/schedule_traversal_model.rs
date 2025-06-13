@@ -1,8 +1,9 @@
 use super::{super::super::bambam_state_ops, schedule_traversal_engine::ScheduleTraversalEngine};
+use crate::model::fieldname;
 use chrono::{DateTime, Utc};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomFeatureFormat, StateFeature, StateVariable},
+    state::{CustomFeatureFormat, InputFeature, OutputFeature, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::sync::Arc;
@@ -13,20 +14,27 @@ pub struct ScheduleTraversalModel {
     pub start_time: DateTime<Utc>,
 }
 
+impl ScheduleTraversalModel {
+    const EMPTY_ROUTE_ID: i64 = -1;
+}
+
 impl TraversalModel for ScheduleTraversalModel {
-    fn state_features(&self) -> Vec<(String, StateFeature)> {
-        let mut features = bambam_state_ops::default_state_features();
-        features.push((
-            String::from(bambam_state_ops::field::ROUTE_ID),
-            StateFeature::Custom {
-                r#type: String::from("route id"),
+    fn input_features(&self) -> Vec<(String, InputFeature)> {
+        vec![]
+    }
+
+    fn output_features(&self) -> Vec<(String, OutputFeature)> {
+        vec![(
+            String::from(fieldname::ROUTE_ID),
+            OutputFeature::Custom {
+                name: String::from("route id"),
                 unit: String::from("signed integer"),
                 format: CustomFeatureFormat::SignedInteger {
-                    initial: bambam_state_ops::field::EMPTY_ROUTE_ID,
+                    initial: Self::EMPTY_ROUTE_ID,
                 },
+                accumulator: false,
             },
-        ));
-        features
+        )]
     }
 
     fn traverse_edge(

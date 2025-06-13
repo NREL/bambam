@@ -1,7 +1,7 @@
 use routee_compass_core::model::unit::{AsF64, Time};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum DelayAggregationType {
     #[default]

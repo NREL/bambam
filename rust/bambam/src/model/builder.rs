@@ -1,17 +1,14 @@
-use compass_tomtom::model::traversal::time_of_day::TimeOfDayTraversalBuilder;
-use routee_compass::app::compass::model::traversal_model::speed_lookup_builder::SpeedLookupBuilder;
 use routee_compass_core::model::traversal::TraversalModelBuilder;
 use crate::model::frontier::isochrone::isochrone_frontier_builder::IsochroneFrontierBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::mep_score::mep_score_plugin_builder::MepScoreOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::opportunity_output_plugin_builder::OpportunityOutputPluginBuilder;
-use crate::model::traversal::fixed::fixed_traversal_builder::FixedTraversalBuilder;
+use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
-use crate::model::traversal::link_speed::link_speed_builder::LinkSpeedBuilder;
 use routee_compass::app::compass::CompassAppError;
 use routee_compass::app::compass::CompassAppBuilder;
-use routee_compass::app::compass::model::frontier_model::combined::combined_builder::CombinedBuilder;
+use routee_compass::app::compass::model::frontier_model::combined::combined_builder::CombinedFrontierModelBuilder;
 use routee_compass::app::compass::model::frontier_model::no_restriction_builder::NoRestrictionBuilder;
 use routee_compass::app::compass::model::frontier_model::road_class::road_class_builder::RoadClassBuilder;
 use routee_compass::app::compass::model::frontier_model::turn_restrictions::turn_restriction_builder::TurnRestrictionBuilder;
@@ -20,52 +17,26 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
+use super::traversal::fixed_speed::FixedSpeedBuilder;
+use super::traversal::time_delay::TripArrivalDelayBuilder;
+use super::traversal::time_delay::TripDepartureDelayBuilder;
 
 pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
-    let mut builder = CompassAppBuilder::default();
-
-    // traversal models
-    let fixed_speed_key = String::from("fixed_speed");
-    let link_speed_key = String::from("link_speed");
-    let _scheduled_key = String::from("scheduled");
-    let switch_key = String::from("switch");
-
-    // underlying RouteE/RouteE TomTom Traversal Models
-    let speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(SpeedLookupBuilder {});
-    let tod_model: Rc<dyn TraversalModelBuilder> = Rc::new(TimeOfDayTraversalBuilder {});
+    let mut builder = compass_tomtom::builder::tomtom_builder();
 
     // MEP Traversal Models
-    let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedTraversalBuilder {});
-    let link_speed_model: Rc<dyn TraversalModelBuilder> =
-        Rc::new(LinkSpeedBuilder::new(HashMap::from([
-            (String::from("speed_table"), speed_model.clone()),
-            (String::from("time_of_day"), tod_model.clone()),
-        ])));
-    let switch_model: Rc<dyn TraversalModelBuilder> =
-        Rc::new(SwitchTraversalBuilder::new(HashMap::from([
-            (fixed_speed_key.clone(), fixed_speed_model.clone()),
-            (link_speed_key.clone(), link_speed_model.clone()),
-        ])));
-    builder.add_traversal_model(fixed_speed_key.clone(), fixed_speed_model);
-    builder.add_traversal_model(link_speed_key.clone(), link_speed_model);
-    builder.add_traversal_model(String::from("time_of_day"), tod_model);
-    builder.add_traversal_model(switch_key.clone(), switch_model.clone());
+    let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedSpeedBuilder {});
+    let departure_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripDepartureDelayBuilder {});
+    let arrival_model: Rc<dyn TraversalModelBuilder> = Rc::new(TripArrivalDelayBuilder {});
+    let multimodal_model: Rc<dyn TraversalModelBuilder> = Rc::new(MultimodalTraversalBuilder {});
+    builder.add_traversal_model(String::from("fixed_speed"), fixed_speed_model);
+    builder.add_traversal_model(String::from("departure"), departure_model);
+    builder.add_traversal_model(String::from("arrival"), arrival_model);
+    builder.add_traversal_model(String::from("multimodal"), multimodal_model);
 
     // MEP Frontier Models
-    let no_restriction: Rc<dyn FrontierModelBuilder> = Rc::new(NoRestrictionBuilder {});
-    let road_class: Rc<dyn FrontierModelBuilder> = Rc::new(RoadClassBuilder {});
-    let turn_restruction: Rc<dyn FrontierModelBuilder> = Rc::new(TurnRestrictionBuilder {});
     let isochrone_fm = Rc::new(IsochroneFrontierBuilder {});
-    let base_frontier_builders: HashMap<String, Rc<dyn FrontierModelBuilder>> = HashMap::from([
-        (String::from("no_restriction"), no_restriction),
-        (String::from("road_class"), road_class),
-        (String::from("turn_restriction"), turn_restruction),
-        (String::from("isochrone"), isochrone_fm),
-    ]);
-    let combined = Rc::new(CombinedBuilder {
-        builders: base_frontier_builders.clone(),
-    });
-    builder.add_frontier_model(String::from("combined"), combined);
+    builder.add_frontier_model(String::from("isochrone"), isochrone_fm);
 
     // MEP Input Plugins
     builder.add_input_plugin(String::from("grid"), Rc::new(GridInputPluginBuilder {}));

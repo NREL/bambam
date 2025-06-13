@@ -1,4 +1,4 @@
-use crate::model::bambam_state_ops::field::TRAVERSAL_TIME;
+use crate::model::fieldname;
 use routee_compass_core::model::{
     frontier::{FrontierModel, FrontierModelError},
     network::Edge,
@@ -23,8 +23,8 @@ impl FrontierModel for IsochroneFrontierModel {
         _direction: &routee_compass_core::algorithm::search::Direction,
         state_model: &StateModel,
     ) -> Result<bool, FrontierModelError> {
-        let time = state_model
-            .get_time(state, &TRAVERSAL_TIME.into(), &self.time_unit)
+        let (time, _) = state_model
+            .get_time(state, fieldname::TRIP_TIME, Some(&self.time_unit))
             .map_err(|e| FrontierModelError::BuildError(e.to_string()))?;
         let is_valid = time <= self.time_limit;
         Ok(is_valid)
