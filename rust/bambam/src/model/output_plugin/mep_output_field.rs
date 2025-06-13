@@ -20,6 +20,7 @@ pub const ISOCHRONE: &str = "isochrone";
 pub const ISOCHRONE_TREE_COUNT: &str = "isochrone_tree_count";
 pub const OPPORTUNITIES: &str = "opportunities";
 pub const OPPORTUNITY_FORMAT: &str = "opportunity_format";
+pub const OPPORTUNITY_TOTALS: &str = "opportunity_totals";
 pub const OPP_FMT_AGGREGATE: &str = "aggregate";
 pub const OPP_FMT_DISAGGREGATE: &str = "disaggregate";
 
