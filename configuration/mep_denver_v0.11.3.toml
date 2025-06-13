@@ -66,6 +66,69 @@ isochrone_20 = "bin.20.isochrone"
 isochrone_30 = "bin.30.isochrone"
 isochrone_40 = "bin.40.isochrone"
 
+mep = { sum = [
+    "bin.10.mep.entertainment",
+    "bin.10.mep.food",
+    "bin.10.mep.healthcare",
+    "bin.10.mep.jobs",
+    "bin.10.mep.retail",
+    "bin.10.mep.services",
+    "bin.20.mep.entertainment",
+    "bin.20.mep.food",
+    "bin.20.mep.healthcare",
+    "bin.20.mep.jobs",
+    "bin.20.mep.retail",
+    "bin.20.mep.services",
+    "bin.30.mep.entertainment",
+    "bin.30.mep.food",
+    "bin.30.mep.healthcare",
+    "bin.30.mep.jobs",
+    "bin.30.mep.retail",
+    "bin.30.mep.services",
+    "bin.40.mep.entertainment",
+    "bin.40.mep.food",
+    "bin.40.mep.healthcare",
+    "bin.40.mep.jobs",
+    "bin.40.mep.retail",
+    "bin.40.mep.services",
+] }
+mep_entertainment = { sum = [
+    "bin.10.mep.entertainment",
+    "bin.20.mep.entertainment",
+    "bin.30.mep.entertainment",
+    "bin.40.mep.entertainment",
+] }
+mep_food = { sum = [
+    "bin.10.mep.food",
+    "bin.20.mep.food",
+    "bin.30.mep.food",
+    "bin.40.mep.food",
+] }
+mep_healthcare = { sum = [
+    "bin.10.mep.healthcare",
+    "bin.20.mep.healthcare",
+    "bin.30.mep.healthcare",
+    "bin.40.mep.healthcare",
+] }
+mep_jobs = { sum = [
+    "bin.10.mep.jobs",
+    "bin.20.mep.jobs",
+    "bin.30.mep.jobs",
+    "bin.40.mep.jobs",
+] }
+mep_retail = { sum = [
+    "bin.10.mep.retail",
+    "bin.20.mep.retail",
+    "bin.30.mep.retail",
+    "bin.40.mep.retail",
+] }
+mep_services = { sum = [
+    "bin.10.mep.services",
+    "bin.20.mep.services",
+    "bin.30.mep.services",
+    "bin.40.mep.services",
+] }
+
 [graph]
 edge_list_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-compass.csv.gz"
 vertex_list_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"
