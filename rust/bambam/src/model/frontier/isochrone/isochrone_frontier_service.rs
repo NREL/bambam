@@ -15,6 +15,7 @@ impl FrontierModelService for IsochroneFrontierService {
         query: &serde_json::Value,
         _state_model: Arc<StateModel>,
     ) -> Result<Arc<dyn FrontierModel>, FrontierModelError> {
+        log::debug!("begin FrontierModelService::build for IsochroneFrontierService");
         let time_limit = query
             .get_config_serde::<Time>(&String::from("time_limit"), &String::from("isochrone"))
             .map_err(|e| {

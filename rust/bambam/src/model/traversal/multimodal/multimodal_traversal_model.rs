@@ -11,12 +11,17 @@ use std::collections::HashMap;
 
 pub struct MultimodalTraversalModel {
     pub feature_dependencies: Vec<FeatureDependency>,
+    pub output_features: Vec<(String, OutputFeature)>,
 }
 
 impl MultimodalTraversalModel {
-    pub fn new(feature_dependencies: Vec<FeatureDependency>) -> MultimodalTraversalModel {
+    pub fn new(
+        feature_dependencies: Vec<FeatureDependency>,
+        output_features: Vec<(String, OutputFeature)>,
+    ) -> MultimodalTraversalModel {
         MultimodalTraversalModel {
             feature_dependencies,
+            output_features,
         }
     }
 }
@@ -30,17 +35,7 @@ impl TraversalModel for MultimodalTraversalModel {
     }
 
     fn output_features(&self) -> Vec<(String, OutputFeature)> {
-        vec![(
-            fieldname::COST_PENALTY_FACTOR.to_string(),
-            OutputFeature::Custom {
-                name: fieldname::COST_PENALTY_FACTOR.to_string(),
-                unit: String::from("coefficient"),
-                format: CustomFeatureFormat::FloatingPoint {
-                    initial: 0.0.into(),
-                },
-                accumulator: false,
-            },
-        )]
+        self.output_features.to_vec()
     }
 
     fn traverse_edge(

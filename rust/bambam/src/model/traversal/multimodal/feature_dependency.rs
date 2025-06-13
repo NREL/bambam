@@ -1,6 +1,6 @@
 use crate::model::{fieldname, traversal::multimodal::DependencyUnitType};
 use routee_compass_core::model::{
-    state::{InputFeature, StateModel, StateModelError, StateVariable},
+    state::{InputFeature, OutputFeature, StateModel, StateModelError, StateVariable},
     unit::Time,
 };
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,7 @@ pub enum FeatureDependency {
 }
 
 impl FeatureDependency {
+    /// generate the associated input feature that satisfies this dependency
     pub fn as_input_feature(&self) -> (String, InputFeature) {
         match self {
             FeatureDependency::TimeDependency { time_feature, .. } => {
@@ -49,7 +50,9 @@ impl FeatureDependency {
         }
     }
 
-    /// updates the state vector based on the referenced feature
+    /// updates the state vector based on the referenced feature.
+    /// depending on the type of dependency, a different operation will occur, but in all cases,
+    /// there is a value in the state vector to be copied to some other slot in the vector.
     pub fn apply_feature_dependency(
         &self,
         state: &mut [StateVariable],

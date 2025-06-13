@@ -42,13 +42,25 @@ impl TraversalModelService for MultimodalTraversalService {
                 self.config.modes.keys().join(", ")
             ))
         })?;
-        let model = Arc::new(MultimodalTraversalModel::new(feature_dependencies.to_vec()));
+        let output_features = self
+            .config
+            .output_features
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect_vec();
+        let model = Arc::new(MultimodalTraversalModel::new(
+            feature_dependencies.to_vec(),
+            output_features,
+        ));
         Ok(model)
     }
 }
 
+/// helper that is an improvement over as_str().ok_or_else(|| ..) for getting a Value
+/// as a string (included "wrong" Value variant in error message).
 fn validate_is_string(value: &Value) -> Result<(), TraversalModelError> {
     match value {
+        serde_json::Value::String(_) => Ok(()),
         serde_json::Value::Null => Err(TraversalModelError::BuildError(String::from(
             "incoming query 'mode' is Null but must be a string",
         ))),
@@ -64,6 +76,5 @@ fn validate_is_string(value: &Value) -> Result<(), TraversalModelError> {
         serde_json::Value::Object(map) => Err(TraversalModelError::BuildError(String::from(
             "incoming query 'mode' is Object but must be a string",
         ))),
-        serde_json::Value::String(_) => Ok(()),
     }
 }
