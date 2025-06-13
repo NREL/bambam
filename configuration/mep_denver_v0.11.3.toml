@@ -82,16 +82,16 @@ matching_type = ["point", "vertex_id", "edge_id"]
 [algorithm]
 type = "a*"
 
-# cut off searches that exceed these termination policies
+# cut off searches that exceed these termination policies. 
 [termination]
 type = "combined"
 [[termination.models]]
 type = "query_runtime"
-limit = "00:10:00"
+limit = "00:01:00"
 frequency = 100_000
 [[termination.models]]
 type = "solution_size"
-limit = 50_000_000
+limit = 2_000_000
 
 [traversal]
 type = "combined"
@@ -129,6 +129,11 @@ stride = 300
 
 [[traversal.models]]
 type = "multimodal"
+[traversal.models.output_features]
+trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
+edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
+# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
+
 [traversal.models.modes]
 walk = [
     { speed_feature = "walk_speed", destinations = [
@@ -143,15 +148,20 @@ bike = [
     ] },
 ]
 drive = [
-    { speed_feature = "link_speed", destinations = [
-        "edge_time",
-        "trip_time",
-    ] },
-    { time_feature = "trip_enroute_delay", destinations = [
-        "edge_time",
-        "trip_time",
-    ] },
+    { speed_feature = "edge_speed", destinations = ["edge_time", "trip_time"] },
+    # { time_feature = "trip_enroute_delay", destinations = [
+    #     "edge_time",
+    #     "trip_time",
+    # ] },
 ]
+
+# use a time-optimal routing strategy
+[cost]
+weights = { trip_time = 1.0 }
+vehicle_rates = { trip_time = { type = "raw" } }
+# weights = { trip_time = 1.0, penalty_factor = 1.0 }
+# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
+cost_aggregation = "mul"
 
 [access]
 type = "turn_delay"
@@ -168,12 +178,6 @@ slight_left = 1.0
 left = 2.5
 sharp_left = 3.5
 u_turn = 9.5
-
-# use a time-optimal routing strategy
-[cost]
-weights = { trip_time = 1.0, penalty_factor = 1.0 }
-vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "mul"
 
 [frontier]
 type = "combined"
@@ -204,22 +208,32 @@ acs_categories = ["B01001_001E"]
 
 [[plugin.input_plugins]]
 type = "inject"
-key = "grid_search"
 format = "key_value"
 write_mode = "overwrite"
+key = "grid_search"
 [plugin.input_plugins.value]
-[[_modes]]
-mode = "walk"
-road_classes = [4, 5, 6, 7]
-
-[[_modes]]
-mode = "bike"
-road_classes = [4, 5, 6, 7]
-
-[[_modes]]
-mode = "drive"
-road_classes = [1, 2, 3, 4, 5, 6]
-
+modes = [
+    { mode = "walk", road_classes = [
+        4,
+        5,
+        6,
+        7,
+    ] },
+    { mode = "bike", road_classes = [
+        4,
+        5,
+        6,
+        7,
+    ] },
+    { mode = "drive", road_classes = [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ] },
+]
 
 [[plugin.input_plugins]]
 type = "inject"
@@ -238,7 +252,7 @@ write_mode = "overwrite"
 [[plugin.input_plugins]]
 type = "inject"
 key = "time_limit"
-value = '40.0'
+value = 40.0
 format = "key_value"
 write_mode = "overwrite"
 
