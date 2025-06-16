@@ -1,6 +1,6 @@
 use crate::model::output_plugin::mep_score::{
-    activity_parameters::ActivityParameters, modal_intensity_values::ModalIntensityValues,
-    ActivityParametersConfig,
+    activity_parameters::ActivityParameters, modal_intensity_model::ModalIntensityModel,
+    ActivityParametersConfig, ModalIntensityConfig,
 };
 use routee_compass::{
     app::compass::CompassComponentError,
@@ -20,8 +20,9 @@ impl OutputPluginBuilder for MepScoreOutputPluginBuilder {
     ) -> Result<Arc<dyn OutputPlugin>, CompassComponentError> {
         let parent_key = String::from("mep_score");
 
-        let modal_intensity_values: ModalIntensityValues =
+        let modal_intensity_config: ModalIntensityConfig =
             parameters.get_config_serde(&String::from("modal_intensity_values"), &parent_key)?;
+        let modal_intensity_values = ModalIntensityModel::try_from(&modal_intensity_config)?;
         let activity_parameters_config: ActivityParametersConfig =
             parameters.get_config_serde(&String::from("activity_parameters"), &parent_key)?;
         let activity_parameters = ActivityParameters::try_from(&activity_parameters_config)?;

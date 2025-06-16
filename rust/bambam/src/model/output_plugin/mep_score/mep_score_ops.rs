@@ -1,5 +1,5 @@
 use super::activity_parameters::ActivityParameters;
-use super::modal_intensity_values::ModalIntensityValues;
+use super::modal_intensity_model::ModalIntensityModel;
 use crate::model::output_plugin::isochrone::time_bin::TimeBin;
 use crate::model::output_plugin::mep_output_field as field;
 use itertools::Either;
@@ -169,7 +169,7 @@ pub fn compute_mep_from_aggregate_opportunities<'a>(
     mode: &'a String,
     time_bin: &'a TimeBin,
     search_result: &'a SearchAppResult,
-    modal_intensity_values: &'a ModalIntensityValues,
+    modal_intensity_values: &'a ModalIntensityModel,
     activity_parameters: &'a ActivityParameters,
 ) -> Result<serde_json::Value, OutputPluginError> {
     let id_integer = match cell_id {
@@ -184,6 +184,7 @@ pub fn compute_mep_from_aggregate_opportunities<'a>(
         }
         None => None,
     };
+    let time = time_bin
     let intensity_vector =
         modal_intensity_values.get_intensity_vector(mode, Some(time_bin), None, search_result)?;
     let intensity_sum = intensity_vector.iter().sum();

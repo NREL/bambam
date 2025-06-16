@@ -2,7 +2,7 @@ use super::{
     isochrone::time_bin::TimeBin,
     mep_output_field,
     mep_score::{
-        activity_parameters::ActivityParameters, modal_intensity_values::ModalIntensityValues,
+        activity_parameters::ActivityParameters, modal_intensity_model::ModalIntensityModel,
     },
 };
 use crate::model::output_plugin::mep_score::mep_score_ops;
@@ -124,7 +124,7 @@ pub fn accumulate_global_mep_scores(
     search_result: &SearchAppResult,
     mode: &String,
     time_bin: &TimeBin,
-    modal_intensity_values: &ModalIntensityValues,
+    modal_intensity_values: &ModalIntensityModel,
     activity_parameters: &ActivityParameters,
 ) -> Result<HashMap<String, f64>, PluginError> {
     let intensity_vector =

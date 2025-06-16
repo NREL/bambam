@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::activity_parameters::ActivityParameters;
 use super::mep_score_ops as ops;
-use super::modal_intensity_values::ModalIntensityValues;
+use super::modal_intensity_model::ModalIntensityModel;
 use crate::model::output_plugin::mep_output_field as field;
 use crate::model::output_plugin::opportunity::opportunity_format::OpportunityCollectFormat;
 use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
@@ -13,7 +13,7 @@ use routee_compass_core::config::ConfigJsonExtensions;
 use serde_json::json;
 
 pub struct MepScoreOutputPlugin {
-    pub modal_intensity_values: ModalIntensityValues,
+    pub modal_intensity_values: ModalIntensityModel,
     pub activity_parameters: ActivityParameters,
 }
 
