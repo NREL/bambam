@@ -1,6 +1,6 @@
 #!/bin/bash --login
 
-#SBATCH --job-name=bambam-a
+#SBATCH --job-name=bambam
 #SBATCH --nodes=1
 #SBATCH --ntasks=100
 #SBATCH --mem=240GB
