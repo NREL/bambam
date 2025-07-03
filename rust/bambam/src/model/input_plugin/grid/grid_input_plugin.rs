@@ -38,72 +38,90 @@ impl GridInputPlugin {
     }
 }
 
+//process like for InputPlugin below but without the SearchApp parameter
+pub fn process_grid_input(
+    input: &mut serde_json::Value,
+    extent_format: ExtentFormat,
+    grid_type: GridType,
+    population_source: &Option<PopulationSource>,
+) -> Result<(), InputPluginError> {
+    // check for correct and unambiguous fields on input
+    validate_query(input)?;
+    if input.get(super::EXTENT).is_none() {
+        // no grid requested
+        return Ok(());
+    }
+
+    // allow for user override of extent format and grid type.
+    let extent_format: ExtentFormat = input
+        .get_config_serde_optional(&super::EXTENT_FORMAT, &"")
+        .map_err(|e| {
+            InputPluginError::InputPluginFailed(format!("failure reading extent: {}", e))
+        })?
+        .unwrap_or(extent_format);
+    let grid_type: GridType = input
+        .get_config_serde_optional(&super::GRID_TYPE, &"")
+        .map_err(|e| {
+            InputPluginError::InputPluginFailed(format!("failure reading grid type: {}", e))
+        })?
+        .unwrap_or(grid_type);
+
+    // load the geographical extent
+    let extent = extent_format
+        .get_extent(input)
+        .map_err(InputPluginError::InputPluginFailed)?;
+
+    // create a template for the Compass JSON queries from whatever was in the input JSON, minus
+    // the arguments used here for building a grid.
+    let mut template = input.clone();
+    let output_map = template.as_object_mut().ok_or_else(|| {
+        let msg = String::from(
+            "internal error, cannot build template from user input that is not JSON mappable",
+        );
+        InputPluginError::InputPluginFailed(msg)
+    })?;
+    let _ = output_map.remove(super::EXTENT);
+    let _ = output_map.remove(super::EXTENT_FORMAT);
+    let _ = output_map.remove(super::GRID_TYPE);
+
+    // build the grid using the extent and template
+    let mut grid_queries: Vec<serde_json::Value> = grid_type
+        .create_grid(&extent, &template.clone())
+        .map_err(InputPluginError::InputPluginFailed)?;
+    eprintln!(
+        "finished creating {} grid with {} cells",
+        grid_type,
+        grid_queries.len()
+    );
+
+    if let Some(population_source) = population_source {
+        eprintln!("adding population source");
+        add_population_source(&mut grid_queries, &extent, population_source)?;
+    }
+
+    let mut replacement = serde_json::json![grid_queries];
+    std::mem::swap(&mut replacement, input);
+    Ok(())
+
+}
+
 impl InputPlugin for GridInputPlugin {
     /// process the user input to a MEP query into a grid.
     /// the user is expected to provide an extent, a grid_type, and an optional extent_format (assumed WKT).
     /// the grid is built over the extent using the grid_type chosen.
-    /// any extra keys provided by user are copied into each resulting grid cell (for example, a batch identifier).
+    /// any extra keys provided by user are copied into each resulting grid cell (for example, a batch identifier).   
     fn process(
         &self,
         input: &mut serde_json::Value,
         _: Arc<SearchApp>,
     ) -> Result<(), InputPluginError> {
         // check for correct and unambiguous fields on input
-        validate_query(input)?;
-        if input.get(super::EXTENT).is_none() {
-            // no grid requested
-            return Ok(());
-        }
-
-        // allow for user override of extent format and grid type.
-        let extent_format: ExtentFormat = input
-            .get_config_serde_optional(&super::EXTENT_FORMAT, &"")
-            .map_err(|e| {
-                InputPluginError::InputPluginFailed(format!("failure reading extent: {}", e))
-            })?
-            .unwrap_or(self.extent_format);
-        let grid_type: GridType = input
-            .get_config_serde_optional(&super::GRID_TYPE, &"")
-            .map_err(|e| {
-                InputPluginError::InputPluginFailed(format!("failure reading grid type: {}", e))
-            })?
-            .unwrap_or(self.grid_type);
-
-        // load the geographical extent
-        let extent = extent_format
-            .get_extent(input)
-            .map_err(InputPluginError::InputPluginFailed)?;
-
-        // create a template for the Compass JSON queries from whatever was in the input JSON, minus
-        // the arguments used here for building a grid.
-        let mut template = input.clone();
-        let output_map = template.as_object_mut().ok_or_else(|| {
-            let msg = String::from(
-                "internal error, cannot build template from user input that is not JSON mappable",
-            );
-            InputPluginError::InputPluginFailed(msg)
-        })?;
-        let _ = output_map.remove(super::EXTENT);
-        let _ = output_map.remove(super::EXTENT_FORMAT);
-        let _ = output_map.remove(super::GRID_TYPE);
-
-        // build the grid using the extent and template
-        let mut grid_queries: Vec<serde_json::Value> = grid_type
-            .create_grid(&extent, &template.clone())
-            .map_err(InputPluginError::InputPluginFailed)?;
-        eprintln!(
-            "finished creating {} grid with {} cells",
-            grid_type,
-            grid_queries.len()
+        process_grid_input(
+            input, 
+            self.extent_format,
+            self.grid_type,
+            &self.population_source,
         );
-
-        if let Some(population_source) = &self.population_source {
-            eprintln!("adding population source");
-            add_population_source(&mut grid_queries, &extent, population_source)?;
-        }
-
-        let mut replacement = serde_json::json![grid_queries];
-        std::mem::swap(&mut replacement, input);
         Ok(())
     }
 }
