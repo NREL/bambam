@@ -2,29 +2,6 @@ use bambam::app::{
     oppvec::{self, oppvec_ops},
     overlay::{self, OverlayOperation},
 };
-use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
-//use bambam::model::input_plugin::grid::grid_input_plugin::GridInputPlugin;
-use bambam::model::input_plugin::grid::grid_type::GridType;
-//use bambam::model::input_plugin::grid::{EXTENT_FORMAT, GRID_TYPE, POPULATION_SOURCE};
-//use bambam::model::input_plugin::population::population_source::PopulationSource;
-use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
-use bamsoda_acs::model::AcsType;
-use bamsoda_core::model::identifier::GeoidType;
-//use bambam::model::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
-//use routee_compass::plugin::input::InputPluginBuilder;
-use bambam::model::input_plugin::grid::grid_input_plugin_builder;
-
-//use wkt::Wkt;
-use h3o::Resolution;
-use serde_json::json;
-use std::fs::File;
-use std::io::Write;
-use std::io::BufWriter;
-use bambam::model::input_plugin::grid::grid_input_plugin;
-//use routee_compass::plugin::input::InputPlugin;
-//use routee_compass_core::config::{CompassConfigurationError, ConfigJsonExtensions};
-//use std::sync::Arc;
-
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -34,6 +11,19 @@ pub struct CliArgs {
     app: App,
 }
 
+use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
+use bambam::model::input_plugin::grid::grid_type::GridType;
+use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
+use bamsoda_acs::model::AcsType;
+use bamsoda_core::model::identifier::GeoidType;
+use bambam::model::input_plugin::grid::grid_input_plugin_builder;
+use h3o::Resolution;
+use serde_json::json;
+use std::fs::File;
+use std::io::Write;
+use std::io::BufWriter;
+use bambam::model::input_plugin::grid::grid_input_plugin;
+
 #[derive(Subcommand)]
 pub enum App {
     #[command(
@@ -41,25 +31,31 @@ pub enum App {
         about = "processs the grid before running bambam to avoid time-out errors"
     )]
     PreProcessGrid {
-        // population
+        /// 1 or 5 for one- or five-year ACS (American Community Survey) population estimate
         #[arg(long)]
         acs_type: AcsType,
+        /// year for estimate
         #[arg(long)]
         acs_year: u64,
+        /// (Optional) GeoidType for resolution
         #[arg(long)]
         acs_resolution: Option<GeoidType>,
+        /// (Optional) String for comma-separated categories
         #[arg(long)]
-        acs_categories: Option<String>, // change this from String -> split -> Vec<String>
+        acs_categories: Option<String>, 
+        /// (Optional) String for api token
         #[arg(long)]
         api_token: Option<String>,
-        // extent_format describes the format of the extent (geometries)
+        /// format of the extent in ExtentFormat, Wkt
         #[arg(long)]
         extent_format: ExtentFormat,
+        /// Resolution of grid, value 0-15
         #[arg(long)]
-        grid_resolution: Resolution, //expect H3 grid type, build Gridtype
-        // file location for output
+        grid_resolution: Resolution, 
+        /// String of desired output file location
         #[arg(long)]
         output_file: String,
+        /// String of extent to examine
         #[arg(long)]
         extent: String,
     },
@@ -171,10 +167,10 @@ impl App {
                 extent,
             } => {
 
-                // build acs categories
+                // build acs categories from &Option<String> to Option<Vec<String>>
                 let acs_categories: Option<Vec<String>> = acs_categories
                     .as_ref()
-                    .map(|str| str.split('s').map(|elem| elem.trim().to_string()).collect());
+                    .map(|str| {str.split(',').map(|elem| elem.trim().to_string()).collect()});
 
                 // create popconfig
                 let pop_config = PopulationSourceConfig::UsCensusAcs {
@@ -182,12 +178,10 @@ impl App {
                     acs_year: *acs_year,
                     acs_resolution: *acs_resolution,
                     acs_categories,
-                    api_token: api_token.clone(), // ?????
+                    api_token: api_token.clone(), 
                 };
-                // change popsource config to option<populationsource>
-                //let pop_source = Some(pop_config.build()?);
 
-                // deal with gridtype, convert u64 to h3o::Resolution
+                // Using grid_resolution, build grid_type:Gridtype
                 let grid_res_add = *grid_resolution;
                 let grid_type = GridType::H3 {
                     resolution: grid_res_add,
@@ -213,13 +207,14 @@ impl App {
                     &plugin.population_source,
                 );
 
-                // mutable data as input to process_grid_input becomes a json array, now access data
+                // mutable data as input to process_grid_input becomes a json array
+                // these 3 lines make sure the resulting data array is json, if it is, we have an array to loop through
                 let array = match data.as_array() {
                     Some(a) => a,
                     None => return Err("not an array of JSON".to_string()),
                 };
 
-                // write the resulting Vec (each is json value) to the output file location as newline-delimited JSON
+                // write the resulting array to the output file location as newline-delimited JSON
                 let file = File::create(output_file).map_err(|e| e.to_string())?;
                 let mut writeto = BufWriter::new(file);
                 for value in array {
@@ -229,7 +224,6 @@ impl App {
                 println!("Wrote newline-delimited JSON to {}", output_file);
                 Ok(())
             }
-            // END OF PreProcessGrid
             Self::OutputOverlay {
                 mep_matrix_filename,
                 overlay_filename,
@@ -330,34 +324,6 @@ fn main() {
     let args = CliArgs::parse();
     args.app.run().unwrap();
 }
-/*
-pub struct SearchApp {
-    pub search_algorithm: SearchAlgorithm, done
-    pub graph: Arc<Graph>,
-    pub map_model: Arc<MapModel>,
-    pub state_model: Arc<StateModel>,
-    pub traversal_model_service: Arc<dyn TraversalModelService>,
-    pub access_model_service: Arc<dyn AccessModelService>,
-    pub cost_model_service: Arc<CostModelService>,
-    pub frontier_model_service: Arc<dyn FrontierModelService>,
-    pub termination_model: Arc<TerminationModel>,
-}
-mod dummy {
-    pub struct dummyGraph{
-        pub adj:
-        pub rev:
-        pub edges:
-        pub vertices:
-    }
-
-
-
-    pub fn dummy_searchApp() -> Arc<SearchApp> {
-        let newSearchApp = SearchApp::new(SearchAlgorithm::Dijkstra,
-        Arc::Graph)
-    }
-
-}*/
 
 #[cfg(test)]
 mod tests {
