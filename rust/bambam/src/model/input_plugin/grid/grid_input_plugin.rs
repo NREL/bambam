@@ -19,9 +19,9 @@ use std::{
 use wkt::TryFromWkt;
 
 pub struct GridInputPlugin {
-    population_source: Option<PopulationSource>,
-    extent_format: ExtentFormat,
-    grid_type: GridType,
+    pub population_source: Option<PopulationSource>,
+    pub extent_format: ExtentFormat,
+    pub grid_type: GridType,
 }
 
 impl GridInputPlugin {

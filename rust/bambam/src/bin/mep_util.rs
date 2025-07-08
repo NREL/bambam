@@ -3,16 +3,27 @@ use bambam::app::{
     overlay::{self, OverlayOperation},
 };
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
-use bambam::model::input_plugin::grid::grid_input_plugin::GridInputPlugin;
+//use bambam::model::input_plugin::grid::grid_input_plugin::GridInputPlugin;
 use bambam::model::input_plugin::grid::grid_type::GridType;
-use bambam::model::input_plugin::grid::{EXTENT_FORMAT, GRID_TYPE, POPULATION_SOURCE};
-use bambam::model::input_plugin::population::population_source::PopulationSource;
+//use bambam::model::input_plugin::grid::{EXTENT_FORMAT, GRID_TYPE, POPULATION_SOURCE};
+//use bambam::model::input_plugin::population::population_source::PopulationSource;
 use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
 use bamsoda_acs::model::AcsType;
 use bamsoda_core::model::identifier::GeoidType;
+//use bambam::model::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
+//use routee_compass::plugin::input::InputPluginBuilder;
+use bambam::model::input_plugin::grid::grid_input_plugin_builder;
 
 //use wkt::Wkt;
 use h3o::Resolution;
+use serde_json::json;
+use std::fs::File;
+use std::io::Write;
+use std::io::BufWriter;
+use bambam::model::input_plugin::grid::grid_input_plugin;
+//use routee_compass::plugin::input::InputPlugin;
+//use routee_compass_core::config::{CompassConfigurationError, ConfigJsonExtensions};
+//use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
@@ -159,14 +170,6 @@ impl App {
                 output_file,
                 extent,
             } => {
-                use serde_json::json;
-                use std::fs::File;
-                use std::io::Write;
-                use std::io::BufWriter;
-                use bambam::model::input_plugin::grid::grid_input_plugin;
-                use routee_compass::plugin::input::InputPlugin;
-                use routee_compass_core::config::{CompassConfigurationError, ConfigJsonExtensions};
-                use std::sync::Arc;
 
                 // build acs categories
                 let acs_categories: Option<Vec<String>> = acs_categories
@@ -195,70 +198,19 @@ impl App {
                     "extent": extent,
                     "population_source": pop_config,
                     "extent_format": extent_format,
-                    "grid_type": grid_type,
+                    "grid": grid_type,
                     "output_file": output_file
                 });
                 
                 // BUILD THE PLUGIN
-                fn build(
-                    data: &serde_json::Value,
-                ) -> Result<
-                    (
-                        Arc<dyn InputPlugin>,
-                        Option<PopulationSource>,
-                        ExtentFormat,
-                        GridType,
-                    ),
-                    CompassConfigurationError,
-                > {
-                    let pop_config: Option<PopulationSourceConfig> =
-                        data.get_config_serde_optional(&POPULATION_SOURCE, &"")?;
-                    let extent_format: ExtentFormat =
-                        data.get_config_serde(&EXTENT_FORMAT, &"").map_err(|e| {
-                            CompassConfigurationError::UserConfigurationError(format!(
-                                "failure reading extent: {}",
-                                e
-                            ))
-                        })?;
-                    let grid_type: GridType =
-                        data.get_config_serde(&GRID_TYPE, &"").map_err(|e| {
-                            CompassConfigurationError::UserConfigurationError(format!(
-                                "failure reading grid type: {}",
-                                e
-                            ))
-                        })?;
-                    let population_source = match pop_config {
-                        Some(conf) => conf
-                            .build()
-                            .map_err(|s| {
-                                let msg = format!(
-                                    "failure building {} configuration for grid input plugin: {}",
-                                    POPULATION_SOURCE, s
-                                );
-                                CompassConfigurationError::UserConfigurationError(msg)
-                            })
-                            .map(Some),
-                        None => Ok(None),
-                    }?;
+                let plugin = grid_input_plugin_builder::plugin_builder(&data).expect("Error");
 
-                    let plugin = Arc::new(GridInputPlugin::new(
-                        &population_source,
-                        extent_format.clone(),
-                        grid_type.clone(),
-                    ));
-
-                    Ok((plugin, population_source, extent_format, grid_type))
-                };
-
-                let (plugin, population_source, extent_format, grid_type) =
-                    build(&data).expect("error"); 
-
-                // PROCESS THE PLUGIN
-                let processed_plugin = grid_input_plugin::process_grid_input(
+                // PROCESS
+                let _processed_plugin = grid_input_plugin::process_grid_input(
                     &mut data,
-                    extent_format,
-                    grid_type,
-                    &population_source,
+                    plugin.extent_format,
+                    plugin.grid_type,
+                    &plugin.population_source,
                 );
 
                 // mutable data as input to process_grid_input becomes a json array, now access data
