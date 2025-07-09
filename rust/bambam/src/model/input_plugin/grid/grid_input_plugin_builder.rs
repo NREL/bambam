@@ -6,28 +6,26 @@ use std::sync::Arc;
 
 pub struct GridInputPluginBuilder {}
 
-// for GridInputPlugin return 
+// for GridInputPlugin return
 pub fn plugin_builder(
     data: &serde_json::Value,
-) -> Result<GridInputPlugin, CompassConfigurationError>{
+) -> Result<GridInputPlugin, CompassConfigurationError> {
     let pop_config: Option<PopulationSourceConfig> =
-            data.get_config_serde_optional(&super::POPULATION_SOURCE, &"")?;
-    let extent_format: ExtentFormat = data
-        .get_config_serde(&super::EXTENT_FORMAT, &"")
-        .map_err(|e| {
+        data.get_config_serde_optional(&super::POPULATION_SOURCE, &"")?;
+    let extent_format: ExtentFormat =
+        data.get_config_serde(&super::EXTENT_FORMAT, &"")
+            .map_err(|e| {
+                CompassConfigurationError::UserConfigurationError(format!(
+                    "failure reading extent: {}",
+                    e
+                ))
+            })?;
+    let grid_type: GridType = data.get_config_serde(&super::GRID_TYPE, &"").map_err(|e| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "failure reading extent: {}",
+            "failure reading grid type: {}",
             e
         ))
     })?;
-    let grid_type: GridType = data
-        .get_config_serde(&super::GRID_TYPE, &"")
-        .map_err(|e| {
-            CompassConfigurationError::UserConfigurationError(format!(
-                "failure reading grid type: {}",
-                e
-            ))
-        })?;
     let population_source = match pop_config {
         Some(conf) => conf
             .build()

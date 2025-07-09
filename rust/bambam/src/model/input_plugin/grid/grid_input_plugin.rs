@@ -55,9 +55,7 @@ pub fn process_grid_input(
     // allow for user override of extent format and grid type.
     let extent_format: ExtentFormat = input
         .get_config_serde_optional(&super::EXTENT_FORMAT, &"")
-        .map_err(|e| {
-            InputPluginError::InputPluginFailed(format!("failure reading extent: {}", e))
-        })?
+        .map_err(|e| InputPluginError::InputPluginFailed(format!("failure reading extent: {}", e)))?
         .unwrap_or(extent_format);
     let grid_type: GridType = input
         .get_config_serde_optional(&super::GRID_TYPE, &"")
@@ -102,7 +100,6 @@ pub fn process_grid_input(
     let mut replacement = serde_json::json![grid_queries];
     std::mem::swap(&mut replacement, input);
     Ok(())
-
 }
 
 impl InputPlugin for GridInputPlugin {
@@ -117,7 +114,7 @@ impl InputPlugin for GridInputPlugin {
     ) -> Result<(), InputPluginError> {
         // check for correct and unambiguous fields on input
         process_grid_input(
-            input, 
+            input,
             self.extent_format,
             self.grid_type,
             &self.population_source,

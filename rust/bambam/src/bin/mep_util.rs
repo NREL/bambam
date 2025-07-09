@@ -12,17 +12,17 @@ pub struct CliArgs {
 }
 
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
+use bambam::model::input_plugin::grid::grid_input_plugin;
+use bambam::model::input_plugin::grid::grid_input_plugin_builder;
 use bambam::model::input_plugin::grid::grid_type::GridType;
 use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
 use bamsoda_acs::model::AcsType;
 use bamsoda_core::model::identifier::GeoidType;
-use bambam::model::input_plugin::grid::grid_input_plugin_builder;
 use h3o::Resolution;
 use serde_json::json;
 use std::fs::File;
-use std::io::Write;
 use std::io::BufWriter;
-use bambam::model::input_plugin::grid::grid_input_plugin;
+use std::io::Write;
 
 #[derive(Subcommand)]
 pub enum App {
@@ -42,7 +42,7 @@ pub enum App {
         acs_resolution: Option<GeoidType>,
         /// (Optional) String for comma-separated categories
         #[arg(long)]
-        acs_categories: Option<String>, 
+        acs_categories: Option<String>,
         /// (Optional) String for api token
         #[arg(long)]
         api_token: Option<String>,
@@ -51,7 +51,7 @@ pub enum App {
         extent_format: ExtentFormat,
         /// Resolution of grid, value 0-15
         #[arg(long)]
-        grid_resolution: Resolution, 
+        grid_resolution: Resolution,
         /// String of desired output file location
         #[arg(long)]
         output_file: String,
@@ -166,11 +166,10 @@ impl App {
                 output_file,
                 extent,
             } => {
-
                 // build acs categories from &Option<String> to Option<Vec<String>>
                 let acs_categories: Option<Vec<String>> = acs_categories
                     .as_ref()
-                    .map(|str| {str.split(',').map(|elem| elem.trim().to_string()).collect()});
+                    .map(|str| str.split(',').map(|elem| elem.trim().to_string()).collect());
 
                 // create popconfig
                 let pop_config = PopulationSourceConfig::UsCensusAcs {
@@ -178,7 +177,7 @@ impl App {
                     acs_year: *acs_year,
                     acs_resolution: *acs_resolution,
                     acs_categories,
-                    api_token: api_token.clone(), 
+                    api_token: api_token.clone(),
                 };
 
                 // Using grid_resolution, build grid_type:Gridtype
@@ -195,7 +194,7 @@ impl App {
                     "grid": grid_type,
                     "output_file": output_file
                 });
-                
+
                 // BUILD THE PLUGIN
                 let plugin = grid_input_plugin_builder::plugin_builder(&data).expect("Error");
 

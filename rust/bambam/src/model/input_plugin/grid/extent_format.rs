@@ -1,9 +1,8 @@
+use clap::ValueEnum;
 use geo::Geometry;
 use routee_compass_core::config::ConfigJsonExtensions;
 use serde::{Deserialize, Serialize};
 use wkt;
-use clap::ValueEnum;
-
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default, ValueEnum)]
 #[serde(rename_all = "snake_case")]
