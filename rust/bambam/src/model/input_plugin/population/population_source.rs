@@ -15,7 +15,7 @@ pub enum PopulationSource {
         acs_type: AcsType,
         acs_year: u64,
         acs_resolution: Option<GeoidType>,
-        acs_categories: Option<Vec<String>>,
+        acs_categories: Option<Vec<String>>, // comma delimited string (split on commas)
         api_token: Option<String>,
     },
 }
