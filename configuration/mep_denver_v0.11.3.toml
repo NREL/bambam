@@ -2,13 +2,13 @@ parallelism = 6
 response_persistence_policy = "discard_response_from_memory"
 
 [graph]
-edge_list_input_file = "tomtom_denver/edges-compass.csv.gz"
-vertex_list_input_file = "tomtom_denver/vertices-compass.csv.gz"
+edge_list_input_file = "../tomtom_denver/edges-compass.csv.gz"
+vertex_list_input_file = "../tomtom_denver/vertices-compass.csv.gz"
 verbose = true
 
 [mapping]
 type = "edge"
-geometry_input_file = "tomtom_denver/edges-geometries-enumerated.txt.gz"
+geometry_input_file = "../tomtom_denver/edges-geometries-enumerated.txt.gz"
 tolerance.distance = 15.0
 tolerance.unit = "meters"
 queries_without_destinations = false
@@ -49,8 +49,8 @@ speed_unit = "kph"
 
 [[traversal.models]]
 type = "speed_profile"
-edge_to_speed_profile_input_file = "tomtom_denver/edges-speed-profile-id-mapping-enumerated.txt.gz"
-speed_profile_input_file = "tomtom_denver/speed-profile.csv.gz"
+edge_to_speed_profile_input_file = "../tomtom_denver/edges-speed-profile-id-mapping-enumerated.txt.gz"
+speed_profile_input_file = "../tomtom_denver/speed-profile.csv.gz"
 # 35.704525623444134 is the average of all weekday_speed and weekend_speed entries
 fallback = { type = "global", fill_value = 35.704, speed_unit = "kph" }
 max_speed = 128
@@ -59,7 +59,7 @@ time_unit = "minutes"
 speed_unit = "kph"
 [traversal.models.speed_trace]
 type = "dense"
-speed_trace_input_file = "tomtom_denver/speed-trace.csv.gz"
+speed_trace_input_file = "../tomtom_denver/speed-trace.csv.gz"
 stride = 300
 
 [[traversal.models]]
@@ -90,7 +90,7 @@ cost_aggregation = "mul"
 
 [access]
 type = "turn_delay"
-edge_heading_input_file = "tomtom_denver/edges-headings-enumerated.csv.gz"
+edge_heading_input_file = "../tomtom_denver/edges-headings-enumerated.csv.gz"
 [access.turn_delay_model]
 type = "tabular_discrete"
 time_unit = "seconds"
@@ -109,11 +109,11 @@ type = "combined"
 
 [[frontier.models]]
 type = "road_class"
-road_class_input_file = "tomtom_denver/edges-routing-class-enumerated.txt.gz"
+road_class_input_file = "../tomtom_denver/edges-routing-class-enumerated.txt.gz"
 
 [[frontier.models]]
 type = "turn_restriction"
-turn_restriction_input_file = "tomtom_denver/edges-turn-restrictions.csv.gz"
+turn_restriction_input_file = "../tomtom_denver/edges-turn-restrictions.csv.gz"
 
 [[frontier.models]]
 type = "isochrone"
@@ -197,7 +197,7 @@ type = "combined"
 
 [[plugin.output_plugins.model.models]]
 type = "api"
-vertex_input_file = "tomtom_denver/vertices-compass.csv.gz"
+vertex_input_file = "../tomtom_denver/vertices-compass.csv.gz"
 activity_column_names = ["jobs"]
 table_orientation = "destination_vertex_oriented"
 
