@@ -1,8 +1,10 @@
 use super::{
-    opportunity_spatial_row::OpportunitySpatialRow,
-    opportunity_table_orientation::OpportunityTableOrientation,
+    opportunity_orientation::OpportunityOrientation, opportunity_spatial_row::OpportunitySpatialRow,
 };
-use crate::model::output_plugin::mep_output_ops::DestinationsIter;
+use crate::model::output_plugin::{
+    mep_output_ops::DestinationsIter,
+    opportunity::{opportunity_row_id::OpportunityRowId, DestinationOpportunity},
+};
 use geo::Convert;
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
@@ -11,7 +13,7 @@ use routee_compass_core::{
     model::network::VertexId,
 };
 use rstar::{RTree, RTreeObject};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// represents activities which can become opportunities if they
 /// are reached by some travel mode.
@@ -22,7 +24,7 @@ pub enum OpportunityModel {
     Tabular {
         activity_types: Vec<String>,
         activity_counts: Vec<Vec<f64>>,
-        table_orientation: OpportunityTableOrientation,
+        opportunity_orientation: OpportunityOrientation,
     },
     /// user provides a spatial dataset of opportunities. lookup will use a
     /// spatial index to find
@@ -37,6 +39,7 @@ pub enum OpportunityModel {
         rtree: RTree<OpportunitySpatialRow>,
         activity_counts: Vec<Vec<f64>>,
         polygonal: bool,
+        opportunity_orientation: OpportunityOrientation,
     },
     /// Combines multiple opportunity models
     Combined { models: Vec<Box<OpportunityModel>> },
@@ -46,17 +49,8 @@ impl OpportunityModel {
     /// get the list of activity type names for this model.
     pub fn activity_types(&self) -> Vec<String> {
         match self {
-            OpportunityModel::Tabular {
-                activity_types,
-                activity_counts: _,
-                table_orientation: _,
-            } => activity_types.to_vec(),
-            OpportunityModel::Spatial {
-                activity_types,
-                rtree: _,
-                activity_counts: _,
-                polygonal: _,
-            } => activity_types.to_vec(),
+            OpportunityModel::Tabular { activity_types, .. } => activity_types.to_vec(),
+            OpportunityModel::Spatial { activity_types, .. } => activity_types.to_vec(),
             OpportunityModel::Combined { models } => {
                 models.iter().flat_map(|m| m.activity_types()).collect_vec()
             }
@@ -98,7 +92,8 @@ impl OpportunityModel {
         self.activity_types().len()
     }
 
-    /// collect all opportunities that are reachable by some collection of destinations.
+    /// collect all opportunities that are reachable by some collection of destinations, with a
+    /// check to confirm no duplicate opportunities are found.
     ///
     /// # Arguments
     ///
@@ -110,14 +105,35 @@ impl OpportunityModel {
     /// A vector of (destination id, opportunity counts by category) for each destination id.
     /// The opportunity count vectors are ordered to match this [`OpportunityModel`]'s
     /// activity_types vector.
-    pub fn batch_collect_opportunities(
+    pub fn collect_trip_opportunities(
         &self,
         destinations: DestinationsIter<'_>,
         si: &SearchInstance,
-    ) -> Result<Vec<(usize, Vec<f64>)>, OutputPluginError> {
-        let opps = collect_opps(self, destinations, si)?;
-        let unique_opps = opps.into_iter().unique_by(|(id, _)| *id).collect_vec();
-        Ok(unique_opps)
+    ) -> Result<Vec<(OpportunityRowId, DestinationOpportunity)>, OutputPluginError> {
+        let mut found = HashMap::new();
+        for dest_result in destinations {
+            match dest_result {
+                Err(e) => {
+                    let msg = format!("failure collecting destinations: {}", e);
+                    return Err(OutputPluginError::OutputPluginFailed(msg));
+                }
+                Ok((src, branch)) => {
+                    let row = self.collect_destination_opportunities(&src, branch, si)?;
+                    for (id, opps) in row.into_iter() {
+                        let state = branch.edge_traversal.result_state.clone();
+                        let row = DestinationOpportunity {
+                            counts: opps,
+                            state,
+                        };
+                        // "overwrite" behavior on duplicate opportunity keys here by
+                        // implicitly suppressing the Some(_) case.
+                        let _ = found.insert(id, row);
+                    }
+                }
+            }
+        }
+        let result = found.into_iter().collect_vec();
+        Ok(result)
     }
 
     /// attaches opportunity counts for a single vertex.
@@ -130,34 +146,30 @@ impl OpportunityModel {
     /// # Returns
     ///
     /// an opportunity vector id along with a vector of opportunity counts.
-    fn attach_opportunities(
+    fn collect_destination_opportunities(
         &self,
-        destination_vertex_id: &VertexId,
+        branch_origin_id: &VertexId,
         search_tree_branch: &SearchTreeBranch,
         si: &SearchInstance,
-    ) -> Result<Vec<(usize, Vec<f64>)>, OutputPluginError> {
+    ) -> Result<Vec<(OpportunityRowId, Vec<f64>)>, OutputPluginError> {
         match self {
             OpportunityModel::Tabular {
                 activity_types: _,
                 activity_counts,
-                table_orientation,
+                opportunity_orientation,
             } => {
-                use OpportunityTableOrientation as O;
-                let index = match table_orientation {
-                    O::OriginVertexOriented => destination_vertex_id.0,
-                    O::DestinationVertexOriented => search_tree_branch.terminal_vertex.0,
-                    O::EdgeOriented => search_tree_branch.edge_traversal.edge_id.0,
-                };
+                let index = OpportunityRowId::new(
+                    branch_origin_id,
+                    search_tree_branch,
+                    opportunity_orientation,
+                );
                 let result = activity_counts
-                    .get(index)
+                    .get(*index.as_usize())
                     .map(|opps| (index, opps.to_owned()))
                     .ok_or_else(|| {
-                        let orientation_string = serde_json::to_string(table_orientation)
-                            .unwrap_or(String::from(""))
-                            .replace('\"', "");
                         OutputPluginError::OutputPluginFailed(format!(
                             "activity table lookup failed - {} index {} not found",
-                            orientation_string, index
+                            opportunity_orientation, index
                         ))
                     })?;
                 Ok(vec![result])
@@ -167,23 +179,21 @@ impl OpportunityModel {
                 rtree,
                 activity_counts,
                 polygonal,
+                opportunity_orientation,
             } => {
-                let graph = si.graph.clone();
-                let vertex = graph
-                    .get_vertex(destination_vertex_id)
-                    .map_err(|e| OutputPluginError::OutputPluginFailed(e.to_string()))?;
-                let point: geo::Point<f64> = geo::Point(vertex.coordinate.0).convert();
+                let index = OpportunityRowId::new(
+                    branch_origin_id,
+                    search_tree_branch,
+                    opportunity_orientation,
+                );
+
                 if *polygonal {
-                    let first_match = rtree
-                        .locate_in_envelope_intersecting(&point.envelope())
-                        .next();
+                    let envelope = index.get_envelope_f64(si)?;
+                    let first_match = rtree.locate_in_envelope_intersecting(&envelope).next();
                     match first_match {
-                        None => Ok(vec![(
-                            destination_vertex_id.0,
-                            vec![0.0; activity_types.len()],
-                        )]),
+                        None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
                         Some(nearest) => match activity_counts.get(nearest.index) {
-                            Some(counts) => Ok(vec![(destination_vertex_id.0, counts.to_vec())]),
+                            Some(counts) => Ok(vec![(index, counts.to_vec())]),
                             None => Err(OutputPluginError::OutputPluginFailed(format!(
                                 "expected activity count index {} not found",
                                 nearest.index
@@ -191,13 +201,11 @@ impl OpportunityModel {
                         },
                     }
                 } else {
-                    match rtree.nearest_neighbor(&point) {
-                        None => Ok(vec![(
-                            destination_vertex_id.0,
-                            vec![0.0; activity_types.len()],
-                        )]),
+                    let centroid = index.get_centroid_f64(si)?;
+                    match rtree.nearest_neighbor(&centroid) {
+                        None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
                         Some(nearest) => match activity_counts.get(nearest.index) {
-                            Some(counts) => Ok(vec![(destination_vertex_id.0, counts.to_vec())]),
+                            Some(counts) => Ok(vec![(index, counts.to_vec())]),
                             None => Err(OutputPluginError::OutputPluginFailed(format!(
                                 "expected activity count index {} not found",
                                 nearest.index
@@ -207,12 +215,16 @@ impl OpportunityModel {
                 }
             }
             OpportunityModel::Combined { models } => {
-                let mut collection: HashMap<usize, Vec<f64>> = HashMap::new();
+                let mut collection: HashMap<OpportunityRowId, Vec<f64>> = HashMap::new();
                 let mut padding_length: usize = 0;
                 for model in models.iter() {
                     let vector_length = model.vector_length();
                     let matches = model
-                        .attach_opportunities(destination_vertex_id, search_tree_branch, si)?
+                        .collect_destination_opportunities(
+                            branch_origin_id,
+                            search_tree_branch,
+                            si,
+                        )?
                         .into_iter()
                         .collect::<HashMap<_, _>>();
 
@@ -261,27 +273,6 @@ impl OpportunityModel {
             }
         }
     }
-}
-
-/// helper function for collecting opportunities for some model/destinations/search instance combination.
-fn collect_opps(
-    model: &OpportunityModel,
-    destinations: DestinationsIter<'_>,
-    si: &SearchInstance,
-) -> Result<Vec<(usize, Vec<f64>)>, OutputPluginError> {
-    let result = destinations
-        .map(|destinations_result| match destinations_result {
-            Ok((src, branch)) => model.attach_opportunities(&src, branch, si),
-            Err(e) => {
-                let msg = format!("failure collecting destinations: {}", e);
-                Err(OutputPluginError::OutputPluginFailed(msg))
-            }
-        })
-        .collect::<Result<Vec<Vec<(usize, Vec<f64>)>>, OutputPluginError>>()?
-        .into_iter()
-        .flatten()
-        .collect_vec();
-    Ok(result)
 }
 
 /// sums all counts into a global total for each category

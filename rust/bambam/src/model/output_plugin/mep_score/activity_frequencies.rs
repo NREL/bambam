@@ -5,24 +5,24 @@ use routee_compass::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::model::output_plugin::mep_score::ActivityParametersConfig;
+use crate::model::output_plugin::mep_score::ActivityFrequenciesConfig;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
-pub enum ActivityParameters {
+pub enum ActivityFrequencies {
     GlobalFrequencies {
         frequencies: HashMap<String, f64>,
         frequency_sum: f64,
     },
 }
 
-impl TryFrom<&ActivityParametersConfig> for ActivityParameters {
+impl TryFrom<&ActivityFrequenciesConfig> for ActivityFrequencies {
     type Error = CompassComponentError;
 
-    fn try_from(value: &ActivityParametersConfig) -> Result<Self, Self::Error> {
+    fn try_from(value: &ActivityFrequenciesConfig) -> Result<Self, Self::Error> {
         match value {
-            ActivityParametersConfig::GlobalFrequencies { frequencies } => {
+            ActivityFrequenciesConfig::GlobalFrequencies { frequencies } => {
                 let frequency_sum: f64 = frequencies.values().sum();
                 if frequency_sum == 0.0 {
                     let err: PluginError = OutputPluginError::BuildFailed(String::from(
@@ -31,7 +31,7 @@ impl TryFrom<&ActivityParametersConfig> for ActivityParameters {
                     .into();
                     Err(err.into())
                 } else {
-                    Ok(ActivityParameters::GlobalFrequencies {
+                    Ok(ActivityFrequencies::GlobalFrequencies {
                         frequencies: frequencies.clone(),
                         frequency_sum,
                     })
@@ -41,14 +41,14 @@ impl TryFrom<&ActivityParametersConfig> for ActivityParameters {
     }
 }
 
-impl ActivityParameters {
+impl ActivityFrequencies {
     pub fn get_frequency_term(
         &self,
         activity_type: &str,
-        _location: Option<&geo::Point<f32>>,
+        _location: Option<&geo::Geometry<f32>>,
     ) -> Result<f64, OutputPluginError> {
         match self {
-            ActivityParameters::GlobalFrequencies {
+            ActivityFrequencies::GlobalFrequencies {
                 frequencies,
                 frequency_sum,
             } => {

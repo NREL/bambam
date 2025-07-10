@@ -14,6 +14,14 @@ pub struct TimeBin {
 }
 
 impl TimeBin {
+    // construct a TimeBin. if no min is provided, use "0" minutes
+    pub fn new(min: Option<u64>, max: u64) -> TimeBin {
+        TimeBin {
+            min_time: min.unwrap_or_default(),
+            max_time: max,
+        }
+    }
+
     pub fn key(&self) -> String {
         format!("{}", self.max_time)
     }

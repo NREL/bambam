@@ -1,7 +1,5 @@
 use super::opportunity_source::OpportunitySource;
-use super::{
-    opportunity_model::OpportunityModel, opportunity_table_orientation::OpportunityTableOrientation,
-};
+use super::{opportunity_model::OpportunityModel, opportunity_orientation::OpportunityOrientation};
 use csv::{ReaderBuilder, StringRecord};
 use flate2::read::GzDecoder;
 use geo::{Centroid, Convert, Point};
@@ -28,7 +26,7 @@ pub enum OpportunityModelConfig {
     FileSource {
         opportunity_input_file: String,
         activity_column_names: Vec<String>,
-        table_orientation: OpportunityTableOrientation,
+        table_orientation: OpportunityOrientation,
     },
     /// This collection of opportunities comes from an API.
     ///
@@ -43,7 +41,7 @@ pub enum OpportunityModelConfig {
         vertex_input_file: String,
         opportunity_source: OpportunitySource,
         activity_column_names: Vec<String>,
-        table_orientation: OpportunityTableOrientation,
+        table_orientation: OpportunityOrientation,
     },
     #[serde(rename = "combined")]
     Combined {
@@ -122,7 +120,7 @@ impl OpportunityModelConfig {
                 let result = OpportunityModel::Tabular {
                     activity_types: activity_column_names.to_owned(),
                     activity_counts,
-                    table_orientation: table_orientation.to_owned(),
+                    opportunity_orientation: table_orientation.to_owned(),
                 };
                 Ok(result)
             }
@@ -242,7 +240,7 @@ impl OpportunityModelConfig {
                 let result = OpportunityModel::Tabular {
                     activity_types: activity_column_names.clone(),
                     activity_counts,
-                    table_orientation: *table_orientation,
+                    opportunity_orientation: *table_orientation,
                 };
                 Ok(result)
             }

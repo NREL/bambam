@@ -1,27 +1,29 @@
-pub mod activity_parameters;
-mod activity_parameters_config;
-pub mod mep_score_ops;
-pub mod mep_score_output_plugin;
+pub mod activity_frequencies;
+mod activity_frequencies_config;
+mod intensity_category;
+mod intensity_value;
+mod intensity_value_config;
+pub mod mep_score_plugin;
 pub mod mep_score_plugin_builder;
-mod modal_intensity;
+mod mep_score_plugin_config;
 mod modal_intensity_config;
 pub mod modal_intensity_model;
-mod opportunity_instance;
-mod spatial_coefficients;
-mod spatial_intensities;
-
 use std::collections::HashMap;
 
-pub use activity_parameters_config::ActivityParametersConfig;
-pub use modal_intensity::ModalIntensity;
+pub use activity_frequencies_config::ActivityFrequenciesConfig;
+pub use intensity_category::IntensityCategory;
+pub use intensity_value::IntensityValue;
+pub use intensity_value_config::IntensityValueConfig;
+pub use mep_score_plugin_config::MepScorePluginConfig;
 pub use modal_intensity_config::ModalIntensityConfig;
-pub use opportunity_instance::OpportunityAccessRecord;
-pub use spatial_coefficients::SpatialCoefficients;
-pub use spatial_intensities::SpatialIntensities;
 
+pub type ModeName = String;
+pub type ModeIntensities = HashMap<IntensityCategory, IntensityValue>;
+pub type ModeIntensitiesConfig = HashMap<IntensityCategory, IntensityValueConfig>;
 /// for a given travel mode, for each modal weighting factor (time, energy, cost, etc),
 /// an intensity value per passenger mile
-pub type Intensities = HashMap<String, HashMap<String, ModalIntensity>>;
+pub type Intensities = HashMap<ModeName, ModeIntensities>;
+pub type IntensitiesConfig = HashMap<ModeName, ModeIntensitiesConfig>;
 
 /// factors to multiply against modal intensities
-pub type Coefficients = HashMap<String, f64>;
+pub type WeightingFactors = HashMap<ModeName, HashMap<IntensityCategory, f64>>;

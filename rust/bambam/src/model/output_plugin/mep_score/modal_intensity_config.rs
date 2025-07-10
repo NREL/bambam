@@ -1,7 +1,6 @@
-use crate::model::output_plugin::mep_score::{
-    spatial_intensities::SpatialIntensities, Coefficients, Intensities,
-};
+use crate::model::output_plugin::mep_score::{Intensities, IntensitiesConfig, WeightingFactors};
 use routee_compass::{app::search::SearchAppResult, plugin::output::OutputPluginError};
+use routee_compass_core::model::unit::DistanceUnit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -30,19 +29,18 @@ pub enum ModalIntensityConfig {
     ///   }
     /// }
     /// ```
-    Global {
-        intensities: Intensities,
-        // coefficients: Coefficients,
-    },
+    Global { intensities: IntensitiesConfig },
     /// intensity values associated with spatial zones. for each included
     /// zone (represented by a polygon or multipolygon geometry), a collection
-    /// of [`Intensities`].
+    /// of [`Intensities`] (stored in the Feature::properties of a GeoJSON).
     Zonal {
-        // categories: Vec<String>,
-        zonal_intensities_input: String,
+        zonal_intensities_input_file: String,
     },
-    // / placeholder
     // / for all destinations, report the intensities for that location
     // / by multiplying the observed point-to-point state by the intensity rate
-    // PointToPointIntensities,
+    Endogenous {
+        /// if specified, the per-passenger distance unit used when
+        /// observing endogenous intensities. if none, [`DistanceUnit::Miles`] is used.
+        per_distance_unit: Option<DistanceUnit>,
+    },
 }
