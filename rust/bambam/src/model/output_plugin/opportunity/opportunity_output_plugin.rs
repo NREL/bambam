@@ -89,7 +89,11 @@ fn process_disaggregate_opportunities(
     let opps = plugin
         .model
         .collect_trip_opportunities(destinations_iter, instance)?;
-    todo!("we need a collect opps which also returns the point along with the counts")
+    let opportunities_json = plugin
+        .opportunity_format
+        .serialize_opportunities(&opps, &plugin.model.activity_types())?;
+    output[field::OPPORTUNITIES] = opportunities_json;
+    Ok(())
 }
 
 /// for aggregate opportunity formats, we collect all opportunities within each time band
