@@ -11,8 +11,54 @@ pub struct CliArgs {
     app: App,
 }
 
+use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
+use bambam::model::input_plugin::grid::grid_input_plugin;
+use bambam::model::input_plugin::grid::grid_input_plugin_builder;
+use bambam::model::input_plugin::grid::grid_type::GridType;
+use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
+use bamsoda_acs::model::AcsType;
+use bamsoda_core::model::identifier::GeoidType;
+use h3o::Resolution;
+use serde_json::json;
+use std::fs::File;
+use std::io::BufWriter;
+use std::io::Write;
+
 #[derive(Subcommand)]
 pub enum App {
+    #[command(
+        name = "preprocess_grid",
+        about = "processs the grid before running bambam to avoid time-out errors"
+    )]
+    PreProcessGrid {
+        /// 1 or 5 for one- or five-year ACS (American Community Survey) population estimate
+        #[arg(long)]
+        acs_type: AcsType,
+        /// year for estimate
+        #[arg(long)]
+        acs_year: u64,
+        /// (Optional) GeoidType for resolution
+        #[arg(long)]
+        acs_resolution: Option<GeoidType>,
+        /// (Optional) String for comma-separated categories
+        #[arg(long)]
+        acs_categories: Option<String>,
+        /// (Optional) String for api token
+        #[arg(long)]
+        api_token: Option<String>,
+        /// format of the extent in ExtentFormat, Wkt
+        #[arg(long)]
+        extent_format: ExtentFormat,
+        /// Resolution of grid, value 0-15
+        #[arg(long)]
+        grid_resolution: Resolution,
+        /// String of desired output file location
+        #[arg(long)]
+        output_file: String,
+        /// String of extent to examine
+        #[arg(long)]
+        extent: String,
+    },
     #[command(
         name = "opps-long",
         about = "vectorize an opportunity dataset CSV in long format for bambam integration"
@@ -109,6 +155,74 @@ impl App {
     pub fn run(&self) -> Result<(), String> {
         env_logger::init();
         match self {
+            Self::PreProcessGrid {
+                acs_type,
+                acs_year,
+                acs_resolution,
+                acs_categories,
+                api_token,
+                extent_format,
+                grid_resolution,
+                output_file,
+                extent,
+            } => {
+                // build acs categories from &Option<String> to Option<Vec<String>>
+                let acs_categories: Option<Vec<String>> = acs_categories
+                    .as_ref()
+                    .map(|str| str.split(',').map(|elem| elem.trim().to_string()).collect());
+
+                // create popconfig
+                let pop_config = PopulationSourceConfig::UsCensusAcs {
+                    acs_type: *acs_type,
+                    acs_year: *acs_year,
+                    acs_resolution: *acs_resolution,
+                    acs_categories,
+                    api_token: api_token.clone(),
+                };
+
+                // Using grid_resolution, build grid_type:Gridtype
+                let grid_res_add = *grid_resolution;
+                let grid_type = GridType::H3 {
+                    resolution: grid_res_add,
+                };
+
+                // unpack the command line arguments into serde_json::Values
+                let mut data: serde_json::Value = json!({
+                    "extent": extent,
+                    "population_source": pop_config,
+                    "extent_format": extent_format,
+                    "grid": grid_type,
+                    "output_file": output_file
+                });
+
+                // BUILD THE PLUGIN
+                let plugin = grid_input_plugin_builder::plugin_builder(&data).expect("Error");
+
+                // PROCESS
+                let _processed_plugin = grid_input_plugin::process_grid_input(
+                    &mut data,
+                    plugin.extent_format,
+                    plugin.grid_type,
+                    &plugin.population_source,
+                );
+
+                // mutable data as input to process_grid_input becomes a json array
+                // these 3 lines make sure the resulting data array is json, if it is, we have an array to loop through
+                let array = match data.as_array() {
+                    Some(a) => a,
+                    None => return Err("not an array of JSON".to_string()),
+                };
+
+                // write the resulting array to the output file location as newline-delimited JSON
+                let file = File::create(output_file).map_err(|e| e.to_string())?;
+                let mut writeto = BufWriter::new(file);
+                for value in array {
+                    let json_line = serde_json::to_string(value).map_err(|e| e.to_string())?;
+                    writeln!(writeto, "{}", json_line).map_err(|e| e.to_string())?;
+                }
+                println!("Wrote newline-delimited JSON to {}", output_file);
+                Ok(())
+            }
             Self::OutputOverlay {
                 mep_matrix_filename,
                 overlay_filename,

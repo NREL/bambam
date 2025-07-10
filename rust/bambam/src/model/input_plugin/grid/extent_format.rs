@@ -1,9 +1,10 @@
+use clap::ValueEnum;
 use geo::Geometry;
 use routee_compass_core::config::ConfigJsonExtensions;
 use serde::{Deserialize, Serialize};
 use wkt;
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum ExtentFormat {
     /// user extent field to be treated as a WKT
