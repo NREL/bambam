@@ -81,7 +81,7 @@ impl OpportunityRecord {
     pub fn get_geometry(&self) -> &geo::Geometry<f32> {
         match self {
             Self::Aggregate { geometry, .. } => geometry,
-            Self::Disaggregate { geometry, .. } => &geometry,
+            Self::Disaggregate { geometry, .. } => geometry,
         }
     }
 

@@ -48,7 +48,7 @@ impl IsochroneOutputFormat {
                     ))
                 })?;
                 // Read geometry as f64, then convert to f32
-                let geom_trait = wkb::reader::read_wkb(&mut &wkb_bytes).map_err(|e| OutputPluginError::OutputPluginFailed(format!(
+                let geom_trait = wkb::reader::read_wkb(&wkb_bytes).map_err(|e| OutputPluginError::OutputPluginFailed(format!(
                     "failure deserializing WKB geometry from output row due to: {} - WKB string: \"{}\"", e, wkb_str
                 )))?;
                 let geometry_f64 = geom_trait.to_geometry();

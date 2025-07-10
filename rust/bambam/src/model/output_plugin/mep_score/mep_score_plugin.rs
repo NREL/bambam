@@ -65,10 +65,10 @@ impl OutputPlugin for MepScorePlugin {
         // load opportunity iterator based on opportunity record type granularity
         let records = match opportunity_format {
             OpportunityFormat::Aggregate => {
-                opportunity_iterator::new_aggregated(&output, &activity_types)
+                opportunity_iterator::new_aggregated(output, &activity_types)
             }
             OpportunityFormat::Disaggregate => {
-                opportunity_iterator::new_disaggregated(&output, &activity_types, si)
+                opportunity_iterator::new_disaggregated(output, &activity_types, si)
             }
         }?
         .collect::<Result<Vec<_>, _>>()?;
@@ -82,7 +82,7 @@ impl OutputPlugin for MepScorePlugin {
                 &self.normalizing_activity,
             )?;
             let decay_term =
-                create_decay_term(&row, &mode, &self.modal_intensity_model, &mode_factors, si)?;
+                create_decay_term(&row, &mode, &self.modal_intensity_model, mode_factors, si)?;
             let mep = opp_term * decay_term;
             write_mep_score(output, &row, mep)?;
         }
@@ -134,7 +134,7 @@ pub fn create_decay_term(
 ) -> Result<f64, OutputPluginError> {
     let mut decay_accumulator = 0.0;
     for (cat, weight) in modal_weighting_factors.iter() {
-        let intensity = modal_intensity_model.get_intensity_value(&mode, cat, &row, si)?;
+        let intensity = modal_intensity_model.get_intensity_value(mode, cat, row, si)?;
         decay_accumulator += intensity * weight;
     }
     let decay_term = decay_accumulator.exp();
@@ -152,7 +152,7 @@ pub fn write_mep_score(
     let parent_path_values = row.get_json_path();
     let parent_path = parent_path_values.iter().map(|s| s.as_str()).collect_vec();
     field::insert_nested(output, &parent_path, field::MEP, json![{}], false)
-        .map_err(|s| OutputPluginError::OutputPluginFailed(s))?;
+        .map_err(OutputPluginError::OutputPluginFailed)?;
 
     // insert mep value.
     let path = parent_path
@@ -161,7 +161,7 @@ pub fn write_mep_score(
         .cloned()
         .collect_vec();
     field::insert_nested(output, &path, row.get_activity_type(), json![mep], true)
-        .map_err(|s| OutputPluginError::OutputPluginFailed(s))?;
+        .map_err(OutputPluginError::OutputPluginFailed)?;
     Ok(())
 }
 

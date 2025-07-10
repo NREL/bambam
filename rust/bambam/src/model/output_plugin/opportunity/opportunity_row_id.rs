@@ -131,7 +131,7 @@ impl OpportunityRowId {
                 let centroid = linestring.centroid().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
                         "could not get centroid of LINESTRING {}",
-                        linestring.to_wkt().to_string()
+                        linestring.to_wkt()
                     ))
                 })?;
                 Ok(centroid)

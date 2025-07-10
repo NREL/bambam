@@ -82,14 +82,14 @@ fn disaggregated_row_iterator<'a>(
         Some(o) => o,
         None => {
             return Box::new(std::iter::once(Err(OutputPluginError::InternalError(
-                format!("disaggregate opportunities should be stored in a map"),
+                "disaggregate opportunities should be stored in a map".to_string(),
             ))))
         }
     };
 
     let result = opportunities_obj.iter().flat_map(|(k, v)| {
         // each opportunity could have come from a different opportunity source, so we get the orientation here.
-        let opportunity_orientation = match field::get::opportunity_orientation(&v) {
+        let opportunity_orientation = match field::get::opportunity_orientation(v) {
             Ok(o) => o,
             Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
         };

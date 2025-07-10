@@ -164,7 +164,7 @@ pub fn insert_nested(
     }
     let exists = cursor.get(key).is_some();
     if exists && !overwrite {
-        return Ok(());
+        Ok(())
     } else {
         cursor[key] = value;
         Ok(())
@@ -192,7 +192,7 @@ pub fn scaffold_time_bin(json: &mut Value, time_bin: &TimeBin) -> Result<(), Str
     insert_nested(
         json,
         &[TIME_BINS, &time_bin_key],
-        &INFO,
+        INFO,
         json![{ TIME_BIN: json![time_bin] }],
         false,
     )?;

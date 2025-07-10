@@ -95,7 +95,7 @@ impl TryFrom<&ModalIntensityConfig> for ModalIntensityModel {
                 zonal_intensities_input_file,
             } => {
                 let feature_collection =
-                    read_geojson_feature_collection(&zonal_intensities_input_file)?;
+                    read_geojson_feature_collection(zonal_intensities_input_file)?;
                 let intensities_data: Vec<(Geometry<f32>, Intensities)> = feature_collection
                     .into_iter()
                     .map(feature_to_intensities)
@@ -170,7 +170,7 @@ fn intensity_lookup(
     // since we are using a time_bin, we handle the special case of time-based intensities using the
     // max value of the time bin. otherwise, the intensity value is found directly in the intensities HashMap.
     match intensity_category {
-        IntensityCategory::Time { .. } => {
+        IntensityCategory::Time => {
             let (t, tu) = time;
             let mut t_cow = Cow::Owned(t);
             tu.convert(&mut t_cow, &TimeUnit::Minutes)
@@ -213,7 +213,7 @@ fn spatial_intensity_lookup(
     // because we have zonal intensities, we need to find all intersecting zones with intensity values
     // and take the weighted average intensity by areal proportion.
     let intersecting_zones_by_area = intensities
-        .intersection_with_overlap_area(&geometry)
+        .intersection_with_overlap_area(geometry)
         .map_err(|e| {
             OutputPluginError::OutputPluginFailed(format!(
                 "failure during spatial intensity lookup: {}",
@@ -239,7 +239,7 @@ fn spatial_intensity_lookup(
     match found_intensities[..] {
         [] => Err(OutputPluginError::OutputPluginFailed(format!(
             "no spatial intensities match opportunity accessed at geometry: {}",
-            geometry.to_wkt().to_string()
+            geometry.to_wkt()
         ))),
         [(value, _)] => Ok(value),
         _ => {
@@ -312,8 +312,8 @@ fn intersect_polygonal(
         }
         _ => Err(OutputPluginError::OutputPluginFailed(format!(
             "attempting intersection with invalid geometry types: \n{}\n{}",
-            a.to_wkt().to_string(),
-            b.to_wkt().to_string()
+            a.to_wkt(),
+            b.to_wkt()
         ))),
     }
 }

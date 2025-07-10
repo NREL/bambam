@@ -18,7 +18,7 @@ impl OutputPluginBuilder for MepScoreOutputPluginBuilder {
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn OutputPlugin>, CompassComponentError> {
         let config: MepScorePluginConfig = serde_json::from_value(parameters.clone())
-            .map_err(|e| CompassConfigurationError::SerdeDeserializationError(e))?;
+            .map_err(CompassConfigurationError::SerdeDeserializationError)?;
         let plugin = MepScorePlugin::try_from(&config)?;
         Ok(Arc::new(plugin))
     }
