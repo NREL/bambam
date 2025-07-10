@@ -38,7 +38,6 @@ pub fn new_aggregated<'a>(
     input: &'a Value,
     activity_types: &'a [String],
 ) -> Result<OpportunityIterator<'a>, OutputPluginError> {
-
     let isochrone_format = field::get::isochrone_format(input)?;
     let bin_iter = field::time_bins_iter(input).map_err(OutputPluginError::OutputPluginFailed)?;
 
@@ -89,7 +88,6 @@ fn disaggregated_row_iterator<'a>(
     };
 
     let result = opportunities_obj.iter().flat_map(|(k, v)| {
-        
         // each opportunity could have come from a different opportunity source, so we get the orientation here.
         let opportunity_orientation = match field::get::opportunity_orientation(&v) {
             Ok(o) => o,
@@ -157,13 +155,14 @@ fn aggregated_row_iterator<'a>(
 
     let opportunities_result = value.get(field::OPPORTUNITIES).ok_or_else(|| {
         let keys = match value.as_object() {
-            Some(o) =>o.keys().map(|k| k.to_string()).join(", "),
+            Some(o) => o.keys().map(|k| k.to_string()).join(", "),
             None => String::from("internal error! response is not a JSON Object"),
         };
-            
+
         OutputPluginError::OutputPluginFailed(format!(
             "missing opportunities for time bin {}, found keys: [{}]",
-            time_bin.key(), keys
+            time_bin.key(),
+            keys
         ))
     });
     let opportunities = match opportunities_result {

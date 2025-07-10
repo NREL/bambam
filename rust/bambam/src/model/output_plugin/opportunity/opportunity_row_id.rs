@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 use wkt::ToWkt;
 
 use crate::model::output_plugin::opportunity::{
-    opportunity_format::OpportunityFormat,
-    opportunity_orientation::OpportunityOrientation,
+    opportunity_format::OpportunityFormat, opportunity_orientation::OpportunityOrientation,
 };
 
 // identifier in the graph tagging where an opportunity was found
