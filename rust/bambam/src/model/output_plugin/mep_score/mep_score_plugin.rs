@@ -180,7 +180,7 @@ mod test {
     fn test_write_score_agg() {
         let act = String::from("coding");
         let mep = 3.14159;
-        let mut output = json![{}];
+        let mut output = json![{"bin": {"10": {}}}];
         let row = OpportunityRecord::Aggregate {
             activity_type: act.clone(),
             geometry: geo::Geometry::Polygon(polygon!()),
@@ -188,13 +188,8 @@ mod test {
             count: 100.0,
         };
         write_mep_score(&mut output, &row, mep).expect("should not fail");
-        let meps = output
-            .get("mep")
-            .expect("should have created the 'mep' key");
-        let mep_json = meps
-            .get(&act)
-            .expect("should have created an entry for this activity type");
-        let mep_f64 = mep_json.as_f64().expect("should be an f64");
+        let mep_f64: f64 =
+            bambam_field::get_nested(&output, &["bin", "10", bambam_field::MEP, &act]).unwrap();
         assert_eq!(mep_f64, mep, "value should be idempotent");
     }
 
@@ -212,20 +207,16 @@ mod test {
             state: vec![],
         };
         write_mep_score(&mut output, &row, mep).expect("should not fail");
-        println!("{:?}", output);
-        let opps = output
-            .get(bambam_field::OPPORTUNITIES)
-            .expect("invariant failed: opportunities key already existed");
-        let opp_8 = opps
-            .get("8")
-            .expect("invariant failed: opportunities.8 key already existed");
-        let mep_section = opp_8
-            .get(bambam_field::MEP)
-            .expect("should have created the 'mep' key");
-        let mep_value = mep_section
-            .get(&act)
-            .expect("should have created an entry for this activity type");
-        let mep_f64 = mep_value.as_f64().expect("should be an f64");
+        let mep_f64: f64 = bambam_field::get_nested(
+            &output,
+            &[
+                bambam_field::OPPORTUNITIES,
+                &opp_id,
+                bambam_field::MEP,
+                &act,
+            ],
+        )
+        .unwrap();
         assert_eq!(mep_f64, mep, "value should be idempotent");
     }
 }
