@@ -172,92 +172,6 @@ isochrone_algorithm = { type = "k_nearest_concave_hull", k = 3 }
 destination_point_generator = { type = "destination_point" }
 isochrone_output_format = "wkb"
 
-# ### MEP OPPORTUNITY DATA CONFIGURATION #################################
-# # assigns opportunities to search results based on a file or api data source
-# # and a taxonomy for MEP activity types.
-# # this example shows data loaded from the census LODES online file repository
-# # assigning activity types by NAICS sector id. 
-# [[plugin.output_plugins]]
-# type = "opportunity"
-# collect_format = "aggregate"
-
-# [plugin.output_plugins.model]
-# type = "api"
-# vertex_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/vertices-compass.csv.gz"
-# activity_column_names = [
-#     "retail",
-#     "entertainment",
-#     "services",
-#     "healthcare",
-#     "food",
-#     "jobs",
-# ]
-# table_orientation = "destination_vertex_oriented"
-
-# [plugin.output_plugins.model.opportunity_source]
-# type = "lodes"
-# # # load the entire USA from LODES + Tiger/Lines
-# study_region.type = "denver"
-
-# # # here we are just looking for opportunities in denver.
-# # # `geoids` is a vector of FIPS identifiers. these will be converted to their
-# # # FIPS state code and used to download LODES dataset files which are organized by state.
-# # # one thing we can do here is just load all of the state of Colorado (FIPS 08):
-# # study_region = { type = "census", geoids = ["08"] }
-
-# # # this is more targeted, it includes just the few counties of geoids i think are relevant,
-# # # which are Adams, Arapahoe, and Denver Counties.
-# # study_region = { type = "census", geoids = ["08001", "08005", "08031"] }
-
-# # collect LODES data at the tract level. while it is available at the block,
-# # the download + processing time is 10x that of census tracts. other possible values
-# # are `block`, `county` or `state`.
-# data_granularity = "census_tract"
-# # different editions of the dataset, we are choosing LODES v 8.0.
-# edition = "LODES8"
-# # Job Type, can have a value of “JT00” for All Jobs, “JT01” for Primary Jobs, “JT02” for All
-# # Private Jobs, “JT03” for Private Primary Jobs, “JT04” for All Federal Jobs, or “JT05” for
-# # Federal Primary Jobs
-# job_type = "JT00"
-# # Segment of the workforce, can have the values of:
-# # - S000: Total number of jobs (default)
-# # - SA01: Number of jobs of workers age 29 or younger
-# # - SA02: Number of jobs for workers age 30 to 54
-# # - SA03: Number of jobs for workers age 55 or older 
-# # - SE01: Number of jobs with earnings $1250/month or less
-# # - SE02: Number of jobs with earnings $1251/month to $3333/month
-# # - SE03: Number of jobs with earnings greater than $3333/month
-# # - SI01: Number of jobs in Goods Producing industry sectors
-# # - SI02: Number of jobs in Trade, Transportation, and Utilities industry sectors
-# # - SI03: Number of jobs in All Other Services industry sectors
-# segment = "S000"
-
-# # most recent year with all states. Alaska has no coverage from 2017-2022. we may
-# # want a "continental" variant which could support 2022.
-# year = 2016
-
-# [plugin.output_plugins.model.opportunity_source.activity_mapping]
-# # see https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf
-# CNS01 = ["jobs"]                  # 11 (Agriculture, Forestry, Fishing and Hunting)
-# CNS02 = ["jobs"]                  # 21 (Mining, Quarrying, and Oil and Gas Extraction)
-# CNS03 = ["jobs"]                  # 22 (Utilities)
-# CNS04 = ["jobs"]                  # 23 (Construction)
-# CNS05 = ["jobs"]                  # 31-33 (Manufacturing)
-# CNS06 = ["jobs", "retail"]        # 42 (Wholesale Trade)
-# CNS07 = ["jobs", "retail"]        # 44-45 (Retail Trade)
-# CNS08 = ["jobs"]                  # 48-49 (Transportation and Warehousing)
-# CNS09 = ["jobs"]                  # 51 (Information)
-# CNS10 = ["jobs"]                  # 52 (Finance and Insurance)
-# CNS11 = ["jobs"]                  # 53 (Real Estate and Rental and Leasing)
-# CNS12 = ["jobs"]                  # 54 (Professional, Scientific, and Technical Services)
-# CNS13 = ["jobs"]                  # 55 (Management of Companies and Enterprises)
-# CNS14 = ["jobs"]                  # 56 (Admin/Support/Waste Mgmt/Remediation Services)
-# CNS15 = ["jobs", "services"]      # 61 (Educational Services)
-# CNS16 = ["jobs", "healthcare"]    # 62 (Health Care and Social Assistance)
-# CNS17 = ["jobs", "entertainment"] # 71 (Arts, Entertainment, and Recreation)
-# CNS18 = ["jobs", "food"]          # 72 (Accommodation and Food Services)
-# CNS19 = ["jobs"]                  # 81 (Other Services [except Public Administration])
-# CNS20 = ["jobs"]                  # 92 (Public Administration)
 
 ### MEP OPPORTUNITY DATA CONFIGURATION #################################
 # assigns opportunities to search results based on a file or api data source
@@ -285,7 +199,8 @@ table_orientation = "destination_vertex_oriented"
 
 [plugin.output_plugins.model.models.opportunity_source]
 type = "lodes"
-study_region = { type = "national" }
+# study_region = { type = "national" }
+study_region = { type = "census", geoids = ["01", "04", "05", "06", "08", "09", "10", "11", "12", "13", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48", "49", "50", "51", "53", "54", "55", "56"] }
 
 # collect LODES data at the tract level. while it is available at the block,
 # the download + processing time is 10x that of census tracts. other possible values
@@ -312,7 +227,7 @@ segment = "S000"
 
 # most recent year with all states. Alaska has no coverage from 2017-2022. we may
 # want a "continental" variant which could support 2022.
-year = 2016
+year = 2022
 
 [plugin.output_plugins.model.models.opportunity_source.activity_mapping]
 # see https://lehd.ces.census.gov/data/lodes/LODES8/LODESTechDoc8.0.pdf
