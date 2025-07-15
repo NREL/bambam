@@ -47,13 +47,23 @@ impl OsmGraphVectorized {
             total = graph.n_connected_ways(),
             desc = "osm ways to compass edges"
         );
-        let ways: OsmWaysSerializable = edge_iter
-            .enumerate()
-            .map(|(idx, traj_result)| {
-                let traj = traj_result?;
-                OsmWayDataSerializable::new(traj, &graph, &vertex_lookup)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut ways: OsmWaysSerializable = vec![];
+        for (idx, traj_result) in edge_iter.enumerate() {
+            match traj_result {
+                Ok(None) => {}
+                Ok(Some(traj)) if traj.is_empty() => {
+                    return Err(OsmError::InternalError(format!(
+                        "way with EdgeId {} has no trajectories",
+                        idx
+                    )))
+                }
+                Ok(Some(traj)) => {
+                    let result = OsmWayDataSerializable::new(traj, &graph, &vertex_lookup)?;
+                    ways.push(result);
+                }
+                Err(e) => return Err(OsmError::GraphModificationError(e.to_string())),
+            }
+        }
         eprintln!();
 
         let result = OsmGraphVectorized {

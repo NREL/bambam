@@ -75,7 +75,8 @@ fn truncate_graph_by_edge(
             .filter_map(|result| {
                 let triplets = match result {
                     Err(_) => return None,
-                    Ok(triplets) => triplets,
+                    Ok(None) => return None,
+                    Ok(Some(triplets)) => triplets,
                 };
                 triplets
                     .iter()

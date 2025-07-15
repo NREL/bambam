@@ -1,7 +1,7 @@
 use super::{
     osm_node_data::OsmNodeData, osm_segment::OsmSegment, osm_way_data::OsmWayData,
     AdjacencyDirection as Dir, AdjacencyList, AdjacencyList3, AdjacencyListDeprecated, OsmNodeId,
-    OsmNodes, OsmWayId, OsmWays, OsmWaysByOd,
+    OsmNodes, OsmWayId, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
 };
 use crate::{algorithm::simplification::SimplifiedPath, model::osm::OsmError};
 use geo::LineString;
@@ -14,7 +14,8 @@ use std::{
 };
 use wkt::ToWkt;
 
-pub type TripletRow<'a> = Result<Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)>, OsmError>;
+pub type TripletRow<'a> =
+    Result<Option<Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)>>, OsmError>;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct OsmGraph {
@@ -26,61 +27,82 @@ pub struct OsmGraph {
     adj: AdjacencyList3,
 }
 
-/// internal enumeration used to disambiguate graph update methods associated with
-/// the adjacency list.
-enum WayOverwritePolicy {
-    /// simply append a new way onto the multiedges on this relation
-    Append,
-    /// way update: fail if there is no previously-existing way on this relation/index
-    UpdateAtIndex { index: usize },
-    /// overwrite the set of multiedges on this relation
-    Replace,
-    // /// way replacement: if a previously-existing way exists, use the OSM Highway
-    // /// tag as a tie-breaker to determine which way to keep.
-    // CompareExistingHighwayTag,
-}
-
 impl OsmGraph {
+    pub fn empty() -> OsmGraph {
+        OsmGraph {
+            nodes: HashMap::new(),
+            ways: HashMap::new(),
+            adj: HashMap::new(),
+        }
+    }
+
     /// creates a new graph to model the relationship between the provided
     /// nodes and ways.
     pub fn new(nodes: OsmNodes, ways: OsmWays) -> Result<OsmGraph, OsmError> {
-        let mut ways_by_od: OsmWaysByOd = HashMap::new();
-        let mut adj: AdjacencyList3 = HashMap::new();
+        let mut graph = OsmGraph::empty();
         for way in ways.into_values() {
-            let way_clone = way.clone();
-            let nodes = way.nodes.clone();
-            for (src, dst) in nodes.into_iter().tuple_windows() {
-                // store a copy of this way between these src, dst nodes
-                ways_by_od
-                    .entry((src, dst))
-                    .and_modify(|v| v.push(way_clone.clone()))
-                    .or_insert(vec![way_clone.clone()]);
+            for (src_id, dst_id) in (&way.nodes).iter().tuple_windows() {
+                // confirm node exists in source dataset or fail
+                let src_node = nodes
+                    .get(src_id)
+                    .ok_or_else(|| OsmError::GraphMissingNodeId(*src_id))?;
+                let dst_node = nodes
+                    .get(dst_id)
+                    .ok_or_else(|| OsmError::GraphMissingNodeId(*dst_id))?;
 
-                // update the adjacency list
-                match adj.get_mut(&(src, Dir::Forward)) {
-                    None => {
-                        let _ = adj.insert((src, Dir::Forward), HashSet::from([dst]));
-                    }
-                    Some(adjacencies) => {
-                        let _ = adjacencies.insert(dst);
-                    }
+                // confirm or update node in graph
+                if !graph.contains_node(src_id) {
+                    graph.insert_node(src_node.clone())?;
                 }
-                match adj.get_mut(&(dst, Dir::Reverse)) {
-                    None => {
-                        let _ = adj.insert((dst, Dir::Reverse), HashSet::from([src]));
-                    }
-                    Some(adjacencies) => {
-                        let _ = adjacencies.insert(src);
-                    }
+                if !graph.contains_node(dst_id) {
+                    graph.insert_node(dst_node.clone())?;
                 }
+                graph.add_new_adjacency(src_id, dst_id, vec![way.clone()])?;
             }
         }
-        Ok(OsmGraph {
-            nodes,
-            ways: ways_by_od,
-            adj,
-        })
+        Ok(graph)
     }
+
+    // /// creates a new graph to model the relationship between the provided
+    // /// nodes and ways.
+    // pub fn new(nodes: OsmNodes, ways: OsmWays) -> Result<OsmGraph, OsmError> {
+    //     let mut ways_by_od: OsmWaysByOd = HashMap::new();
+    //     let mut adj: AdjacencyList3 = HashMap::new();
+    //     for way in ways.into_values() {
+    //         let way_clone = way.clone();
+    //         let nodes = way.nodes.clone();
+    //         for (src, dst) in nodes.into_iter().tuple_windows() {
+    //             // store a copy of this way between these src, dst nodes
+    //             ways_by_od
+    //                 .entry((src, dst))
+    //                 .and_modify(|v| v.push(way_clone.clone()))
+    //                 .or_insert(vec![way_clone.clone()]);
+
+    //             // update the adjacency list
+    //             match adj.get_mut(&(src, Dir::Forward)) {
+    //                 None => {
+    //                     let _ = adj.insert((src, Dir::Forward), HashSet::from([dst]));
+    //                 }
+    //                 Some(adjacencies) => {
+    //                     let _ = adjacencies.insert(dst);
+    //                 }
+    //             }
+    //             match adj.get_mut(&(dst, Dir::Reverse)) {
+    //                 None => {
+    //                     let _ = adj.insert((dst, Dir::Reverse), HashSet::from([src]));
+    //                 }
+    //                 Some(adjacencies) => {
+    //                     let _ = adjacencies.insert(src);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     Ok(OsmGraph {
+    //         nodes,
+    //         ways: ways_by_od,
+    //         adj,
+    //     })
+    // }
 
     /// returns the number of connected nodes found in the adjacency list.
     pub fn n_connected_nodes(&self) -> usize {
@@ -101,6 +123,10 @@ impl OsmGraph {
             .values()
             .map(|multiedges| multiedges.len())
             .sum::<usize>()
+    }
+
+    pub fn contains_node(&self, node_id: &OsmNodeId) -> bool {
+        self.nodes.contains_key(node_id)
     }
 
     /// helper with error handling for getting the node data for a given node id
@@ -226,7 +252,7 @@ impl OsmGraph {
         let iter = tqdm!(
             self.adj
                 .iter()
-                .flat_map(|((src, dir), adjacencies)| match dir {
+                .filter_map(|((src, dir), adjacencies)| match dir {
                     Dir::Reverse => None,
                     Dir::Forward => Some(src),
                 }),
@@ -333,40 +359,51 @@ impl OsmGraph {
         } else {
             "collect adjancencies for edge list"
         };
-        let iter = tqdm!(
-            self.adj.iter().map(|((src, dir), adjacencies)| match dir {
-                Dir::Reverse => Ok(vec![]),
-                Dir::Forward => {
-                    let inner = adjacencies
+
+        // get each src, dst in the adjacencies and grab the connecting way(s)
+        let triplets_iter = self.adj.iter().map(|((src, dir), adjacencies)| match dir {
+            Dir::Reverse => Ok(None),
+            Dir::Forward => {
+                let mut out_triplets: Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)> = vec![];
+                for dst in adjacencies.iter() {
+                    let src_node = self.get_node_data(src)?;
+                    let dst_node = self.get_node_data(dst)?;
+                    let triplets = self
+                        .get_ways_from_od(src, dst)?
                         .iter()
-                        .map(|dst| {
-                            let src_node = self.get_node_data(src)?;
-                            let dst_node = self.get_node_data(dst)?;
-                            let triplets = self
-                                .get_ways_from_od(src, dst)?
-                                .iter()
-                                .map(|w| (src_node, w, dst_node))
-                                .collect_vec();
-                            Ok(triplets)
-                        })
-                        .collect::<Result<Vec<_>, _>>()?
-                        .into_iter()
-                        .flatten()
+                        .map(|w| (src_node, w, dst_node))
                         .collect_vec();
-                    Ok(inner)
+                    if !triplets.is_empty() {
+                        out_triplets.extend(triplets);
+                    } else {
+                        // empty triplets for a (src, dst) pair implies that the adjacency list was modified without cleanup,
+                        // which can lead to the case where we have a src/dst pair in the adj list without edges.
+                        let adj_str = format!("{src}-[ø]->{dst}");
+                        return Err(OsmError::InternalError(format!("while iterating over connected ways, found the adjacency with empty edge set: '{adj_str}'")))
+                    }
                 }
-            }),
-            desc = desc,
-            total = self.adj.len()
-        );
+                if out_triplets.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(out_triplets))
+                }
+            }
+        });
+        let iter = tqdm!(triplets_iter, desc = desc, total = self.adj.len());
         if sorted {
             // sort by the first segment id. assumed here that the None branch is never reached and that failure due to
             // empty segments would be raised elsewhere.
             let sorted_iter = iter.sorted_by_cached_key(|result| match result {
-                Ok(ways) => match ways.first() {
-                    Some((_, way, _)) => way.osmid.0,
-                    None => i64::MIN,
-                },
+                Ok(ways) => {
+                    let first_option = match ways {
+                        Some(ws) => ws.first(),
+                        None => None,
+                    };
+                    match first_option {
+                        Some((_, way, _)) => way.osmid.0,
+                        None => i64::MIN,
+                    }
+                }
                 Err(_) => i64::MIN,
             });
             Box::new(sorted_iter)
@@ -401,7 +438,7 @@ impl OsmGraph {
 
     /// add just the node data to the nodes collection.
     /// ignores the adjacency list and node count.
-    pub fn add_node_only(&mut self, node: OsmNodeData) -> Result<(), OsmError> {
+    pub fn insert_node(&mut self, node: OsmNodeData) -> Result<(), OsmError> {
         let node_id = node.osmid;
         if self.nodes.insert(node_id, node).is_some() {
             return Err(OsmError::InvalidOsmData(format!(
@@ -412,28 +449,28 @@ impl OsmGraph {
         Ok(())
     }
 
-    /// adds a node to the graph.
-    ///
-    /// # Arguments
-    /// * `node` - node to add
-    /// * `adjacencies` - if provided, a list of adjacencies to add to the graph
-    pub fn insert_and_attach_node(
-        &mut self,
-        node: OsmNodeData,
-        adjacencies: Option<Vec<(OsmNodeId, Vec<OsmWayData>, OsmNodeId)>>,
-    ) -> Result<(), OsmError> {
-        let node_id = node.osmid;
+    // /// adds a node to the graph.
+    // ///
+    // /// # Arguments
+    // /// * `node` - node to add
+    // /// * `adjacencies` - if provided, a list of adjacencies to add to the graph
+    // pub fn insert_and_attach_node(
+    //     &mut self,
+    //     node: OsmNodeData,
+    //     adjacencies: Option<Vec<(OsmNodeId, Vec<OsmWayData>, OsmNodeId)>>,
+    // ) -> Result<(), OsmError> {
+    //     let node_id = node.osmid;
 
-        self.add_node_only(node)?;
-        self.intialize_adjacency(&node_id)?;
+    //     self.add_node_only(node)?;
+    //     self.intialize_adjacency(&node_id)?;
 
-        if let Some(adj) = adjacencies {
-            for (src, segs, dst) in adj.into_iter() {
-                self.add_new_adjacency(&src, &dst, segs)?;
-            }
-        }
-        Ok(())
-    }
+    //     if let Some(adj) = adjacencies {
+    //         for (src, segs, dst) in adj.into_iter() {
+    //             self.add_new_adjacency(&src, &dst, segs)?;
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     /// adds/appends a directed way between two nodes
     ///
@@ -448,9 +485,9 @@ impl OsmGraph {
         dst: &OsmNodeId,
         ways: Vec<OsmWayData>,
     ) -> Result<(), OsmError> {
-        add_ways_to_graph(self, src, dst, ways.clone(), &WayOverwritePolicy::Append)?;
-        add_ways_to_graph(self, src, dst, ways, &WayOverwritePolicy::Append)?;
-        Ok(())
+        add_ways_to_graph(self, src, dst, ways, &WriteMode::Append)
+        // add_ways_to_graph(self, src, dst, ways, &WriteMode::Append)?;
+        // Ok(())
     }
 
     /// updates a way in the graph, or fails if the way is missing.
@@ -472,14 +509,14 @@ impl OsmGraph {
             src,
             dst,
             vec![way.clone()],
-            &WayOverwritePolicy::UpdateAtIndex { index },
+            &WriteMode::UpdateAtIndex { index },
         )?;
         add_ways_to_graph(
             self,
             src,
             dst,
             vec![way],
-            &WayOverwritePolicy::UpdateAtIndex { index },
+            &WriteMode::UpdateAtIndex { index },
         )?;
         Ok(())
     }
@@ -497,67 +534,14 @@ impl OsmGraph {
         dst: &OsmNodeId,
         ways: Vec<OsmWayData>,
     ) -> Result<(), OsmError> {
-        add_ways_to_graph(self, src, dst, ways.clone(), &WayOverwritePolicy::Replace)?;
-        add_ways_to_graph(self, src, dst, ways, &WayOverwritePolicy::Replace)?;
-        Ok(())
+        add_ways_to_graph(self, src, dst, ways, &WriteMode::Replace)
+        // add_ways_to_graph(self, src, dst, ways, &WriteMode::Replace)?;
+        // Ok(())
     }
-
-    // /// adds a new way or replaces an existing way after comparing
-    // /// highway tags
-    // ///
-    // /// # Arguments
-    // /// * `src` - source node
-    // /// * `dst` - destination node
-    // /// * `way` - way to add
-    // pub fn add_best_way(
-    //     &mut self,
-    //     src: &OsmNodeId,
-    //     dst: &OsmNodeId,
-    //     way: OsmWayData,
-    // ) -> Result<(), OsmError> {
-    //     add_way_to_graph(
-    //         self,
-    //         src,
-    //         dst,
-    //         way.clone(),
-    //         &WayOverwritePolicy::CompareExistingHighwayTag,
-    //     )?;
-    //     add_way_to_graph(
-    //         self,
-    //         src,
-    //         dst,
-    //         way,
-    //         &WayOverwritePolicy::CompareExistingHighwayTag,
-    //     )?;
-    //     Ok(())
-    // }
-
-    // /// safely removes a way from the graph by removing all traces of it from
-    // /// the adjacency lists and the ways collection. used during graph simplification.
-    // pub fn remove_way_adjacencies(&mut self, way_id: OsmWayId) -> Result<(), OsmError> {
-    //     let way: OsmWayData = self
-    //         .ways
-    //         .get(&way_id)
-    //         .ok_or_else(|| {
-    //             OsmError::GraphModificationError(format!(
-    //                 "attempting to remove way {} not found in graph",
-    //                 way_id
-    //             ))
-    //         })?
-    //         .clone();
-
-    //     // for each node -> node pair in the way, remove the corresponding entry in the fwd collection
-    //     for (src, dst) in way.nodes.iter().tuple_windows() {
-    //         remove_segment_from_adjacency(&mut self.adj, src, dst, Dir::Forward, true)?;
-    //         remove_segment_from_adjacency(&mut self.adj, src, dst, Dir::Reverse, true)?;
-    //     }
-
-    //     Ok(())
-    // }
 
     /// removes an OsmNodeData entry for the given OsmNodeId. has no effect on the
     /// adjacency matrix.
-    pub fn remove_node_data(&mut self, node_id: &OsmNodeId) -> Result<(), OsmError> {
+    pub fn remove_node(&mut self, node_id: &OsmNodeId) -> Result<(), OsmError> {
         match self.nodes.remove(node_id) {
             Some(_) => Ok(()),
             None => Err(OsmError::GraphMissingNodeId(*node_id)),
@@ -606,8 +590,8 @@ impl OsmGraph {
 
         // self.disconnect_node(old_node_id, fail_if_missing)?;  // removing node does this
         self.disconnect_node(old_node_id, fail_if_missing)?;
-        self.remove_node_data(old_node_id)?;
-        self.add_node_only(node.clone())?;
+        self.remove_node(old_node_id)?;
+        self.insert_node(node.clone())?;
         Ok(())
     }
 
@@ -757,9 +741,46 @@ fn add_ways_to_graph(
     src: &OsmNodeId,
     dst: &OsmNodeId,
     ways: Vec<OsmWayData>,
-    overwrite_policy: &WayOverwritePolicy,
+    overwrite_policy: &WriteMode,
 ) -> Result<(), OsmError> {
-    use WayOverwritePolicy as P;
+    use WriteMode as P;
+
+    if ways.is_empty() {
+        return Err(OsmError::InternalError(
+            "add ways to graph called with no ways to add".to_string(),
+        ));
+    }
+
+    let key = (*src, *dst);
+
+    match overwrite_policy {
+        P::Append => {
+            graph
+                .ways
+                .entry(key.clone())
+                .and_modify(|w| w.extend(ways.clone()))
+                .or_insert_with(|| ways.clone());
+        }
+        P::Replace => {
+            let _ = graph.ways.insert(key.clone(), ways.clone());
+        }
+        P::UpdateAtIndex { index } => {
+            match graph.ways.get_mut(&key) {
+                Some(w) => {
+                    match w.get_mut(*index) {
+                        Some(mut prev) => {
+                            if ways.len() != 1 {
+                                return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) at index '{index}' but user provided more than one way")))
+                            }
+                            *prev = ways[0].clone();
+                        },
+                        None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the index does not exist"))),
+                    }
+                },
+                None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the way does not exist"))),
+            }
+        },
+    }
 
     // determine what kind of update to perform based on the combination of
     // policy, adjacencies, and incoming ways
@@ -818,6 +839,7 @@ fn add_ways_to_graph(
         }
     }
 
+    // update adjacencies for ways
     if let Some(neighbors) = graph.adj.get_mut(&(*src, Dir::Forward)) {
         if !neighbors.contains(dst) {
             let _ = neighbors.insert(*dst);

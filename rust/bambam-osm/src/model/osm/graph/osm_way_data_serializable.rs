@@ -76,13 +76,13 @@ impl OsmWayDataSerializable {
 
         let (src_vertex_id, _) = &vertex_lookup.get(&src_node_id).ok_or_else(|| {
             OsmError::InternalError(format!(
-                "during output processing, way ({})-[{}]->({}) has no matching vertex id",
+                "during output processing, way ({})-[{}]->({}) has no matching source vertex id",
                 src_node_id, way.osmid, dst_node_id
             ))
         })?;
         let (dst_vertex_id, _) = &vertex_lookup.get(&dst_node_id).ok_or_else(|| {
             OsmError::InternalError(format!(
-                "during output processing, way ({})-[{}]->({}) has no matching vertex id",
+                "during output processing, way ({})-[{}]->({}) has no matching destination vertex id",
                 src_node_id, way.osmid, dst_node_id
             ))
         })?;

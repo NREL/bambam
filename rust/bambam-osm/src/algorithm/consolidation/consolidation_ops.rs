@@ -532,11 +532,17 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
         .flatten()
         .collect_vec();
 
-    graph.insert_and_attach_node(node, Some(adjacencies))?;
+    graph.insert_node(node)?;
+    for (src, ways, dst) in adjacencies.into_iter() {
+        graph.add_new_adjacency(&src, &dst, ways)?;
+    }
+    // graph.insert_and_attach_node(node, Some(adjacencies))?;
 
     // retire old nodes so that they are disconnected but their data is preserved.
     for node_id in node_ids.iter() {
-        graph.retire_node(node_id, true)?;
+        if node_id != &new_node_id {
+            graph.retire_node(node_id, true)?;
+        }
     }
 
     // find all in+out edges, replace their source node id with the new one

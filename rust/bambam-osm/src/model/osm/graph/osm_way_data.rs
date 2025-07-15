@@ -18,6 +18,8 @@ pub struct OsmWayData {
     pub bridge: Option<String>,
     pub est_width: Option<String>,
     pub highway: Option<String>,
+    pub sidewalk: Option<String>,
+    pub footway: Option<String>,
     pub junction: Option<String>,
     pub landuse: Option<String>,
     pub lanes: Option<String>,
@@ -59,6 +61,8 @@ impl OsmWayData {
                 "bridge" => out.bridge = Some(String::from(v.trim())),
                 "est_width" => out.est_width = Some(String::from(v.trim())),
                 "highway" => out.highway = Some(String::from(v.trim())),
+                "sidewalk" => out.sidewalk = Some(String::from(v.trim())),
+                "footway" => out.footway = Some(String::from(v.trim())),
                 "junction" => out.junction = Some(String::from(v.trim())),
                 "landuse" => out.landuse = Some(String::from(v.trim())),
                 "lanes" => out.lanes = Some(String::from(v.trim())),
@@ -349,6 +353,8 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let est_width = merge_fieldname(ways, "est_width", Self::VALUE_DELIMITER)?;
         // let highway = merge_fieldname(ways, "highway", Self::VALUE_DELIMITER)?;
         let junction = merge_fieldname(ways, "junction", Self::VALUE_DELIMITER)?;
+        let sidewalk = merge_fieldname(ways, "sidewalk", Self::VALUE_DELIMITER)?;
+        let footway = merge_fieldname(ways, "footway", Self::VALUE_DELIMITER)?;
         let landuse = merge_fieldname(ways, "landuse", Self::VALUE_DELIMITER)?;
         let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
         // let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
@@ -367,6 +373,8 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             bridge,
             est_width,
             highway,
+            sidewalk,
+            footway,
             junction,
             landuse,
             lanes,

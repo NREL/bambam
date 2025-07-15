@@ -1,5 +1,6 @@
 mod adjacency_direction;
 mod compass_writer;
+mod example;
 pub mod fill_value_lookup;
 pub mod osm_element_filter;
 pub mod osm_graph;
@@ -12,6 +13,7 @@ pub mod osm_way_data;
 mod osm_way_data_serializable;
 mod osm_way_id;
 mod vertex_serializable;
+mod way_overwrite_policy;
 
 use crate::model::osm::OsmError;
 pub use adjacency_direction::AdjacencyDirection;
@@ -43,6 +45,7 @@ use std::{
     path::Path,
 };
 pub use vertex_serializable::VertexSerializable;
+pub use way_overwrite_policy::WayOverwritePolicy;
 
 // type aliases for transitioning between OSM and internal (dense) representation
 pub type Osmid = i64;
