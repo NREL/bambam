@@ -38,7 +38,9 @@ impl InputPlugin for GridGeometryInputPlugin {
         wkb::writer::write_polygon(
             &mut out_bytes,
             &Polygon::from(h3_cell),
-            wkb::Endianness::BigEndian,
+            &wkb::writer::WriteOptions {
+                endianness: wkb::Endianness::BigEndian,
+            },
         );
 
         // Write to query
