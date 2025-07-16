@@ -58,13 +58,13 @@ impl IsochroneOutputFormat {
             IsochroneOutputFormat::GeoJson => {
                 let geojson_str = value.as_str().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "expected WKB string for geometry deserialization, found: {:?}",
+                        "expected string for geometry deserialization, found: {:?}",
                         value
                     ))
                 })?;
                 let geojson_obj = geojson_str.parse::<geojson::GeoJson>().map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "expected GeoJSON for geometry deserialization due to: {}, found: {:?}",
+                        "failure parsing GeoJSON from geometry string due to: {}, found: {:?}",
                         e, value
                     ))
                 })?;

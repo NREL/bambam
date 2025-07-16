@@ -17,7 +17,7 @@ pub enum ModalIntensityConfig {
     ///
     /// ```json
     /// {
-    ///   "type": "global_intensities",
+    ///   "type": "global",
     ///   "intensities": {
     ///     "walk": { "energy": 0.0, "cost": 0.0, "time": 1.0 },
     ///     "drive": { "energy": 0.48, "cost": 0.9, "time": 1.0 }
