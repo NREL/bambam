@@ -5,7 +5,7 @@
 //! ### Aggregate Data Rows
 //! ```json
 //! {
-//!   "opportunity_format": "disaggregate",
+//!   "opportunity_format": "aggregate",
 //!   "opportunity_totals": {},
 //!   "activity_types": [],
 //!   "opportunities": {
@@ -21,7 +21,7 @@
 //!
 //! ```json
 //! {
-//!   "opportunity_format": "aggregate",
+//!   "opportunity_format": "disaggregate",
 //!   "opportunity_totals": {},
 //!   "activity_types": [],
 //!   "bin": {
