@@ -73,6 +73,7 @@ impl OutputPlugin for OpportunityOutputPlugin {
             false,
         )
         .map_err(OutputPluginError::OutputPluginFailed)?;
+        println!("{}", serde_json::to_string(&output).unwrap());
         Ok(())
     }
 }
@@ -133,17 +134,29 @@ fn process_aggregate_opportunities(
 
     for time_bin in bins {
         let start_time = Instant::now();
+
+        // collect all opportunities from destinations within this time bin as a JSON object
         let destinations_iter =
             mep_output_ops::collect_destinations(result, Some(&time_bin), &instance.state_model);
         let destination_opportunities = plugin
             .model
             .collect_trip_opportunities(destinations_iter, instance)?;
-
         let opportunities_json = plugin
             .opportunity_format
             .serialize_opportunities(&destination_opportunities, &plugin.model.activity_types())?;
 
+        // write opportunities
         let time_bin_key = time_bin.key();
+        field::insert_nested_with_parents(
+            output,
+            &[field::TIME_BINS, &time_bin_key],
+            field::OPPORTUNITIES,
+            opportunities_json,
+            false,
+        )
+        .map_err(OutputPluginError::OutputPluginFailed)?;
+
+        // write runtime
         let runtime = Instant::now().duration_since(start_time);
         field::insert_nested_with_parents(
             output,
