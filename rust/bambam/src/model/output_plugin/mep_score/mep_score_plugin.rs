@@ -14,8 +14,10 @@ use routee_compass::plugin::output::OutputPlugin;
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::algorithm::search::SearchInstance;
 use routee_compass_core::config::ConfigJsonExtensions;
+use routee_compass_core::util::duration_extension::DurationExtension;
 use serde_json::json;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 pub struct MepScorePlugin {
     pub modal_intensity_model: ModalIntensityModel,
@@ -46,9 +48,20 @@ impl OutputPlugin for MepScorePlugin {
         output: &mut serde_json::Value,
         result: &Result<(SearchAppResult, SearchInstance), CompassAppError>,
     ) -> Result<(), OutputPluginError> {
+        let start_time = Instant::now();
         let (app_result, si) = match result {
             Ok((r, si)) => (r, si),
-            Err(e) => return Ok(()),
+            Err(e) => {
+                field::insert_nested_with_parents(
+                    output,
+                    &[field::INFO],
+                    field::MEP_SCORE_PLUGIN_RUNTIME,
+                    json![Duration::ZERO.hhmmss()],
+                    true,
+                )
+                .map_err(OutputPluginError::OutputPluginFailed)?;
+                return Ok(());
+            }
         };
 
         let opportunity_format = field::get::opportunity_format(output)?;
@@ -63,6 +76,7 @@ impl OutputPlugin for MepScorePlugin {
         })?;
 
         // load opportunity iterator based on opportunity record type granularity
+        let load_opps_start_time = Instant::now();
         let records = match opportunity_format {
             OpportunityFormat::Aggregate => {
                 opportunity_iterator::new_aggregated(output, &activity_types)
@@ -73,8 +87,18 @@ impl OutputPlugin for MepScorePlugin {
         }?
         .collect::<Result<Vec<_>, _>>()?;
 
+        field::insert_nested_with_parents(
+            output,
+            &[field::INFO],
+            field::MEP_LOAD_OPPS_RUNTIME,
+            json![Instant::now().duration_since(load_opps_start_time).hhmmss()],
+            true,
+        )
+        .map_err(OutputPluginError::OutputPluginFailed)?;
+
         // compute mep for each row
         for row in records.into_iter() {
+            let row_start_time = Instant::now();
             let opp_term = create_opportunity_term(
                 &row,
                 &self.activity_frequencies,
@@ -84,9 +108,19 @@ impl OutputPlugin for MepScorePlugin {
             let decay_term =
                 create_decay_term(&row, &mode, &self.modal_intensity_model, mode_factors, si)?;
             let mep = opp_term * decay_term;
-            write_mep_score(output, &row, mep)?;
+            write_row(output, &row, mep, row_start_time)?;
         }
 
+        // write the plugin runtime
+        let dur = Instant::now().duration_since(start_time).hhmmss();
+        field::insert_nested_with_parents(
+            output,
+            &[field::INFO],
+            field::MEP_SCORE_PLUGIN_RUNTIME,
+            json![dur],
+            true,
+        )
+        .map_err(OutputPluginError::OutputPluginFailed)?;
         Ok(())
     }
 }
@@ -143,10 +177,11 @@ pub fn create_decay_term(
 
 /// writes this mep score for this opportunity row into the output. uses information
 /// in the output row to determine where to write the score.
-pub fn write_mep_score(
+pub fn write_row(
     output: &mut serde_json::Value,
     row: &OpportunityRecord,
     mep: f64,
+    start_time: Instant,
 ) -> Result<(), OutputPluginError> {
     // insert parent, if needed
     let parent_path_values = row.get_json_path();
@@ -155,22 +190,39 @@ pub fn write_mep_score(
         .map_err(OutputPluginError::OutputPluginFailed)?;
 
     // insert mep value.
-    let path = parent_path
+    let mep_path = parent_path
         .iter()
         .chain(std::iter::once(&field::MEP))
         .cloned()
         .collect_vec();
-    field::insert_nested(output, &path, row.get_activity_type(), json![mep], true)
+    field::insert_nested(output, &mep_path, row.get_activity_type(), json![mep], true)
         .map_err(OutputPluginError::OutputPluginFailed)?;
+
+    // write runtime
+    let runtime_path = parent_path
+        .iter()
+        .chain(std::iter::once(&field::INFO))
+        .cloned()
+        .collect_vec();
+    field::insert_nested_with_parents(
+        output,
+        &runtime_path,
+        field::MEP_ROW_RUNTIME,
+        json![Instant::now().duration_since(start_time).hhmmss()],
+        true,
+    )
+    .map_err(OutputPluginError::OutputPluginFailed)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
+    use std::time::Instant;
+
     use crate::model::output_plugin::{
         bambam_field,
         isochrone::time_bin::TimeBin,
-        mep_score::mep_score_plugin::write_mep_score,
+        mep_score::mep_score_plugin::write_row,
         opportunity::{OpportunityOrientation, OpportunityRecord},
     };
     use geo::{point, polygon};
@@ -187,7 +239,8 @@ mod test {
             time_bin: TimeBin::new(None, 10),
             count: 100.0,
         };
-        write_mep_score(&mut output, &row, mep).expect("should not fail");
+        write_row(&mut output, &row, mep, Instant::now()).expect("should not fail");
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
         let mep_f64: f64 =
             bambam_field::get_nested(&output, &["bin", "10", bambam_field::MEP, &act]).unwrap();
         assert_eq!(mep_f64, mep, "value should be idempotent");
@@ -206,7 +259,8 @@ mod test {
             geometry: geo::Geometry::Point(point! {x: 0.0, y: 0.0 }),
             state: vec![],
         };
-        write_mep_score(&mut output, &row, mep).expect("should not fail");
+        write_row(&mut output, &row, mep, Instant::now()).expect("should not fail");
+        println!("{}", serde_json::to_string_pretty(&output).unwrap());
         let mep_f64: f64 = bambam_field::get_nested(
             &output,
             &[
