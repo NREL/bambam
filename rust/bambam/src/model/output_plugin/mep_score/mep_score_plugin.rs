@@ -240,7 +240,7 @@ mod test {
             count: 100.0,
         };
         write_row(&mut output, &row, mep, Instant::now()).expect("should not fail");
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        // println!("{}", serde_json::to_string_pretty(&output).unwrap());
         let mep_f64: f64 =
             bambam_field::get_nested(&output, &["bin", "10", bambam_field::MEP, &act]).unwrap();
         assert_eq!(mep_f64, mep, "value should be idempotent");
@@ -260,7 +260,7 @@ mod test {
             state: vec![],
         };
         write_row(&mut output, &row, mep, Instant::now()).expect("should not fail");
-        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        // println!("{}", serde_json::to_string_pretty(&output).unwrap());
         let mep_f64: f64 = bambam_field::get_nested(
             &output,
             &[

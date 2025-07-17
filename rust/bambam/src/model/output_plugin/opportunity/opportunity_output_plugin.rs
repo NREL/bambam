@@ -73,7 +73,6 @@ impl OutputPlugin for OpportunityOutputPlugin {
             false,
         )
         .map_err(OutputPluginError::OutputPluginFailed)?;
-        println!("{}", serde_json::to_string(&output).unwrap());
         Ok(())
     }
 }
