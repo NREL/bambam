@@ -42,17 +42,11 @@ impl TraversalModelService for MultimodalTraversalService {
                 self.config.modes.keys().join(", ")
             ))
         })?;
-        let output_features = self
-            .config
-            .output_features
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect_vec();
-        let model = Arc::new(MultimodalTraversalModel::new(
-            feature_dependencies.to_vec(),
-            output_features,
-        ));
-        Ok(model)
+        // TODO:
+        //  - get all output features here but dedup by field name. all OutputFeatures with the same key must be equal
+        todo!("construct list of unique output features here, operation can fail")
+        // let model = Arc::new(MultimodalTraversalModel::new(feature_dependencies.to_vec()));
+        // Ok(model)
     }
 }
 
