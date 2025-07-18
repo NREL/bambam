@@ -1,3 +1,5 @@
+use crate::model::frontier::isochrone::{IsochroneFrontierConfig, TimeLimit};
+
 use super::isochrone_frontier_model::IsochroneFrontierModel;
 use routee_compass_core::config::ConfigJsonExtensions;
 use routee_compass_core::model::{
@@ -7,7 +9,17 @@ use routee_compass_core::model::{
 };
 use std::sync::Arc;
 
-pub struct IsochroneFrontierService {}
+pub struct IsochroneFrontierService {
+    time_limit: TimeLimit,
+}
+
+impl IsochroneFrontierService {
+    pub fn new(conf: &IsochroneFrontierConfig) -> IsochroneFrontierService {
+        IsochroneFrontierService {
+            time_limit: conf.time_limit.clone(),
+        }
+    }
+}
 
 impl FrontierModelService for IsochroneFrontierService {
     fn build(
@@ -16,31 +28,21 @@ impl FrontierModelService for IsochroneFrontierService {
         _state_model: Arc<StateModel>,
     ) -> Result<Arc<dyn FrontierModel>, FrontierModelError> {
         log::debug!("begin FrontierModelService::build for IsochroneFrontierService");
-        let time_limit = query
-            .get_config_serde::<Time>(&String::from("time_limit"), &String::from("isochrone"))
-            .map_err(|e| {
-                FrontierModelError::BuildError(format!(
-                    "failure reading time_limit from query: {}",
-                    e
-                ))
-            })?;
-        let time_unit = query
-            .get_config_serde_optional::<TimeUnit>(
-                &String::from("time_unit"),
-                &String::from("isochrone"),
-            )
-            .map_err(|e| {
-                FrontierModelError::BuildError(format!(
-                    "failure reading time_unit from query: {}",
-                    e
-                ))
-            })?
-            .unwrap_or(TimeUnit::Minutes);
+        let time_limit = match query.get(super::TIME_LIMIT_FIELD) {
+            None => Ok(self.time_limit.clone()),
+            Some(time_limit_json) => {
+                let time_limit: TimeLimit = serde_json::from_value(time_limit_json.clone())
+                    .map_err(|e| {
+                        FrontierModelError::FrontierModelError(format!(
+                            "failure reading query time_limit for isochrone frontier model: {}",
+                            e
+                        ))
+                    })?;
+                Ok(time_limit)
+            }
+        }?;
 
-        let model = IsochroneFrontierModel {
-            time_limit,
-            time_unit,
-        };
+        let model = IsochroneFrontierModel { time_limit };
         Ok(Arc::new(model))
     }
 }
