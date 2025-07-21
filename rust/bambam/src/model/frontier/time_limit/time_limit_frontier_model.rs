@@ -1,4 +1,4 @@
-use crate::model::{fieldname, frontier::isochrone::TimeLimit};
+use crate::model::{fieldname, frontier::time_limit::TimeLimitConfig};
 use routee_compass_core::{
     algorithm::search::{Direction, SearchTreeBranch},
     model::{
@@ -10,11 +10,11 @@ use routee_compass_core::{
 };
 use std::{borrow::Cow, collections::HashMap};
 
-pub struct IsochroneFrontierModel {
-    pub time_limit: TimeLimit,
+pub struct TimeLimitFrontierModel {
+    pub time_limit: TimeLimitConfig,
 }
 
-impl FrontierModel for IsochroneFrontierModel {
+impl FrontierModel for TimeLimitFrontierModel {
     fn valid_frontier(
         &self,
         _edge: &Edge,

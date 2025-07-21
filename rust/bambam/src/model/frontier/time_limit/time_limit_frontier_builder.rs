@@ -1,27 +1,27 @@
-use crate::model::frontier::isochrone::{IsochroneFrontierConfig, TimeLimit};
+use crate::model::frontier::time_limit::{TimeLimitConfig, TimeLimitFrontierConfig};
 
-use super::isochrone_frontier_service::IsochroneFrontierService;
+use super::time_limit_frontier_service::TimeLimitFrontierService;
 use routee_compass_core::model::{
     frontier::{FrontierModelBuilder, FrontierModelError, FrontierModelService},
     unit::{Time, TimeUnit},
 };
 use std::sync::Arc;
 
-pub struct IsochroneFrontierBuilder {}
+pub struct TimeLimitFrontierBuilder {}
 
-impl FrontierModelBuilder for IsochroneFrontierBuilder {
+impl FrontierModelBuilder for TimeLimitFrontierBuilder {
     fn build(
         &self,
         config: &serde_json::Value,
     ) -> Result<Arc<dyn FrontierModelService>, FrontierModelError> {
-        let conf: IsochroneFrontierConfig =
+        let conf: TimeLimitFrontierConfig =
             serde_json::from_value(config.clone()).map_err(|e| {
                 FrontierModelError::BuildError(format!(
                     "failure reading isochrone frontier model configuration: {}",
                     e
                 ))
             })?;
-        let model = IsochroneFrontierService::new(&conf);
+        let model = TimeLimitFrontierService::new(&conf);
         Ok(Arc::new(model))
     }
 }
