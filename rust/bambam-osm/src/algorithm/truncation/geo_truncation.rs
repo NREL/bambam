@@ -86,7 +86,7 @@ fn truncate_graph_by_edge(
 
                         let src_in_extent = inner_extent.contains(&src_node.get_point());
                         let dst_in_extent = inner_extent.contains(&dst_node.get_point());
-                        src_in_extent || dst_in_extent
+                        !(src_in_extent || dst_in_extent)
                     })
                     .map(|(src, _, dst)| (src.osmid, dst.osmid))
             })
