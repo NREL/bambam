@@ -93,16 +93,36 @@ fn main() {
     }
 }
 
+fn create_writer(
+    directory: &Path,
+    filename: &str,
+    has_headers: bool,
+    quote_style: QuoteStyle,
+    overwrite: bool,
+) -> Option<csv::Writer<GzEncoder<File>>> {
+    let filepath = directory.join(filename);
+    if filepath.exists() && !overwrite {
+        return None;
+    }
+    let file = File::create(filepath).unwrap();
+    let buffer = GzEncoder::new(file, Compression::default());
+    let writer = csv::WriterBuilder::new()
+        .has_headers(has_headers)
+        .quote_style(quote_style)
+        .from_writer(buffer);
+    Some(writer)
+}
+
 #[cfg(test)]
 mod tests {
     use bambam_osm::model::osm::graph::{osm_element_filter::ElementFilter, CompassWriter};
     use bambam_osm::model::osm::graph::{
-        OsmGraph, OsmGraphVectorized, OsmNodeId, OsmWayData, OsmWayDataSerializable, OsmWayId,
+        OsmWayData, OsmWayId,
     };
     use bambam_osm::model::osm::{import_ops, OsmSource};
     use csv::QuoteStyle;
     use itertools::Itertools;
-    use routee_compass_core::model::network::VertexId;
+    
     use routee_compass_core::model::unit::{Distance, DistanceUnit};
     use serde::{Deserialize, Serialize};
     use std::collections::HashSet;
@@ -134,7 +154,7 @@ mod tests {
     impl From<&OsmWayData> for OsmWayDataOut {
         fn from(value: &OsmWayData) -> Self {
             OsmWayDataOut {
-                osmid: value.osmid.clone(),
+                osmid: value.osmid,
                 nodes: value.nodes.iter().join("-"),
                 access: value.access.clone(),
                 area: value.area.clone(),
@@ -299,24 +319,4 @@ mod tests {
             writer.serialize(row).unwrap();
         }
     }
-}
-
-fn create_writer(
-    directory: &Path,
-    filename: &str,
-    has_headers: bool,
-    quote_style: QuoteStyle,
-    overwrite: bool,
-) -> Option<csv::Writer<GzEncoder<File>>> {
-    let filepath = directory.join(filename);
-    if filepath.exists() && !overwrite {
-        return None;
-    }
-    let file = File::create(filepath).unwrap();
-    let buffer = GzEncoder::new(file, Compression::default());
-    let writer = csv::WriterBuilder::new()
-        .has_headers(has_headers)
-        .quote_style(quote_style)
-        .from_writer(buffer);
-    Some(writer)
 }

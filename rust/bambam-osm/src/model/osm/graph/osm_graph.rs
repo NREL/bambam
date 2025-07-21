@@ -41,14 +41,14 @@ impl OsmGraph {
     pub fn new(nodes: OsmNodes, ways: OsmWays) -> Result<OsmGraph, OsmError> {
         let mut graph = OsmGraph::empty();
         for way in ways.into_values() {
-            for (src_id, dst_id) in (&way.nodes).iter().tuple_windows() {
+            for (src_id, dst_id) in way.nodes.iter().tuple_windows() {
                 // confirm node exists in source dataset or fail
                 let src_node = nodes
                     .get(src_id)
-                    .ok_or_else(|| OsmError::GraphMissingNodeId(*src_id))?;
+                    .ok_or(OsmError::GraphMissingNodeId(*src_id))?;
                 let dst_node = nodes
                     .get(dst_id)
-                    .ok_or_else(|| OsmError::GraphMissingNodeId(*dst_id))?;
+                    .ok_or(OsmError::GraphMissingNodeId(*dst_id))?;
 
                 // confirm or update node in graph
                 if !graph.contains_node(src_id) {
@@ -757,12 +757,12 @@ fn add_ways_to_graph(
         P::Append => {
             graph
                 .ways
-                .entry(key.clone())
+                .entry(key)
                 .and_modify(|w| w.extend(ways.clone()))
                 .or_insert_with(|| ways.clone());
         }
         P::Replace => {
-            let _ = graph.ways.insert(key.clone(), ways.clone());
+            let _ = graph.ways.insert(key, ways.clone());
         }
         P::UpdateAtIndex { index } => {
             match graph.ways.get_mut(&key) {
