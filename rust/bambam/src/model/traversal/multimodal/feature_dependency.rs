@@ -1,10 +1,16 @@
-use crate::model::{fieldname, traversal::multimodal::DependencyUnitType};
+use std::collections::HashMap;
+
+use crate::model::{
+    fieldname,
+    traversal::multimodal::{DependencyUnitType, FeatureDependencyConfig},
+};
 use itertools::Itertools;
 use routee_compass_core::model::{
     state::{
         CustomFeatureFormat, InputFeature, OutputFeature, StateModel, StateModelError,
         StateVariable,
     },
+    traversal::TraversalModelError,
     unit::Time,
 };
 use serde::{Deserialize, Serialize};
@@ -47,6 +53,21 @@ pub struct FeatureDependency {
 // }
 
 impl FeatureDependency {
+    pub fn new(
+        conf: &FeatureDependencyConfig,
+        output_features: &HashMap<String, OutputFeature>,
+    ) -> Result<FeatureDependency, TraversalModelError> {
+        let destination_features = conf.destination_features.iter().map(|k| {
+            let v = output_features.get(k).ok_or_else(|| TraversalModelError::BuildError(format!("multimodal traversal dependency declared on feature '{k}' not listed in output_features collection")))?;
+            Ok((k.clone(), v.clone()))
+        }).collect::<Result<Vec<_>, TraversalModelError>>()?;
+        Ok(Self {
+            input_name: conf.input_name.clone(),
+            input_feature: conf.input_feature.clone(),
+            destination_features,
+        })
+    }
+
     pub fn as_input_features(&self) -> Vec<(String, InputFeature)> {
         self.destination_features
             .iter()
