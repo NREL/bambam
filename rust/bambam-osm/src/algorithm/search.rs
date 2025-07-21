@@ -28,7 +28,6 @@ pub fn bfs_undirected(
     // breadth-first search is modeled here with a linked list FIFO queue.
     let mut visited: HashSet<OsmNodeId> = HashSet::new();
     let mut frontier: LinkedList<OsmNodeId> = LinkedList::new();
-    visited.insert(src);
     frontier.push_back(src);
 
     while let Some(next_id) = frontier.pop_front() {
