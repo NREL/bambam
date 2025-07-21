@@ -612,67 +612,12 @@ impl OsmGraph {
         }
         remove_way_from_adjacency(self, src, dst, Dir::Forward, fail_if_missing)?;
         remove_way_from_adjacency(self, src, dst, Dir::Reverse, fail_if_missing)?;
-        self.clear_adjacency_entry_if_disconnected(src, fail_if_missing)?;
-        self.clear_adjacency_entry_if_disconnected(dst, fail_if_missing)?;
+        self.clear_adjacency_entry_if_disconnected(src, false)?;
+        self.clear_adjacency_entry_if_disconnected(dst, false)?;
 
         // self.n_segments -= 1;
         Ok(())
     }
-
-    // /// update the adjacencies to reflect some simplified path
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `sp` - data describing the path to simplify
-    // pub fn simplify_path(&mut self, sp: &SimplifiedPath) -> Result<(), OsmError> {
-    //     log::debug!(
-    //         "simplify {}, a path with {} nodes",
-    //         sp.seg.way_id,
-    //         sp.path.len()
-    //     );
-    //     match sp.path.len() {
-    //         0 => {
-    //             return Err(OsmError::GraphSimplificationError(String::from(
-    //                 "simplify path called with empty path",
-    //             )))
-    //         }
-    //         1 => {
-    //             return Err(OsmError::GraphSimplificationError(String::from(
-    //                 "simplify path called with invalid path that only contains one node",
-    //             )))
-    //         }
-    //         2 => return Ok(()),
-    //         _ => {}
-    //     }
-
-    //     let src = sp.path.first().ok_or_else(|| {
-    //         OsmError::InternalError(String::from("non-empty path has no source node"))
-    //     })?;
-    //     let dst = sp.path.last().ok_or_else(|| {
-    //         OsmError::InternalError(String::from("non-empty path has no destination node"))
-    //     })?;
-    //     log::debug!(
-    //         "  source coordinate: {}",
-    //         self.get_node_data(src)
-    //             .unwrap()
-    //             .get_point()
-    //             .to_wkt()
-    //             .to_string(),
-    //     );
-    //     let node_pairs = sp.path.iter().tuple_windows();
-    //     log::debug!(
-    //         "  removing {}",
-    //         sp.path.iter().map(|n| format!("({})", n)).join("->")
-    //     );
-    //     for (u, v) in node_pairs {
-    //         // assuming here that it's possible for a segment to be removed by more than one path,
-    //         // hence fail_if_missing=false.
-    //         self.remove_segment(u, v)?;
-    //     }
-    //     log::debug!("  adding [({})->({})]", src, dst);
-    //     self.add_segment(*src, *dst, sp.seg.clone())?;
-    //     Ok(())
-    // }
 
     /// creates an entry for each direction in the adjacency list for this node id
     fn intialize_adjacency(&mut self, node_id: &OsmNodeId) -> Result<(), OsmError> {
