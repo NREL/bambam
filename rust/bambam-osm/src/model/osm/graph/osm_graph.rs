@@ -3,7 +3,7 @@ use super::{
     AdjacencyDirection as Dir, AdjacencyList, AdjacencyList3, AdjacencyListDeprecated, OsmNodeId,
     OsmNodes, OsmWayId, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
 };
-use crate::{algorithm::simplification::SimplifiedPath, model::osm::OsmError};
+use crate::model::osm::OsmError;
 use geo::LineString;
 use itertools::Itertools;
 use kdam::tqdm;

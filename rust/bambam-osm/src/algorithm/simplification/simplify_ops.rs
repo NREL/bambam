@@ -1,4 +1,3 @@
-use super::SimplifiedPath;
 use crate::{
     algorithm::simplification::SimplifiedWay,
     model::osm::{
