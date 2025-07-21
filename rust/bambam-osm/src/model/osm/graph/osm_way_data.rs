@@ -114,6 +114,8 @@ impl OsmWayData {
             "bridge" => Ok(self.bridge.clone()),
             "est_width" => Ok(self.est_width.clone()),
             "highway" => Ok(self.highway.clone()),
+            "sidewalk" => Ok(self.sidewalk.clone()),
+            "footway" => Ok(self.footway.clone()),
             "junction" => Ok(self.junction.clone()),
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
