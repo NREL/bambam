@@ -37,8 +37,7 @@ use wkt::ToWkt;
 /// # Arguments
 ///
 /// * `graph`      - the original graph data from the .pbf file
-/// * `simplified` - the result of graph simplification that omits unneccesary edge segmentation
-/// * `tolerance`  - edge-connected simplified endpoints within this distance threshold are merged
+/// * `tolerance`  - edge-connected endpoints within this distance threshold are merged
 ///                  into a new graph vertex by their centroid
 /// * `ignore_osm_parsing_errors` - if true, do not fail if a maxspeed or other attribute is not
 ///                                 valid wrt the OpenStreetMaps documentation
@@ -91,19 +90,14 @@ pub fn consolidate_graph(
     // move each component to its own cluster (otherwise you will connect
     // nodes together that are not truly connected, e.g., nearby deadends or
     // surface streets with bridge).
-    let merged = consolidate_clusters(&clusters, graph)?;
-    if merged.is_empty() {
+    let merged_count = consolidate_clusters(&clusters, graph)?;
+    if merged_count == 0 {
         return Err(OsmError::GraphConsolidationError(String::from(
             "merging simplified nodes resulted in 0 merged nodes",
         )));
     }
 
-    // ok
-    // 1. we found the endpoint OSMIDs
-    // 2. we found which OSMIDs can be merged because they are close
-    // 3. we now need to
-
-    log::info!("produced {} merged graph nodes", merged.len());
+    log::info!("consolidated {} node clusters", merged_count);
     // serde_json::to_writer(
     //     File::create("debug_merged.json").unwrap(),
     //     &serde_json::to_value(merged.iter().enumerate().collect_vec()).unwrap(),
@@ -122,13 +116,7 @@ pub fn consolidate_graph(
     // STEP 5
     // create a new node for each cluster of merged nodes
     // regroup now that we potentially have new cluster labels from step 3
-    let mut vertex_lookup: HashMap<OsmNodeId, usize> =
-        HashMap::with_capacity(graph.n_connected_nodes());
-    let m_iter = tqdm!(
-        merged.iter().enumerate(),
-        total = merged.len(),
-        desc = "build Compass vertices"
-    );
+    // This step is no longer needed since we modify the graph in-place
     // finalize merged nodes as Compass Vertex instances
     // and along the way, store a lookup from the OSMID(s) the merged node
     // was made from into the new merged vertex index.
@@ -296,7 +284,7 @@ pub fn consolidate_graph(
     //     speed_unit: routee_compass_core::model::unit::SpeedUnit::KPH,
     // };
     // Ok(result)
-    todo!()
+    Ok(())
 }
 
 /// buffers the vertex geo::Points of the endpoints of the simplified graph
@@ -364,7 +352,7 @@ fn get_fill_value(
 fn consolidate_clusters(
     spatial_clusters: &[Vec<OsmNodeId>],
     graph: &mut OsmGraph,
-) -> Result<Vec<OsmNodeData>, OsmError> {
+) -> Result<usize, OsmError> {
     // for each spatial cluster,
     //   find sub-clusters by running a connected components search
     //   over the graph subset included in this spatial cluster
@@ -381,24 +369,7 @@ fn consolidate_clusters(
         spatial_clusters.iter().map(|c| c.len()).sum::<usize>()
     );
 
-    // log::info!(
-    //     "first five spatial clusters: \n{}",
-    //     spatial_clusters
-    //         .iter()
-    //         .take(5)
-    //         .map(|v| format!("{:?}", v))
-    //         .join("\n")
-    // );
-
-    // let bar = Arc::new(Mutex::new(
-    //     Bar::builder()
-    //         .total(spatial_clusters.len())
-    //         .desc("consolidate nodes")
-    //         .build()
-    //         .map_err(OsmError::InternalError)?,
-    // ));
-    // let nodes_in_merged: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
-    // let mut merged_results = spatial_clusters
+    let mut consolidated_count = 0;
     let outer_iter = tqdm!(
         spatial_clusters.iter(),
         total = spatial_clusters.len(),
@@ -407,14 +378,14 @@ fn consolidate_clusters(
     for cluster in outer_iter {
         // run connected components to find the connected sub-graphs of this spatial cluster.
         // merge any discovered sub-components into a new node.
+        let connected_clusters = ccc(cluster, graph)?;
         let inner_iter = tqdm!(
-            ccc(cluster, graph).into_iter(),
+            connected_clusters.into_iter(),
             desc = "find connected subgraphs within cluster"
         );
-        for connected_clusters in inner_iter {
-            for node_ids in connected_clusters.into_iter() {
-                consolidate_nodes(node_ids, graph)?;
-            }
+        for node_ids in inner_iter {
+            consolidate_nodes(node_ids, graph)?;
+            consolidated_count += 1;
         }
     }
     // .iter()
@@ -487,7 +458,7 @@ fn consolidate_clusters(
     // }
 
     // Ok(merged_results)
-    todo!()
+    Ok(consolidated_count)
 }
 
 /// helper function to merge nodes into a new node and modify the graph
