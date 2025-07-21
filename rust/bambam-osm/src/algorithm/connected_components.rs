@@ -19,8 +19,7 @@ pub fn to_undirected(graph: &OsmGraph) -> UndirectedAdjacencyList {
     let mut undirected: HashMap<OsmNodeId, HashSet<OsmNodeId>> = HashMap::new();
     let adjacencies_iter = tqdm!(
         graph.connected_node_pair_iterator(false),
-        desc = "create undirected graph",
-        total = graph.n_connected_ways()
+        desc = "create undirected graph"
     );
     for (src, dst) in adjacencies_iter {
         add_undirected_edge(src, dst, &mut undirected);
