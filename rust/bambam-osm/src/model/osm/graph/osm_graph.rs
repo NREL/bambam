@@ -146,7 +146,7 @@ impl OsmGraph {
     /// helper with error handling to retrieve the "out-edges" as a hashmap
     /// from destination node to the segment connecting origin to destination
     pub fn get_neighbors(&self, node_id: &OsmNodeId, direction: Dir) -> Option<HashSet<OsmNodeId>> {
-        self.adj.get(&(*node_id, Dir::Forward)).cloned()
+        self.adj.get(&(*node_id, direction)).cloned()
     }
 
     /// helper with error handling to retrieve the "out-edges" as a hashmap
@@ -226,7 +226,7 @@ impl OsmGraph {
             None => {
                 match (
                     self.adj.get(&(*node_id, Dir::Forward)),
-                    self.adj.get(&(*node_id, Dir::Forward)),
+                    self.adj.get(&(*node_id, Dir::Reverse)),
                 ) {
                     (None, None) => false,
                     (None, Some(b)) => b.contains(neighbor_id),
