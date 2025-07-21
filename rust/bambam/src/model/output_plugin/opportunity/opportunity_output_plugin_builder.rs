@@ -1,5 +1,5 @@
 use super::{
-    opportunity_format::OpportunityCollectFormat, opportunity_model_config::OpportunityModelConfig,
+    opportunity_format::OpportunityFormat, opportunity_model_config::OpportunityModelConfig,
     opportunity_output_plugin::OpportunityOutputPlugin,
 };
 use routee_compass::{
@@ -30,7 +30,7 @@ impl OutputPluginBuilder for OpportunityOutputPluginBuilder {
 
         let config: OpportunityModelConfig = serde_json::from_value(config_json.to_owned())
             .map_err(CompassConfigurationError::SerdeDeserializationError)?;
-        let output_format: OpportunityCollectFormat = parameters.get_config_serde(
+        let output_format: OpportunityFormat = parameters.get_config_serde(
             &String::from("collect_format"),
             &String::from("opportunities"),
         )?;

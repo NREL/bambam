@@ -17,3 +17,4 @@ pub const COST_PENALTY_FACTOR: &str = "penalty_factor";
 pub const ROUTE_ID: &str = "route_id";
 
 pub use routee_compass_core::model::traversal::default::fieldname::*;
+pub use routee_compass_powertrain::model::fieldname::*;

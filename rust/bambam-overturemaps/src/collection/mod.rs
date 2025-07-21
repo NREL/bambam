@@ -7,7 +7,6 @@ mod record;
 mod taxonomy;
 mod version;
 
-pub mod api;
 pub mod constants;
 
 pub use collector::OvertureMapsCollector;

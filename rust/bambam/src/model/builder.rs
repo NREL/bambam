@@ -1,5 +1,7 @@
 use routee_compass_core::model::traversal::TraversalModelBuilder;
 use crate::model::frontier::isochrone::isochrone_frontier_builder::IsochroneFrontierBuilder;
+use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin::GridGeometryInputPlugin;
+use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builder::GridGeometryInputPluginBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::mep_score::mep_score_plugin_builder::MepScoreOutputPluginBuilder;
@@ -40,6 +42,10 @@ pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
 
     // MEP Input Plugins
     builder.add_input_plugin(String::from("grid"), Rc::new(GridInputPluginBuilder {}));
+    builder.add_input_plugin(
+        String::from("grid_geometry"),
+        Rc::new(GridGeometryInputPluginBuilder {}),
+    );
 
     // MEP Output Plugins
     builder.add_output_plugin(
