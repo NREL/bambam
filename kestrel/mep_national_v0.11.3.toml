@@ -64,21 +64,22 @@ stride = 300
 
 [[traversal.models]]
 type = "multimodal"
-[traversal.models.output_features]
-trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
-edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
-# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
-
-[traversal.models.modes]
-walk = [{ speed_feature = "walk_speed", destinations = ["edge_time", "trip_time"] }]
-bike = [{ speed_feature = "bike_speed", destinations = ["edge_time", "trip_time"] }]
+[traversal.models.dependencies]
+walk = [{ input_name = "walk_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
+bike = [{ input_name = "bike_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
 drive = [
-    { speed_feature = "edge_speed", destinations = ["edge_time", "trip_time"] },
+    { input_name = "edge_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] },
     # { time_feature = "trip_enroute_delay", destinations = [
     #     "edge_time",
     #     "trip_time",
     # ] },
 ]
+
+[traversal.models.output_features]
+trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
+edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
+# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
+
 
 # use a time-optimal routing strategy
 [cost]
@@ -86,7 +87,7 @@ weights = { trip_time = 1.0 }
 vehicle_rates = { trip_time = { type = "raw" } }
 # weights = { trip_time = 1.0, penalty_factor = 1.0 }
 # vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "mul"
+cost_aggregation = "add"
 
 [access]
 type = "turn_delay"
@@ -117,8 +118,7 @@ turn_restriction_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/
 
 [[frontier.models]]
 type = "isochrone"
-time_limit = 40.0
-time_unit = "minutes"
+time_limit = { time = 40.0, time_unit = "minutes" }
 
 [[plugin.input_plugins]]
 type = "inject"
@@ -139,13 +139,6 @@ write_mode = "overwrite"
 type = "inject"
 key = "start_weekday"
 value = "monday"
-format = "key_value"
-write_mode = "overwrite"
-
-[[plugin.input_plugins]]
-type = "inject"
-key = "time_limit"
-value = 40.0
 format = "key_value"
 write_mode = "overwrite"
 
@@ -200,6 +193,7 @@ table_orientation = "destination_vertex_oriented"
 [plugin.output_plugins.model.models.opportunity_source]
 type = "lodes"
 # study_region = { type = "national" }
+# continental configuration compatible with ACS + LODES 2022 data
 study_region = { type = "census", geoids = ["01", "04", "05", "06", "08", "09", "10", "11", "12", "13", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48", "49", "50", "51", "53", "54", "55", "56"] }
 
 # collect LODES data at the tract level. while it is available at the block,
@@ -252,23 +246,28 @@ CNS18 = ["jobs"] # 72 (Accommodation and Food Services)
 CNS19 = ["jobs"] # 81 (Other Services [except Public Administration])
 CNS20 = ["jobs"] # 92 (Public Administration)
 
-
 [[plugin.output_plugins]]
 type = "mep_score"
-[plugin.output_plugins.modal_intensity_values]
-type = "mep1_intensities"
-[plugin.output_plugins.modal_intensity_values.intensities]
+normalizing_activity = "jobs"
+
+[plugin.output_plugins.modal_intensity_model]
+type = "global"
+
+[plugin.output_plugins.modal_intensity_model.intensities]
 walk = { "energy" = 0, "cost" = 0 }
 bike = { "energy" = 0, "cost" = 0 }
 drive = { "energy" = 0.48, "cost" = 0.9 }
 transit = { "energy" = 0.855, "cost" = 0.65 }
-[plugin.output_plugins.modal_intensity_values.coefficients]
-alpha = -0.5
-beta = -0.08
-sigma = -0.5
-[plugin.output_plugins.activity_parameters]
+
+[plugin.output_plugins.modal_weighting_factors]
+walk = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
+bike = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
+drive = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
+transit = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
+
+[plugin.output_plugins.activity_frequencies]
 type = "global_frequencies"
-[plugin.output_plugins.activity_parameters.frequencies]
+[plugin.output_plugins.activity_frequencies.frequencies]
 healthcare = 3.1
 retail = 1.5
 entertainment = 19.5
@@ -293,8 +292,11 @@ grid_id = "request.grid_id"
 lon = "request.origin_x"
 lat = "request.origin_y"
 mode = "request.mode"
-runtime = "search_app_runtime"
 ram_mb = "search_result_size_mib"
+runtime_search = "search_app_runtime"
+runtime_mep = "info.mep_runtime"
+runtime_opps = "info.opportunity_runtime"
+runtime_iter_opps = "info.mep_load_opps_runtime"
 
 opps_entertainment_total = "opportunity_totals.entertainment"
 opps_retail_total = "opportunity_totals.retail"
