@@ -87,7 +87,7 @@ weights = { trip_time = 1.0 }
 vehicle_rates = { trip_time = { type = "raw" } }
 # weights = { trip_time = 1.0, penalty_factor = 1.0 }
 # vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "add"
+cost_aggregation = "sum"
 
 [access]
 type = "turn_delay"
