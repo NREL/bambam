@@ -511,13 +511,6 @@ impl OsmGraph {
             vec![way.clone()],
             &WriteMode::UpdateAtIndex { index },
         )?;
-        add_ways_to_graph(
-            self,
-            src,
-            dst,
-            vec![way],
-            &WriteMode::UpdateAtIndex { index },
-        )?;
         Ok(())
     }
 
@@ -579,19 +572,18 @@ impl OsmGraph {
         fail_if_missing: bool,
     ) -> Result<(), OsmError> {
         let new_node_id = OsmNodeId(-old_node_id.0);
-        let mut node = self
+        let mut retired_node = self
             .nodes
             .get(old_node_id)
             .ok_or(OsmError::GraphMissingNodeId(*old_node_id))?
             .clone();
-        node.osmid = new_node_id;
+        retired_node.osmid = new_node_id;
 
         // remove all segments connected
 
-        // self.disconnect_node(old_node_id, fail_if_missing)?;  // removing node does this
         self.disconnect_node(old_node_id, fail_if_missing)?;
         self.remove_node(old_node_id)?;
-        self.insert_node(node.clone())?;
+        self.insert_node(retired_node.clone())?;
         Ok(())
     }
 
@@ -609,10 +601,20 @@ impl OsmGraph {
         dst: &OsmNodeId,
         fail_if_missing: bool,
     ) -> Result<(), OsmError> {
+        match self.ways.remove(&(*src, *dst)) {
+            None if fail_if_missing => {
+                return Err(OsmError::InternalError(format!(
+                    "attempting to remove way ({})->({}) that does not exist",
+                    src, dst
+                )))
+            }
+            _ => {}
+        }
         remove_way_from_adjacency(self, src, dst, Dir::Forward, fail_if_missing)?;
         remove_way_from_adjacency(self, src, dst, Dir::Reverse, fail_if_missing)?;
         self.clear_adjacency_entry_if_disconnected(src, fail_if_missing)?;
         self.clear_adjacency_entry_if_disconnected(dst, fail_if_missing)?;
+
         // self.n_segments -= 1;
         Ok(())
     }
@@ -765,91 +767,36 @@ fn add_ways_to_graph(
             let _ = graph.ways.insert(key, ways.clone());
         }
         P::UpdateAtIndex { index } => {
-            match graph.ways.get_mut(&key) {
-                Some(w) => {
-                    match w.get_mut(*index) {
-                        Some(mut prev) => {
-                            if ways.len() != 1 {
-                                return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) at index '{index}' but user provided more than one way")))
-                            }
-                            *prev = ways[0].clone();
-                        },
-                        None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the index does not exist"))),
-                    }
-                },
-                None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the way does not exist"))),
+            if ways.len() != 1 {
+                return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) at index '{index}' but user provided more than one way")));
             }
-        },
-    }
-
-    // determine what kind of update to perform based on the combination of
-    // policy, adjacencies, and incoming ways
-    let action = (
-        overwrite_policy,
-        graph.ways.get_mut(&(*src, *dst)),
-        &ways.as_slice(),
-    );
-    match action {
-        // calling this method with an empty ways collection is an error
-        (_, _, []) => {
-            return Err(OsmError::InternalError(
-                "add ways to graph called with no ways to add".to_string(),
-            ))
-        }
-        // append to None or replace both simply insert without checking
-        (P::Append, None, _) | (P::Replace, _, _) => {
-            let _ = graph.ways.insert((*src, *dst), ways);
-        }
-        // append to Some extends the existing multiedge collection
-        (P::Append, Some(prev_ways), _) => {
-            prev_ways.extend(ways);
-        }
-
-        // update at index but the index is too high
-        (P::UpdateAtIndex { index }, Some(ways), _) if *index >= ways.len() => {
-            return Err(OsmError::GraphModificationError(format!(
-                "attempting to modify way ({})-[..]->({}) at way index {} which exceeds the size of the multiedge collection {}",
-                src, dst, index, ways.len()
-            )));
-        }
-        // update at index with a valid index and correctly called with a single way to update
-        (P::UpdateAtIndex { index }, Some(ways), [way]) => {
-            ways.insert(*index, way.clone());
-        }
-        // update at index with no multiedges is an error
-        (P::UpdateAtIndex { index }, None, [way]) => {
-            let way_ids = ways.iter().map(|w| w.osmid).join(",");
-            return Err(OsmError::GraphModificationError(format!(
-                "attempting to modify way ({})-[{}]->({}) at way index {} but it does not exist",
-                src, way.osmid, dst, index
-            )));
-        }
-        (P::UpdateAtIndex { index }, None, _) => {
-            return Err(OsmError::InternalError(format!(
-                "add ways to graph called but multiedge is empty, has no index index {}",
-                index
-            )))
-        }
-        (P::UpdateAtIndex { index }, Some(_), _) => {
-            return Err(OsmError::InternalError(format!(
-            "add ways to graph called but cannot replace a single way at index {} with {} new ways",
-            index,
-            ways.len()
-        )))
+            let w = match graph.ways.get_mut(&key) {
+                Some(w) => w,
+                None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the way does not exist"))),
+            };
+            let mut prev = match w.get_mut(*index) {
+                Some(mut prev) => prev,
+                None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the index does not exist"))),
+            };
+            *prev = ways[0].clone();
         }
     }
 
     // update adjacencies for ways
-    if let Some(neighbors) = graph.adj.get_mut(&(*src, Dir::Forward)) {
-        if !neighbors.contains(dst) {
-            let _ = neighbors.insert(*dst);
-        }
-    }
-    if let Some(neighbors) = graph.adj.get_mut(&(*dst, Dir::Reverse)) {
-        if !neighbors.contains(src) {
-            let _ = neighbors.insert(*src);
-        }
-    }
+    graph
+        .adj
+        .entry((*src, Dir::Forward))
+        .and_modify(|n| {
+            let _ = n.insert(*dst);
+        })
+        .or_insert(HashSet::from([*dst]));
+    graph
+        .adj
+        .entry((*dst, Dir::Reverse))
+        .and_modify(|n| {
+            let _ = n.insert(*src);
+        })
+        .or_insert(HashSet::from([*src]));
 
     Ok(())
 }
@@ -868,7 +815,7 @@ fn remove_way_from_adjacency(
         Dir::Reverse => (*dst, *src),
     };
     if let Some(adjacencies) = graph.adj.get_mut(&(outer, dir)) {
-        let was_present = adjacencies.remove(dst);
+        let was_present = adjacencies.remove(&inner);
         if !was_present && fail_if_missing {
             return Err(OsmError::GraphSimplificationError(format!(
                 "attempting to remove {} adjacency ({}) -> ({}) that does not exist",
