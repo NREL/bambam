@@ -48,7 +48,7 @@ impl TraversalModelService for MultimodalTraversalService {
         // matching definitions in order to accept it.
         let feature_dependencies = dependency_configurations
             .iter()
-            .map(|conf| FeatureDependency::new(&conf, &self.config.output_features))
+            .map(|conf| FeatureDependency::new(conf, &self.config.output_features))
             .try_collect()?;
         let output_features = self
             .config

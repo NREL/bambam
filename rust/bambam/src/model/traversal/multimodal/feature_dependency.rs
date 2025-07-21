@@ -101,9 +101,9 @@ impl FeatureDependency {
                     let (time, time_unit) =
                         Time::create((&distance, distance_unit), (&speed, speed_unit))?;
                     if *accumulator {
-                        state_model.add_time(state, &out_name, &time, &time_unit)?;
+                        state_model.add_time(state, out_name, &time, &time_unit)?;
                     } else {
-                        state_model.set_time(state, &out_name, &time, &time_unit)?;
+                        state_model.set_time(state, out_name, &time, &time_unit)?;
                     }
                 }
                 (
@@ -117,9 +117,9 @@ impl FeatureDependency {
                     let (time, time_unit) =
                         state_model.get_time(state, &self.input_name, Some(time_unit))?;
                     if *accumulator {
-                        state_model.add_time(state, &out_name, &time, time_unit)?;
+                        state_model.add_time(state, out_name, &time, time_unit)?;
                     } else {
-                        state_model.set_time(state, &out_name, &time, time_unit)?;
+                        state_model.set_time(state, out_name, &time, time_unit)?;
                     }
                 }
                 (
@@ -133,19 +133,19 @@ impl FeatureDependency {
                 ) => match format {
                     CustomFeatureFormat::FloatingPoint { .. } => {
                         let value = state_model.get_custom_f64(state, &self.input_name)?;
-                        state_model.set_custom_f64(state, &out_name, &value)?;
+                        state_model.set_custom_f64(state, out_name, &value)?;
                     }
                     CustomFeatureFormat::SignedInteger { .. } => {
                         let value = state_model.get_custom_i64(state, &self.input_name)?;
-                        state_model.set_custom_i64(state, &out_name, &value)?;
+                        state_model.set_custom_i64(state, out_name, &value)?;
                     }
                     CustomFeatureFormat::UnsignedInteger { .. } => {
                         let value = state_model.get_custom_u64(state, &self.input_name)?;
-                        state_model.set_custom_u64(state, &out_name, &value)?;
+                        state_model.set_custom_u64(state, out_name, &value)?;
                     }
                     CustomFeatureFormat::Boolean { .. } => {
                         let value = state_model.get_custom_bool(state, &self.input_name)?;
-                        state_model.set_custom_bool(state, &out_name, &value)?;
+                        state_model.set_custom_bool(state, out_name, &value)?;
                     }
                 },
                 _ => {
