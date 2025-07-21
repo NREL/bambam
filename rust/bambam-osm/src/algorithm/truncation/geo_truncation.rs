@@ -121,9 +121,9 @@ fn truncate_graph_by_node(
                 let inner_extent = extent.clone();
                 let point = node.get_point();
                 if inner_extent.contains(&point) {
-                    Ok(Some(node.osmid))
+                    Ok(None) // we are returning points TO REMOVE here
                 } else {
-                    Ok(None)
+                    Ok(Some(node.osmid))
                 }
             })
             .collect::<Result<Vec<_>, _>>()?
