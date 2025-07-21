@@ -532,11 +532,10 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
         .flatten()
         .collect_vec();
 
-    graph.insert_node(node)?;
+    graph.create_isolated_node(node)?;
     for (src, ways, dst) in adjacencies.into_iter() {
         graph.add_new_adjacency(&src, &dst, ways)?;
     }
-    // graph.insert_and_attach_node(node, Some(adjacencies))?;
 
     // retire old nodes so that they are disconnected but their data is preserved.
     for node_id in node_ids.iter() {

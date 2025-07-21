@@ -52,10 +52,10 @@ impl OsmGraph {
 
                 // confirm or update node in graph
                 if !graph.contains_node(src_id) {
-                    graph.insert_node(src_node.clone())?;
+                    graph.create_isolated_node(src_node.clone())?;
                 }
                 if !graph.contains_node(dst_id) {
-                    graph.insert_node(dst_node.clone())?;
+                    graph.create_isolated_node(dst_node.clone())?;
                 }
                 graph.add_new_adjacency(src_id, dst_id, vec![way.clone()])?;
             }
@@ -438,7 +438,7 @@ impl OsmGraph {
 
     /// add just the node data to the nodes collection.
     /// ignores the adjacency list and node count.
-    pub fn insert_node(&mut self, node: OsmNodeData) -> Result<(), OsmError> {
+    pub fn create_isolated_node(&mut self, node: OsmNodeData) -> Result<(), OsmError> {
         let node_id = node.osmid;
         if self.nodes.insert(node_id, node).is_some() {
             return Err(OsmError::InvalidOsmData(format!(
@@ -583,7 +583,7 @@ impl OsmGraph {
 
         self.disconnect_node(old_node_id, fail_if_missing)?;
         self.remove_node(old_node_id)?;
-        self.insert_node(retired_node.clone())?;
+        self.create_isolated_node(retired_node.clone())?;
         Ok(())
     }
 
