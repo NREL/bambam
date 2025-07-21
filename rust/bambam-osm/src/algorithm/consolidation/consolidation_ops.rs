@@ -546,8 +546,8 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
     }
 
     // find all in+out edges, replace their source node id with the new one
-    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Forward);
-    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Reverse);
+    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Forward)?;
+    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Reverse)?;
 
     Ok(())
 }
