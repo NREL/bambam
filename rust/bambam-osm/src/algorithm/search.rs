@@ -28,9 +28,7 @@ pub fn bfs_undirected(
     // breadth-first search is modeled here with a linked list FIFO queue.
     let mut visited: HashSet<OsmNodeId> = HashSet::new();
     let mut frontier: LinkedList<OsmNodeId> = LinkedList::new();
-    // let mut frontier = BinaryHeap::new();
     visited.insert(src);
-    // frontier.push(Reverse((0, src)));
     frontier.push_back(src);
 
     while let Some(next_id) = frontier.pop_front() {
@@ -40,12 +38,7 @@ pub fn bfs_undirected(
         // expand the frontier
         let next_out = graph.get_out_neighbors(&next_id).unwrap_or_default();
         let next_in = graph.get_in_neighbors(&next_id).unwrap_or_default();
-        // let neighbors: Box<dyn Iterator<Item = &OsmNodeId>> = match (&next_in, &next_out) {
-        //     (None, None) => Box::new(std::iter::empty()),
-        //     (None, Some(b)) => Box::new(b.iter()),
-        //     (Some(a), None) => Box::new(a.iter()),
-        //     (Some(a), Some(b)) => Box::new(a.union(b)),
-        // };
+
         // neighbors are only reviewed here that are "valid" (all fall within the spatial cluster).
         // they are sorted for algorithmic determinism (frontier insertion order).
         let valid_neighbors = next_in
