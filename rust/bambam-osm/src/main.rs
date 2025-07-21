@@ -116,13 +116,11 @@ fn create_writer(
 #[cfg(test)]
 mod tests {
     use bambam_osm::model::osm::graph::{osm_element_filter::ElementFilter, CompassWriter};
-    use bambam_osm::model::osm::graph::{
-        OsmWayData, OsmWayId,
-    };
+    use bambam_osm::model::osm::graph::{OsmWayData, OsmWayId};
     use bambam_osm::model::osm::{import_ops, OsmSource};
     use csv::QuoteStyle;
     use itertools::Itertools;
-    
+
     use routee_compass_core::model::unit::{Distance, DistanceUnit};
     use serde::{Deserialize, Serialize};
     use std::collections::HashSet;
@@ -237,7 +235,7 @@ mod tests {
             component_filter: None,
             truncate_by_edge: true,
             ignore_errors: true,
-            simplify: false,
+            simplify: true,
             consolidate: false,
             consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
             parallelize: false,
