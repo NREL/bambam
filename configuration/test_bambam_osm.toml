@@ -29,7 +29,7 @@ type = "road_class"
 road_class_input_file = "../rust/bambam-osm/out/edges-highway-tag-enumerated.txt.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 
@@ -137,66 +137,13 @@ key = "grid_search"
 [plugin.input_plugins.value]
 [[__modes__]]
 mode = "walk"
-road_classes = [
-    "secondary",
-    "secondary_link",
-    "tertiary",
-    "tertiary_link",
-    "unclassified",
-    "residential",
-    "living_street",
-    "service",
-    "track",
-    "road",
-    "path",
-    "footway",
-    "steps",
-    "elevator",
-    "pedestrian",
-    "corridor",
-    "trailhead",
-]
+road_classes = ["secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service", "track", "road", "path", "footway", "steps", "elevator", "pedestrian", "corridor", "trailhead"]
 [[__modes__]]
 mode = "bike"
-road_classes = [
-    "trunk",
-    "trunk_link",
-    "primary",
-    "primary_link",
-    "secondary",
-    "secondary_link",
-    "tertiary",
-    "tertiary_link",
-    "unclassified",
-    "residential",
-    "living_street",
-    "service",
-    "track",
-    "road",
-    "path",
-    "cycleway",
-    "corridor",
-    "trailhead",
-]
+road_classes = ["trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service", "track", "road", "path", "cycleway", "corridor", "trailhead"]
 [[__modes__]]
 mode = "drive"
-road_classes = [
-    "motorway",
-    "motorway_link",
-    "trunk",
-    "trunk_link",
-    "primary",
-    "primary_link",
-    "secondary",
-    "secondary_link",
-    "tertiary",
-    "tertiary_link",
-    "unclassified",
-    "residential",
-    "service",
-    "track",
-    "road",
-]
+road_classes = ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "service", "track", "road"]
 
 [[plugin.input_plugins]]
 type = "grid_search"

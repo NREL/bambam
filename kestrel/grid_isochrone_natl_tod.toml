@@ -115,18 +115,8 @@ edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
 # penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
 
 [traversal.models.modes]
-walk = [
-    { speed_feature = "walk_speed", destinations = [
-        "edge_time",
-        "trip_time",
-    ] },
-]
-bike = [
-    { speed_feature = "bike_speed", destinations = [
-        "edge_time",
-        "trip_time",
-    ] },
-]
+walk = [{ speed_feature = "walk_speed", destinations = ["edge_time", "trip_time"] }]
+bike = [{ speed_feature = "bike_speed", destinations = ["edge_time", "trip_time"] }]
 drive = [
     { speed_feature = "edge_speed", destinations = ["edge_time", "trip_time"] },
     # { time_feature = "trip_enroute_delay", destinations = [
@@ -173,7 +163,7 @@ type = "turn_restriction"
 turn_restriction_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/edges-turn-restrictions.csv.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 
@@ -194,28 +184,7 @@ format = "key_value"
 write_mode = "overwrite"
 key = "grid_search"
 [plugin.input_plugins.value]
-modes = [
-    { mode = "walk", road_classes = [
-        4,
-        5,
-        6,
-        7,
-    ] },
-    { mode = "bike", road_classes = [
-        4,
-        5,
-        6,
-        7,
-    ] },
-    { mode = "drive", road_classes = [
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-    ] },
-]
+modes = [{ mode = "walk", road_classes = [4, 5, 6, 7] }, { mode = "bike", road_classes = [4, 5, 6, 7] }, { mode = "drive", road_classes = [1, 2, 3, 4, 5, 6] }]
 
 [[plugin.input_plugins]]
 type = "inject"

@@ -37,7 +37,7 @@ pub enum OpportunityModel {
     Spatial {
         activity_types: Vec<String>,
         rtree: RTree<OpportunitySpatialRow>,
-        activity_counts: Vec<Vec<f64>>,
+        counts_by_spatial_row: Vec<Vec<f64>>,
         polygonal: bool,
         opportunity_orientation: OpportunityOrientation,
     },
@@ -68,7 +68,7 @@ impl OpportunityModel {
             } => activity_totals(activity_types, activity_counts),
             OpportunityModel::Spatial {
                 activity_types,
-                activity_counts,
+                counts_by_spatial_row: activity_counts,
                 ..
             } => activity_totals(activity_types, activity_counts),
             OpportunityModel::Combined { models } => {
@@ -136,7 +136,7 @@ impl OpportunityModel {
         Ok(result)
     }
 
-    /// attaches opportunity counts for a single vertex.
+    /// attaches opportunity counts for a single location in the graph.
     ///
     /// # Arguments
     /// * `destination_vertex_id` - the destination that was reached
@@ -165,7 +165,7 @@ impl OpportunityModel {
                 );
                 let result = activity_counts
                     .get(*index.as_usize())
-                    .map(|opps| (index, opps.to_owned()))
+                    .map(|opps| (index, opps.clone()))
                     .ok_or_else(|| {
                         OutputPluginError::OutputPluginFailed(format!(
                             "activity table lookup failed - {} index {} not found",
@@ -177,7 +177,7 @@ impl OpportunityModel {
             OpportunityModel::Spatial {
                 activity_types,
                 rtree,
-                activity_counts,
+                counts_by_spatial_row: activity_counts,
                 polygonal,
                 opportunity_orientation,
             } => {
@@ -187,31 +187,28 @@ impl OpportunityModel {
                     opportunity_orientation,
                 );
 
-                if *polygonal {
+                // search for the intersecting polygonal opportunity or nearest point opportunity
+                let spatial_row = if *polygonal {
                     let envelope = index.get_envelope_f64(si)?;
-                    let first_match = rtree.locate_in_envelope_intersecting(&envelope).next();
-                    match first_match {
-                        None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
-                        Some(nearest) => match activity_counts.get(nearest.index) {
-                            Some(counts) => Ok(vec![(index, counts.to_vec())]),
-                            None => Err(OutputPluginError::OutputPluginFailed(format!(
-                                "expected activity count index {} not found",
-                                nearest.index
-                            ))),
-                        },
-                    }
+                    rtree.locate_in_envelope_intersecting(&envelope).next()
                 } else {
                     let centroid = index.get_centroid_f64(si)?;
-                    match rtree.nearest_neighbor(&centroid) {
-                        None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
-                        Some(nearest) => match activity_counts.get(nearest.index) {
-                            Some(counts) => Ok(vec![(index, counts.to_vec())]),
-                            None => Err(OutputPluginError::OutputPluginFailed(format!(
-                                "expected activity count index {} not found",
-                                nearest.index
-                            ))),
-                        },
-                    }
+                    rtree.nearest_neighbor(&centroid)
+                };
+
+                // return the found activities stored at the associated spatial row
+                match spatial_row {
+                    None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
+                    Some(found) => match activity_counts.get(found.index) {
+                        Some(counts) => Ok(vec![(index, counts.clone())]),
+                        None => {
+                            let geom_type = if *polygonal { "polygon" } else { "point" };
+                            Err(OutputPluginError::OutputPluginFailed(format!(
+                                "expected spatial {} activity count with index {} not found",
+                                geom_type, found.index
+                            )))
+                        }
+                    },
                 }
             }
             OpportunityModel::Combined { models } => {
@@ -228,38 +225,29 @@ impl OpportunityModel {
                         .into_iter()
                         .collect::<HashMap<_, _>>();
 
-                    let update_indices = collection
+                    // Get all indices that need to be updated (existing + new)
+                    let all_indices = collection
                         .keys()
                         .cloned()
                         .chain(matches.keys().cloned())
-                        .collect_vec();
-                    for idx in update_indices.into_iter() {
+                        .collect::<HashSet<_>>();
+
+                    for idx in all_indices.into_iter() {
                         let vector_extension = match matches.get(&idx) {
                             Some(match_vector) => match_vector.clone(),
                             None => vec![0.0; vector_length],
                         };
 
-                        match collection.get_mut(&idx) {
-                            Some(mut existing) => existing.extend(vector_extension),
-                            None => {
-                                let mut padded = vec![0.0; padding_length];
-                                padded.extend(vector_extension);
-                                collection.insert(idx, padded);
-                            }
-                        }
-                    }
-                    for (idx, counts) in matches.into_iter() {
-                        // add these counts to our collection, left-padding the vectors as needed
                         collection
                             .entry(idx)
-                            .and_modify(|c| c.extend(&counts))
+                            .and_modify(|existing| existing.extend(vector_extension.clone()))
                             .or_insert({
                                 let mut new_counts = vec![0.0; padding_length];
-                                new_counts.extend(&counts);
+                                new_counts.extend(vector_extension);
                                 new_counts
                             });
                     }
-                    padding_length += model.vector_length();
+                    padding_length += vector_length;
                 }
                 // ensure we are right-padded to the correct length as well
                 let result = collection

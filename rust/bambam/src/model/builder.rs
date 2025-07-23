@@ -1,5 +1,5 @@
 use routee_compass_core::model::traversal::TraversalModelBuilder;
-use crate::model::frontier::isochrone::isochrone_frontier_builder::IsochroneFrontierBuilder;
+use crate::model::frontier::time_limit::TimeLimitFrontierBuilder;
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin::GridGeometryInputPlugin;
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builder::GridGeometryInputPluginBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
@@ -37,8 +37,8 @@ pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
     builder.add_traversal_model(String::from("multimodal"), multimodal_model);
 
     // MEP Frontier Models
-    let isochrone_fm = Rc::new(IsochroneFrontierBuilder {});
-    builder.add_frontier_model(String::from("isochrone"), isochrone_fm);
+    let isochrone_fm = Rc::new(TimeLimitFrontierBuilder {});
+    builder.add_frontier_model(String::from("time_limit"), isochrone_fm);
 
     // MEP Input Plugins
     builder.add_input_plugin(String::from("grid"), Rc::new(GridInputPluginBuilder {}));
