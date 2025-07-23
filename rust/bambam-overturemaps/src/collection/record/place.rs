@@ -35,8 +35,7 @@ impl TryFrom<OvertureRecord> for PlacesRecord {
         match value {
             OvertureRecord::Places(record) => Ok(record),
             _ => Err(OvertureMapsCollectionError::DeserializeTypeError(format!(
-                "Cannot transform record {:#?} into PlacesRecord",
-                value
+                "Cannot transform record {value:#?} into PlacesRecord"
             ))),
         }
     }
@@ -47,7 +46,7 @@ impl fmt::Display for PlacesRecord {
         let categories = self
             .categories
             .as_ref()
-            .map(|vec| format!("{:?}", vec))
+            .map(|vec| format!("{vec:?}"))
             .unwrap_or("None".to_string());
         write!(
             f,

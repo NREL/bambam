@@ -74,8 +74,7 @@ fn to_seconds_bounded(
     let t_secs = t_convert.as_ref();
     if t_secs < min || max < t_secs {
         Err(format!(
-            "invalid number of seconds {} is outside of range [{},{})",
-            t_secs, min, max
+            "invalid number of seconds {t_secs} is outside of range [{min},{max})"
         ))
     } else {
         Ok(t_secs.as_f64())

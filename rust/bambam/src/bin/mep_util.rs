@@ -218,9 +218,9 @@ impl App {
                 let mut writeto = BufWriter::new(file);
                 for value in array {
                     let json_line = serde_json::to_string(value).map_err(|e| e.to_string())?;
-                    writeln!(writeto, "{}", json_line).map_err(|e| e.to_string())?;
+                    writeln!(writeto, "{json_line}").map_err(|e| e.to_string())?;
                 }
-                println!("Wrote newline-delimited JSON to {}", output_file);
+                println!("Wrote newline-delimited JSON to {output_file}");
                 Ok(())
             }
             Self::OutputOverlay {
@@ -360,7 +360,7 @@ mod tests {
         match result {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
             }
         }
     }

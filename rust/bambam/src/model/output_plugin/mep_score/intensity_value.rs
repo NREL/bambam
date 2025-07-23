@@ -44,7 +44,7 @@ impl Display for IntensityValue {
             IntensityValue::Cost { .. } => "cost",
             IntensityValue::Time { .. } => "time",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

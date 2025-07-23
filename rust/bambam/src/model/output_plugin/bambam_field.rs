@@ -79,8 +79,7 @@ pub mod get {
         super::get_nested(value, &path).map_err(|e| {
             let dot_path = path.join(".");
             OutputPluginError::OutputPluginFailed(format!(
-                "failure retrieving 'mode' value from '{}': {}",
-                dot_path, e
+                "failure retrieving 'mode' value from '{dot_path}': {e}"
             ))
         })
     }
@@ -114,12 +113,11 @@ pub mod get {
         T: DeserializeOwned,
     {
         let value = value.get(field).ok_or_else(|| {
-            OutputPluginError::InternalError(format!("cannot find '{}' in output row", field))
+            OutputPluginError::InternalError(format!("cannot find '{field}' in output row"))
         })?;
         serde_json::from_value(value.clone()).map_err(|e| {
             OutputPluginError::OutputPluginFailed(format!(
-                "found '{}' in output row but cannot deserialize due to: {}",
-                field, e
+                "found '{field}' in output row but cannot deserialize due to: {e}"
             ))
         })
     }
@@ -138,7 +136,7 @@ pub fn get_nested<T: DeserializeOwned>(json: &Value, path: &[&str]) -> Result<T,
         }
     }
     let result = serde_json::from_value(cursor.clone())
-        .map_err(|e| format!("unable to deserialize value '{}': {}", cursor, e))?;
+        .map_err(|e| format!("unable to deserialize value '{cursor}': {e}"))?;
     Ok(result)
 }
 
@@ -247,7 +245,7 @@ pub fn time_bins_iter_mut(output: &mut serde_json::Value) -> Result<TimeBinsIter
 
 fn field_error(fields: Vec<&str>) -> String {
     let path = fields.join(".");
-    format!("expected path {} missing from output object", path)
+    format!("expected path {path} missing from output object")
 }
 
 fn nested_error(action: &str, fields: Vec<&str>, failed_key: &str, object: &Value) -> String {
@@ -258,18 +256,17 @@ fn nested_error(action: &str, fields: Vec<&str>, failed_key: &str, object: &Valu
         .unwrap_or_default();
     let keys = if keylist.len() > 5 {
         let inner = keylist.iter().take(5).join(", ");
-        format!("[{}, ...]", inner)
+        format!("[{inner}, ...]")
     } else {
         let inner = keylist.iter().join(", ");
-        format!("[{}]", inner)
+        format!("[{inner}]")
     };
     format!(
-        "during {}, expected path '{}' missing key '{}' from JSON object available sibling keys: {}",
-        action, path, failed_key, keys
+        "during {action}, expected path '{path}' missing key '{failed_key}' from JSON object available sibling keys: {keys}"
     )
 }
 
 fn type_error(fields: Vec<&str>, expected_type: String) -> String {
     let path = fields.join(".");
-    format!("expected value at path {} to be {}", path, expected_type)
+    format!("expected value at path {path} to be {expected_type}")
 }

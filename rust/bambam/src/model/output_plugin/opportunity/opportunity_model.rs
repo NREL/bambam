@@ -114,7 +114,7 @@ impl OpportunityModel {
         for dest_result in destinations {
             match dest_result {
                 Err(e) => {
-                    let msg = format!("failure collecting destinations: {}", e);
+                    let msg = format!("failure collecting destinations: {e}");
                     return Err(OutputPluginError::OutputPluginFailed(msg));
                 }
                 Ok((src, branch)) => {
@@ -168,8 +168,7 @@ impl OpportunityModel {
                     .map(|opps| (index, opps.to_owned()))
                     .ok_or_else(|| {
                         OutputPluginError::OutputPluginFailed(format!(
-                            "activity table lookup failed - {} index {} not found",
-                            opportunity_orientation, index
+                            "activity table lookup failed - {opportunity_orientation} index {index} not found"
                         ))
                     })?;
                 Ok(vec![result])

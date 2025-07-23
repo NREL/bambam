@@ -44,7 +44,7 @@ pub fn run(app: &App) -> Result<(), OsmCliError> {
             let conf = match configuration_file {
                 None => Ok(OsmImportConfiguration::default()),
                 Some(f) => {
-                    log::info!("reading bambam configuration from {}", f);
+                    log::info!("reading bambam configuration from {f}");
                     OsmImportConfiguration::try_from(f)
                 }
             }?;
@@ -69,7 +69,7 @@ pub fn run(app: &App) -> Result<(), OsmCliError> {
                     Ok(())
                 }
                 Err(e) => {
-                    log::error!("bambam-osm failed: {}", e);
+                    log::error!("bambam-osm failed: {e}");
                     Err(e)?
                 }
             }
@@ -86,7 +86,7 @@ fn main() {
             // }
         }
         Err(e) => {
-            println!("{}", e);
+            println!("{e}");
             // log::error!("app failed: {}", e);
             panic!("{}", e.to_string())
         }
@@ -243,11 +243,11 @@ mod tests {
 
         let graph = match pbf_config.import() {
             Ok(g) => g,
-            Err(e) => panic!("graph import failed: {}", e),
+            Err(e) => panic!("graph import failed: {e}"),
         };
         match graph.write_compass(Path::new("out"), true) {
             Ok(_) => eprintln!("finished."),
-            Err(e) => panic!("graph write failed: {}", e),
+            Err(e) => panic!("graph write failed: {e}"),
         }
     }
 

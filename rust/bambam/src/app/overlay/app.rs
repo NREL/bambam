@@ -52,7 +52,7 @@ pub fn run(
             let r = row.map_err(|e| e.to_string())?;
             let geometry_str = r
                 .get(*bambam_geometry_lookup)
-                .ok_or_else(|| format!("row {} missing geometry index", row_idx))?;
+                .ok_or_else(|| format!("row {row_idx} missing geometry index"))?;
             let geometry: Geometry =
                 Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
             Ok((geometry, r.clone()))
@@ -71,10 +71,10 @@ pub fn run(
         .collect::<HashMap<_, _>>();
     let overlay_geom_idx = overlay_headers
         .get(geometry_column.as_str())
-        .ok_or_else(|| format!("overlay file missing {} column", geometry_column))?;
+        .ok_or_else(|| format!("overlay file missing {geometry_column} column"))?;
     let overlay_id_idx = overlay_headers
         .get(id_column.as_str())
-        .ok_or_else(|| format!("overlay file missing {} column", id_column))?;
+        .ok_or_else(|| format!("overlay file missing {id_column} column"))?;
 
     // TODO!
     //  this just writes the aggregated overlay dataset to stdout
@@ -96,12 +96,12 @@ pub fn run(
 
             let geometry_str = r
                 .get(*overlay_geom_idx)
-                .ok_or_else(|| format!("row {} missing geometry index", row_idx))?;
+                .ok_or_else(|| format!("row {row_idx} missing geometry index"))?;
             let geometry: Geometry =
                 Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
             let id = r
                 .get(*overlay_id_idx)
-                .ok_or_else(|| format!("row {} missing id index", row_idx))?
+                .ok_or_else(|| format!("row {row_idx} missing id index"))?
                 .to_string();
 
             match how {
@@ -110,7 +110,7 @@ pub fn run(
                         let mut out: StringRecord = StringRecord::new();
                         for (j, sr) in node.data.iter().enumerate() {
                             if j == *bambam_geometry_lookup {
-                                let enquoted = format!("\"{}\"", sr);
+                                let enquoted = format!("\"{sr}\"");
                                 out.push_field(enquoted.as_str());
                             } else {
                                 out.push_field(sr);

@@ -20,8 +20,7 @@ impl FrontierModelService for IsochroneFrontierService {
             .get_config_serde::<Time>(&String::from("time_limit"), &String::from("isochrone"))
             .map_err(|e| {
                 FrontierModelError::BuildError(format!(
-                    "failure reading time_limit from query: {}",
-                    e
+                    "failure reading time_limit from query: {e}"
                 ))
             })?;
         let time_unit = query
@@ -31,8 +30,7 @@ impl FrontierModelService for IsochroneFrontierService {
             )
             .map_err(|e| {
                 FrontierModelError::BuildError(format!(
-                    "failure reading time_unit from query: {}",
-                    e
+                    "failure reading time_unit from query: {e}"
                 ))
             })?
             .unwrap_or(TimeUnit::Minutes);

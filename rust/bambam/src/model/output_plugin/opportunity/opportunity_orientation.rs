@@ -14,6 +14,6 @@ impl std::fmt::Display for OpportunityOrientation {
         let s = serde_json::to_string(self)
             .unwrap_or(String::from(""))
             .replace('\"', "");
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

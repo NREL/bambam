@@ -47,7 +47,7 @@ pub fn consolidate_graph(
     // buffer nodes to passed-in distance and merge overlaps. turn merged nodes
     // into gdf and get centroids of each cluster as x, y.
 
-    log::info!("buffering with tolerance {:?}", tolerance);
+    log::info!("buffering with tolerance {tolerance:?}");
     let node_geometries = buffer_nodes(graph, tolerance)?;
 
     // STEP 2
@@ -57,8 +57,7 @@ pub fn consolidate_graph(
     let mut rtree: RTree<ClusteredIntersections> =
         clustering::build(&node_geometries).map_err(|e| {
             OsmError::GraphConsolidationError(format!(
-                "failure building geometry intersection graph: {}",
-                e
+                "failure building geometry intersection graph: {e}"
             ))
         })?;
 
@@ -94,7 +93,7 @@ pub fn consolidate_graph(
         )));
     }
 
-    log::info!("consolidated {} node clusters", merged_count);
+    log::info!("consolidated {merged_count} node clusters");
     // serde_json::to_writer(
     //     File::create("debug_merged.json").unwrap(),
     //     &serde_json::to_value(merged.iter().enumerate().collect_vec()).unwrap(),
@@ -149,8 +148,7 @@ pub fn buffer_nodes(
             let point = geo::Point(Coord::from((node.x, node.y)));
             let circle_g: Geometry<f32> = point.buffer(radius).map_err(|e| {
                 OsmError::GraphConsolidationError(format!(
-                    "while buffering nodes for consolidation, an error occurred: {}",
-                    e
+                    "while buffering nodes for consolidation, an error occurred: {e}"
                 ))
             })?;
             let circle = match circle_g {
@@ -207,7 +205,7 @@ fn consolidate_clusters(
 
     term::init(false);
     term::hide_cursor()
-        .map_err(|e| OsmError::InternalError(format!("progress bar error: {}", e)))?;
+        .map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
     let mut consolidated_count = 0;
     let outer_iter = tqdm!(
         spatial_clusters.iter(),
@@ -233,7 +231,7 @@ fn consolidate_clusters(
     eprintln!();
     eprintln!();
     term::show_cursor()
-        .map_err(|e| OsmError::InternalError(format!("progress bar error: {}", e)))?;
+        .map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
     Ok(consolidated_count)
 }
 
@@ -264,7 +262,7 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
         .iter()
         .map(|node_id| graph.get_node_data(node_id))
         .collect::<Result<Vec<_>, OsmError>>()?;
-    let new_node = OsmNodeData::consolidate(&new_node_id, &nodes)?;
+    let new_node = OsmNodeData::consolidate(&new_node_id, nodes)?;
 
     // collect the ways that are adjacent to all of the consolidated nodes as (u, v) id pairs
     // where u is the source, v is the destination of a way.
@@ -292,7 +290,7 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
             let key = (*neighbor, *dir);
             let way_ids = way_consolidation_map
                 .entry(key)
-                .or_insert_with(HashSet::new);
+                .or_default();
             for way in adjacent_ways {
                 way_ids.insert(way.osmid);
                 all_ways.insert(way.osmid, way.clone());
@@ -320,12 +318,12 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
     // the new consolidated node will be added back in next.
     log::debug!("Removing {} nodes before consolidation", node_ids.len());
     for node_id in node_ids.iter() {
-        log::debug!("Removing node {}", node_id);
+        log::debug!("Removing node {node_id}");
         graph.remove_node(node_id)?;
     }
 
     // at this point, we can begin ADDITIONS, starting with the new consolidated node.
-    log::debug!("Creating consolidated node with ID {}", new_node_id);
+    log::debug!("Creating consolidated node with ID {new_node_id}");
     graph.create_isolated_node(new_node)?;
 
     // way insertion. for each (u, v) pair and way, wire it together with the consolidated
@@ -336,7 +334,7 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
     );
     for way_consolidation in way_consolidation_records.iter_mut() {
         let (src, dst) = way_consolidation.get_src_dst(&new_node_id);
-        log::debug!("Adding adjacency from {} to {}", src, dst);
+        log::debug!("Adding adjacency from {src} to {dst}");
         graph.add_new_adjacency(&src, &dst, way_consolidation.drain_ways())?;
     }
 

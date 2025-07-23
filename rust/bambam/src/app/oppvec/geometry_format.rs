@@ -41,10 +41,10 @@ impl std::fmt::Display for GeometryFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GeometryFormat::WktColumn { column_name } => {
-                write!(f, "{}", column_name)
+                write!(f, "{column_name}")
             }
             GeometryFormat::XYColumns { x_column, y_column } => {
-                write!(f, "{},{}", x_column, y_column)
+                write!(f, "{x_column},{y_column}")
             }
         }
     }
@@ -60,12 +60,11 @@ impl GeometryFormat {
             GeometryFormat::WktColumn { column_name } => {
                 let idx = column_index_lookup
                     .get(column_name)
-                    .ok_or_else(|| format!("file does not contain column '{}'", column_name))?;
-                let value = row.get(*idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", column_name, idx))?;
+                    .ok_or_else(|| format!("file does not contain column '{column_name}'"))?;
+                let value = row.get(*idx).ok_or_else(|| format!("internal error: column index lookup has col '{column_name}' at idx '{idx}' which is not found in the lookup"))?;
                 let g = Geometry::try_from_wkt_str(value).map_err(|e| {
                     format!(
-                        "failure reading geometry at column '{}': {}",
-                        column_name, e
+                        "failure reading geometry at column '{column_name}': {e}"
                     )
                 })?;
                 Ok(g)
@@ -77,17 +76,17 @@ impl GeometryFormat {
             GeometryFormat::XYColumns { x_column, y_column } => {
                 let x_idx = column_index_lookup
                     .get(x_column)
-                    .ok_or_else(|| format!("file does not contain column '{}'", x_column))?;
+                    .ok_or_else(|| format!("file does not contain column '{x_column}'"))?;
                 let y_idx = column_index_lookup
                     .get(y_column)
-                    .ok_or_else(|| format!("file does not contain column '{}'", y_column))?;
-                let x_str = row.get(*x_idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", x_column, x_idx))?;
-                let y_str = row.get(*y_idx).ok_or_else(|| format!("internal error: column index lookup has col '{}' at idx '{}' which is not found in the lookup", y_column, y_idx))?;
+                    .ok_or_else(|| format!("file does not contain column '{y_column}'"))?;
+                let x_str = row.get(*x_idx).ok_or_else(|| format!("internal error: column index lookup has col '{x_column}' at idx '{x_idx}' which is not found in the lookup"))?;
+                let y_str = row.get(*y_idx).ok_or_else(|| format!("internal error: column index lookup has col '{y_column}' at idx '{y_idx}' which is not found in the lookup"))?;
                 let x = x_str.parse::<f32>().map_err(|e| {
-                    format!("failure reading number in column '{}': {}", x_column, e)
+                    format!("failure reading number in column '{x_column}': {e}")
                 })?;
                 let y = y_str.parse::<f32>().map_err(|e| {
-                    format!("failure reading number in column '{}': {}", y_column, e)
+                    format!("failure reading number in column '{y_column}': {e}")
                 })?;
                 let point = geo::Point::new(x, y);
                 Ok(geo::Geometry::Point(point))

@@ -49,7 +49,7 @@ fn join_ids(value: &Vec<OsmNodeId>, delimiter: &'static str) -> Option<String> {
     match value[..] {
         [] => None,
         _ => {
-            let joined = value.iter().map(|id| format!("{}", id)).join(delimiter);
+            let joined = value.iter().map(|id| format!("{id}")).join(delimiter);
             Some(joined)
         }
     }

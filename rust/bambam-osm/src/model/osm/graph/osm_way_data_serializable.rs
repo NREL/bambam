@@ -140,7 +140,7 @@ impl OsmWayDataSerializable {
             "service" => Ok(self.service.clone()),
             "tunnel" => Ok(self.tunnel.clone()),
             "width" => Ok(self.width.clone()),
-            _ => Err(format!("unknown edge field {}", fieldname)),
+            _ => Err(format!("unknown edge field {fieldname}")),
         }
     }
 
@@ -168,7 +168,7 @@ fn join_node_ids(value: &[OsmNodeId], delimiter: &'static str) -> Option<String>
     match value[..] {
         [] => None,
         _ => {
-            let joined = value.iter().map(|id| format!("{}", id)).join(delimiter);
+            let joined = value.iter().map(|id| format!("{id}")).join(delimiter);
             Some(joined)
         }
     }
@@ -178,7 +178,7 @@ fn join_way_ids(value: &[OsmWayId], delimiter: &'static str) -> Option<String> {
     match value[..] {
         [] => None,
         _ => {
-            let joined = value.iter().map(|id| format!("{}", id)).join(delimiter);
+            let joined = value.iter().map(|id| format!("{id}")).join(delimiter);
             Some(joined)
         }
     }
@@ -192,7 +192,7 @@ fn create_linestring_for_od_path(
 ) -> Result<LineString<f32>, OsmError> {
     let coords = extract_between_nodes(src, dst, &way.nodes)
         .ok_or_else(|| {
-            let nodes = way.nodes.iter().map(|n| format!("({})", n)).join("->");
+            let nodes = way.nodes.iter().map(|n| format!("({n})")).join("->");
             OsmError::InternalError(format!(
                 "trajectory ({})-[{}]->({}) not found in (aggregate) way nodes: {}",
                 src, way.osmid, dst, nodes
@@ -222,7 +222,7 @@ fn top_highway(
                 .split(delimiter)
                 .map(|h| {
                     Highway::from_str(h).map_err(|e| {
-                        OsmError::InvalidOsmData(format!("found invalid highway tag {}", e))
+                        OsmError::InvalidOsmData(format!("found invalid highway tag {e}"))
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?;
@@ -256,8 +256,7 @@ fn deserialize_maxspeed(
     let separated_entries = s.split([',', ';']).collect_vec();
     match separated_entries[..] {
         [] => Err(format!(
-            "internal error: attempting to unpack empty maxspeed value '{}'",
-            s
+            "internal error: attempting to unpack empty maxspeed value '{s}'"
         )),
         [entry] => {
             match entry.split(" ").collect_vec()[..] {
@@ -283,7 +282,7 @@ fn deserialize_maxspeed(
                 }
                 [speed_str] => {
                     let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {} not a valid number: {}", speed_str, e)
+                        format!("speed value {speed_str} not a valid number: {e}")
                     });
 
                     let speed = match speed_result {
@@ -301,7 +300,7 @@ fn deserialize_maxspeed(
                 }
                 [speed_str, unit_str] => {
                     let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {} not a valid number: {}", speed_str, e)
+                        format!("speed value {speed_str} not a valid number: {e}")
                     });
 
                     let speed = match speed_result {
@@ -319,8 +318,7 @@ fn deserialize_maxspeed(
                         "mph" => SpeedUnit::MPH,
                         _ if !ignore_invalid_entries => {
                             return Err(format!(
-                                "unknown speed unit {} with value {}",
-                                unit_str, speed
+                                "unknown speed unit {unit_str} with value {speed}"
                             ));
                         }
                         _ => {
@@ -331,7 +329,7 @@ fn deserialize_maxspeed(
                     let result = (Speed::from(speed), speed_unit);
                     Ok(Some(result))
                 }
-                _ => Err(format!("unexpected maxspeed entry '{}'", s)),
+                _ => Err(format!("unexpected maxspeed entry '{s}'")),
             }
         }
         _ => {
@@ -391,7 +389,7 @@ mod tests {
             OsmNodeId(6),
         ];
         let result = extract_between_nodes(&OsmNodeId(2), &OsmNodeId(4), &nodes);
-        println!("{:?}", result);
+        println!("{result:?}");
         let expected = [&OsmNodeId(2), &OsmNodeId(3), &OsmNodeId(4)];
         match result {
             Some([a, b, c]) => {

@@ -54,7 +54,7 @@ pub fn read_pbf(
         Some(g) => {
             log::info!("buffering extent for initial download filtering");
             let g_buf = buffer::scale_exterior(g, BUFFER_500M).map_err(|e| {
-                OsmError::ConfigurationError(format!("failure buffering extent: {}", e))
+                OsmError::ConfigurationError(format!("failure buffering extent: {e}"))
             })?;
             Ok(Some(g_buf))
         }
@@ -307,7 +307,7 @@ fn insert_op(
     let highway = match &way.highway {
         Some(h) => {
             let highway = h.parse::<Highway>().map_err(|e| {
-                OsmError::InvalidOsmData(format!("unknown highway tag '{}': {}", h, e))
+                OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}"))
             })?;
             Some(highway)
         }
@@ -367,8 +367,8 @@ fn insert_op2(
                 e
             )))
         }
-        (Err(e), None) => return Err(OsmError::InvalidOsmData(format!("{}", e))),
-        (Err(e), Some(_)) => return Err(OsmError::InvalidOsmData(format!("{}", e))),
+        (Err(e), None) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
+        (Err(e), Some(_)) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
     };
 
     if insert_way {

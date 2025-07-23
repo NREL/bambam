@@ -54,8 +54,7 @@ impl ActivityFrequencies {
             } => {
                 let freq = frequencies.get(activity_type).ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "global frequencies missing activity type {}",
-                        activity_type
+                        "global frequencies missing activity type {activity_type}"
                     ))
                 })?;
 

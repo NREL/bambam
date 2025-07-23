@@ -53,8 +53,7 @@ impl OsmGraphVectorized {
                 Ok(None) => {}
                 Ok(Some(traj)) if traj.is_empty() => {
                     return Err(OsmError::InternalError(format!(
-                        "way with EdgeId {} has no trajectories",
-                        idx
+                        "way with EdgeId {idx} has no trajectories"
                     )))
                 }
                 Ok(Some(traj)) => {

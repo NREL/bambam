@@ -26,8 +26,8 @@ impl std::fmt::Display for ComponentFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ComponentFilter::Largest => write!(f, "largest"),
-            ComponentFilter::TopK(k) => write!(f, "top-{}", k),
-            ComponentFilter::LeastK(k) => write!(f, "least-{}", k),
+            ComponentFilter::TopK(k) => write!(f, "top-{k}"),
+            ComponentFilter::LeastK(k) => write!(f, "least-{k}"),
             ComponentFilter::KeepAll => write!(f, "keep all"),
         }
     }

@@ -34,7 +34,7 @@ fn summarize(rows: &Vec<GtfsProvider>) {
         .map(|record| match &record.url {
             None => Ok((record, GtfsSummary::default())),
             Some(url) => match Gtfs::new(url) {
-                Err(e) => Ok((record, GtfsSummary::error(format!("gtfs error: {}", e)))),
+                Err(e) => Ok((record, GtfsSummary::error(format!("gtfs error: {e}")))),
                 Ok(gtfs) => {
                     let n_trips = gtfs.trips.len();
                     let n_shapes = gtfs.shapes.len();
@@ -92,7 +92,7 @@ fn summarize(rows: &Vec<GtfsProvider>) {
     .unwrap();
 
     for (record, summary) in results {
-        writeln!(out, "{},{}", record, summary).unwrap();
+        writeln!(out, "{record},{summary}").unwrap();
     }
 }
 
@@ -162,7 +162,7 @@ fn download(rows: &[GtfsProvider], parallelism: usize) {
     for row in result {
         match row {
             Ok(_) => {}
-            Err(e) => log::error!("{}", e),
+            Err(e) => log::error!("{e}"),
         }
     }
 }
