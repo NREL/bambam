@@ -143,24 +143,52 @@ impl OsmGraph {
     //         .ok_or({ OsmError::GraphMissingWayId(*way_id) })
     // }
 
-    /// helper with error handling to retrieve the "out-edges" as a hashmap
-    /// from destination node to the segment connecting origin to destination
+    /// helper to retrieve the "out-edges" as a hashmap
+    /// from destination node to the segment connecting origin to destination.
+    /// ignores self-loops.
     pub fn get_neighbors(&self, node_id: &OsmNodeId, direction: Dir) -> Option<HashSet<OsmNodeId>> {
-        self.adj.get(&(*node_id, direction)).cloned()
+        match self.adj.get(&(*node_id, direction)) {
+            None => None,
+            Some(ns) => {
+                let mut ns_clone = ns.clone();
+                ns_clone.remove(node_id);
+                Some(ns_clone)
+            }
+        }
     }
 
-    /// helper with error handling to retrieve the "out-edges" as a hashmap
+    /// helper to retrieve the "out-edges" as a hashmap
     /// from destination node to the segment connecting origin to destination
-    /// fails if empty.
     pub fn get_out_neighbors(&self, origin: &OsmNodeId) -> Option<HashSet<OsmNodeId>> {
         self.get_neighbors(origin, Dir::Forward)
     }
 
-    /// helper with error handling to retrieve the "in-edges" as a hashmap
+    /// helper to retrieve the "in-edges" as a hashmap
     /// from origin node to the segment connecting origin to destination
-    /// fails if empty
     pub fn get_in_neighbors(&self, destination: &OsmNodeId) -> Option<HashSet<OsmNodeId>> {
         self.get_neighbors(destination, Dir::Reverse)
+    }
+
+    /// retrieves all neighbors along with the direction of the edge as it connects to node_id.
+    pub fn get_directed_neighbors(&self, node_id: &OsmNodeId) -> Vec<(OsmNodeId, Dir)> {
+        let out_set = self.get_out_neighbors(node_id).unwrap_or_default();
+        let out_iter = out_set.iter().map(|n| (*n, Dir::Forward));
+        let in_set = self.get_in_neighbors(node_id).unwrap_or_default();
+        let in_iter = in_set.iter().map(|n| (*n, Dir::Reverse));
+        out_iter.chain(in_iter).collect_vec()
+    }
+
+    /// helper to get all node ids for nodes that share an edge of any direction
+    /// with the provided node_id.
+    pub fn get_undirected_neighbors(&self, node_id: &OsmNodeId) -> Option<HashSet<OsmNodeId>> {
+        let outn = self.get_out_neighbors(node_id).unwrap_or_default();
+        let inn = self.get_in_neighbors(node_id).unwrap_or_default();
+        let result = outn.union(&inn).cloned().collect::<HashSet<_>>();
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     /// helper with error handling to retrieve the [`OsmSegment`]s describing
