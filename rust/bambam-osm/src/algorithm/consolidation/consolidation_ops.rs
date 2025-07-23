@@ -1,4 +1,4 @@
-use super::*;
+use crate::algorithm::consolidation::WayConsolidation;
 use crate::algorithm::*;
 use crate::model::osm::graph::AdjacencyDirection;
 use crate::model::osm::graph::OsmNodeData;
@@ -10,7 +10,7 @@ use clustering::ClusteredIntersections;
 use geo::{BooleanOps, BoundingRect, Intersects, Polygon, RemoveRepeatedPoints};
 use geo::{Coord, Geometry, Haversine, Length, LineString, MultiPolygon};
 use itertools::Itertools;
-use kdam::{tqdm, Bar, BarExt};
+use kdam::{term, tqdm, Bar, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
@@ -25,9 +25,6 @@ use std::fs::File;
 use std::sync::Arc;
 use std::sync::Mutex;
 use wkt::ToWkt;
-
-// pub type GeometryIndex = usize;
-// pub type ClusterLabel = usize;
 
 /// implements osmnx.simplification.consolidate_intersections with dead_ends=False, rebuild_graph=True,
 /// reconnect_edges=True for the given distance tolerance.
@@ -65,11 +62,11 @@ pub fn consolidate_graph(
             ))
         })?;
 
-    // DEBUG: before we "Drain" the tree
-    serde_json::to_writer(
-        File::create("debug_nodes.json").unwrap(),
-        &serde_json::to_value(node_geometries.iter().enumerate().collect_vec()).unwrap(),
-    );
+    // // DEBUG: before we "Drain" the tree
+    // serde_json::to_writer(
+    //     File::create("debug_nodes.json").unwrap(),
+    //     &serde_json::to_value(node_geometries.iter().enumerate().collect_vec()).unwrap(),
+    // );
 
     // return just the clusters. sorted for improved determinism.
     let clusters: Vec<Vec<OsmNodeId>> = rtree
@@ -117,173 +114,12 @@ pub fn consolidate_graph(
     // create a new node for each cluster of merged nodes
     // regroup now that we potentially have new cluster labels from step 3
     // This step is no longer needed since we modify the graph in-place
-    // finalize merged nodes as Compass Vertex instances
-    // and along the way, store a lookup from the OSMID(s) the merged node
-    // was made from into the new merged vertex index.
-    // let merged_vertices = m_iter
-    //     .map(|(merged_vertex_id, merged_node)| {
-    //         for node_osmid in merged_node.osmids.iter() {
-    //             if let Some(prev) = vertex_lookup.insert(*node_osmid, merged_vertex_id) {
-    //                 log::error!("{}", merged_node);
-    //                 let node_pt = graph.nodes_map.get(node_osmid).map(|n| format!("({},{})", n.x, n.y)).unwrap_or_default();
-    //                 let this_pt = format!("({},{})", merged_node.x, merged_node.y);
-    //                 let prev_merged_opt = merged.get(prev);
-    //                 let prev_pt = prev_merged_opt.map(|n| format!("({},{})", n.x, n.y)).unwrap_or_default();
-    //                 let prev_ids = prev_merged_opt.map(|n| n.osmids.iter().join(",")).unwrap_or_default();
-
-    //                 return Err(OsmError::GraphConsolidationError(format!(
-    //                     "attempting to assign node with osmid {} at point {} to merged vertex {} at point {} with ids {}, but it was already inserted into merged vertex {} at point {} with ids {}",
-    //                     node_osmid, node_pt, merged_vertex_id, this_pt, merged_node.osmids.iter().join(","), prev, prev_pt, prev_ids
-    //                 )));
-    //             }
-    //         }
-
-    //         let x = merged_node.x as f32;
-    //         let y = merged_node.y as f32;
-    //         Ok(Vertex::new(merged_vertex_id, x, y))
-    //     })
-    //     .collect::<Result<Vec<_>, _>>()?;
-    // eprintln!();
-
     // // STEP 6
     // // create new edge from cluster to cluster for each edge in original graph
     // // STEP 7
     // // for every group of merged nodes with more than 1 node in it, extend the
     // // edge geometries to reach the new node point
 
-    // // build a speeds lookup table from potentially sparse maxspeed data, averaged
-    // // by highway class label.
-    // log::info!("collecting edge attributes for distance, speed");
-    // let maxspeed_cb = |r: &OsmWayData| {
-    //     r.get_maxspeed(true)
-    //         .map(|r_opt| {
-    //             r_opt.map(|(s, su)| su.convert(&s, &SpeedUnit::KPH).as_f64())
-    //         })
-    //         .map_err(OsmError::GraphConsolidationError)
-    // };
-    // let maxspeeds_fill_lookup = FillValueLookup::new(graph, "highway", "maxspeed", maxspeed_cb)?;
-
-    // // build Compass dataset outputs using the segment iterator of our simplified graph
-    // let e_iter = tqdm!(
-    //     SegmentIterator::new(simplified, &vertex_lookup).enumerate(),
-    //     total = simplified.n_segments(),
-    //     desc = "build Compass edge datasets"
-    // );
-    // let mut edges: Vec<Edge> = vec![];
-    // let mut geometries: Vec<Geometry> = vec![];
-    // let mut grades: Vec<Grade> = vec![];
-    // let mut maxspeeds: Vec<Speed> = vec![];
-    // let mut errors: Vec<OsmError> = vec![];
-
-    // // for each new segment Compass EdgeId, along with the ids of the source Way + Nodes:
-    // for (edge_id, seg_result) in e_iter {
-    //     let seg = match seg_result.map_err(OsmError::GraphConsolidationError) {
-    //         Ok(row) => row,
-    //         Err(e) => {
-    //             errors.push(e);
-    //             continue;
-    //         }
-    //     };
-    //     let way: &OsmWayData = graph.ways_map.get(&seg.way_id).ok_or_else(|| {
-    //         OsmError::GraphConsolidationError(format!("way osmid {} does not exist", seg.way_id))
-    //     })?;
-
-    //     // 1. create segment LineString
-    //     let coords = seg
-    //         .node_osmids
-    //         .iter()
-    //         .map(|node_id| {
-    //             let node = graph.nodes_map.get(node_id).ok_or_else(|| {
-    //                 OsmError::GraphConsolidationError(format!(
-    //                     "node osmid {} missing from OSM graph data",
-    //                     node_id
-    //                 ))
-    //             })?;
-    //             Ok(Coord::from((node.x, node.y)))
-    //         })
-    //         .collect::<Result<Vec<_>, _>>()?;
-    //     let linestring = LineString::from(coords);
-
-    //     // 2. compute segment Length
-    //     let length_meters = linestring.length::<Haversine>();
-
-    //     // 3. find src, dst elevation, compute grade, or 0.0 by default
-    //     let (src_osm_id, dst_osm_id) = match (seg.node_osmids.first(), seg.node_osmids.last()) {
-    //         (Some(src), Some(dst)) => Ok((src, dst)),
-    //         _ => Err(OsmError::GraphConsolidationError(format!(
-    //             "segment {} from way {} has an empty path",
-    //             edge_id, seg.way_id
-    //         ))),
-    //     }?;
-    //     let src_ele = graph.nodes_map.get(src_osm_id).and_then(|n| n.ele.clone());
-    //     let dst_ele = graph.nodes_map.get(dst_osm_id).and_then(|n| n.ele.clone());
-    //     let grade: Grade = match (src_ele, dst_ele) {
-    //         (Some(src_ele_str), Some(dst_ele_str)) => {
-    //             let src_ele = match src_ele_str.parse::<f64>() {
-    //                 Ok(v) => Ok(v),
-    //                 Err(_) if ignore_osm_parsing_errors => Ok(0.0),
-    //                 Err(e) => Err(OsmError::GraphConsolidationError(format!(
-    //                     "failure parsing elevation value {} for osm node {}: {}",
-    //                     src_ele_str, src_osm_id, e
-    //                 ))),
-    //             }?;
-    //             let dst_ele = match dst_ele_str.parse::<f64>() {
-    //                 Ok(v) => Ok(v),
-    //                 Err(_) if ignore_osm_parsing_errors => Ok(0.0),
-    //                 Err(e) => Err(OsmError::GraphConsolidationError(format!(
-    //                     "failure parsing elevation value {} for osm node {}: {}",
-    //                     dst_ele_str, dst_osm_id, e
-    //                 ))),
-    //             }?;
-    //             let rise = dst_ele - src_ele;
-    //             let grade = rise / length_meters;
-    //             Ok(Grade::new(grade))
-    //         }
-    //         _ => Ok(Grade::ZERO),
-    //     }?;
-
-    //     // 4. find speed/length pairs, compute maxspeed, or fallback to lookup table
-    //     let maxspeed_opt = way
-    //         .get_maxspeed(true)
-    //         .map_err(OsmError::GraphConsolidationError);
-    //     let speed = match maxspeed_opt {
-    //         Ok(Some((maxspeed, speed_unit))) => {
-    //             Ok(speed_unit.convert(&maxspeed, &SpeedUnit::KPH))
-    //         }
-    //         Ok(None) => get_fill_value(way, &maxspeeds_fill_lookup),
-    //         Err(_) if ignore_osm_parsing_errors => get_fill_value(way, &maxspeeds_fill_lookup),
-    //         Err(e) => Err(e),
-    //     }?;
-
-    //     // 5. create edge
-    //     let edge = Edge::new(edge_id, seg.src_vertex_id, seg.dst_vertex_id, length_meters);
-    //     edges.push(edge);
-    //     geometries.push(geo::Geometry::LineString(linestring));
-    //     grades.push(grade);
-    //     maxspeeds.push(speed);
-    // }
-    // eprintln!();
-
-    // if !errors.is_empty() {
-    //     log::info!(
-    //         "failed to build {} consolidated edges. first 5:",
-    //         errors.len()
-    //     );
-    //     for e in errors.iter().take(5) {
-    //         log::info!("{}", e);
-    //     }
-    // }
-
-    // let result = CompassOsmGraphData {
-    //     vertices: merged_vertices,
-    //     edges,
-    //     geometries,
-    //     grades,
-    //     maxspeeds,
-    //     grade_unit: routee_compass_core::model::unit::GradeUnit::Decimal,
-    //     speed_unit: routee_compass_core::model::unit::SpeedUnit::KPH,
-    // };
-    // Ok(result)
     Ok(())
 }
 
@@ -369,210 +205,174 @@ fn consolidate_clusters(
         spatial_clusters.iter().map(|c| c.len()).sum::<usize>()
     );
 
+    term::init(false);
+    term::hide_cursor()
+        .map_err(|e| OsmError::InternalError(format!("progress bar error: {}", e)))?;
     let mut consolidated_count = 0;
     let outer_iter = tqdm!(
         spatial_clusters.iter(),
         total = spatial_clusters.len(),
-        desc = "consolidate nodes"
+        desc = "consolidate nodes",
+        position = 0
     );
     for cluster in outer_iter {
         // run connected components to find the connected sub-graphs of this spatial cluster.
         // merge any discovered sub-components into a new node.
         let connected_clusters = ccc(cluster, graph)?;
-        let inner_iter = tqdm!(
+        let cluster_iter = tqdm!(
             connected_clusters.into_iter(),
-            desc = "find connected subgraphs within cluster"
+            desc = "find connected subgraphs within cluster",
+            position = 1
         );
-        for node_ids in inner_iter {
-            consolidate_nodes(node_ids, graph)?;
+        for cluster_ids in cluster_iter {
+            consolidate_nodes(cluster_ids, graph)?;
             consolidated_count += 1;
         }
     }
-    // .iter()
-    // .map(|cluster| {
-    //     // progress bar
-    //     let b_thread = bar.clone();
-    //     let mut b_lock = b_thread
-    //         .lock()
-    //         .map_err(|e| OsmError::GraphConsolidationError(e.to_string()))?;
-    //     let _ = b_lock.update(1);
 
-    //     // run connected components to find the connected sub-graphs of this spatial cluster.
-    //     // merge any discovered sub-components into a new node.
-    //     for connected_clusters in ccc(cluster, graph).into_iter() {
-    //         for node_ids in connected_clusters.into_iter() {
-    //             let node = create_merged_node(node_ids, &mut graph)?;
-    //             graph.add_node(node)?;
-    //         }
-    //     }
-    // ccc(cluster, graph)
-    //     .into_iter()
-    //     .map(|connected_clusters| {
-    //         for node_ids in connected_clusters.into_iter() {
-    //             let node = create_merged_node(node_ids, &mut graph);
-    //         }
-    //         // let merged = connected_clusters
-    //         //     .into_iter()
-    //         //     .map(|node_ids| create_merged_node(node_ids, &mut graph))
-    //         //     .collect::<Result<Vec<_>, _>>()?;
-
-    //         // let local_nim = nodes_in_merged.clone();
-    //         // if let Ok(mut nim) = local_nim.lock() {
-    //         //     *nim += merged.iter().map(|m| m.osmids.len()).sum::<usize>();
-    //         // }
-    //         Ok(merged)
-    //     })
-    //     .collect::<Result<Vec<_>, OsmError>>()
-    // })
-    // .collect::<Result<Vec<Vec<_>>, OsmError>>()?
-    // .into_iter()
-    // .flatten()
-    // .flatten()
-    // .collect::<Vec<_>>();
-
-    // once again sorted for algorithmic determinism.
-    // merged_results.sort_by_key(|row| row.osmids.clone());
-
-    // log::info!(
-    //     "first ten merged results: \n{}",
-    //     merged_results
-    //         .iter()
-    //         .take(10)
-    //         .map(|m| format!("{:?}", m))
-    //         .join("\n")
-    // );
-
-    // log::info!("merged_results has {} entries", merged_results.len());
-
-    // validate that we didn't drop any endpoints in the process
-    // let nodes_in_merged: Vec<OsmNodeId> = merged_results
-    //     .iter()
-    //     .flat_map(|n| n.osmids.clone())
-    //     .collect_vec();
-    // let removed_simple_nodes = endpoint_index_osmid_mapping.len() - nodes_in_merged.len();
-    // if removed_simple_nodes > 0 {
-    //     log::info!(
-    //         "merged nodes does not include {} simplified nodes which became disconnected",
-    //         removed_simple_nodes
-    //     );
-    // }
-
-    // Ok(merged_results)
+    eprintln!();
+    eprintln!();
+    term::show_cursor()
+        .map_err(|e| OsmError::InternalError(format!("progress bar error: {}", e)))?;
     Ok(consolidated_count)
 }
 
-/// helper function to merge nodes into a new node and modify the graph
-/// adjacencies accordingly.
+/// merges nodes into a new node, modifying the graph adjacencies accordingly.
 ///
 /// # Arguments
 ///
 /// * `node_ids` - nodes to consolidate. these should exist in the graph
 /// * `graph` - the graph to inject the consolidated node
 fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(), OsmError> {
-    // arbitrarily picking an osmid from the first node to be the osmid of the new node.
-    let new_node_id: OsmNodeId = *node_ids.first().ok_or_else(|| {
+    if node_ids.len() <= 1 {
+        return Ok(()); // Nothing to consolidate
+    }
+
+    log::debug!("Consolidating {} nodes: {:?}", node_ids.len(), node_ids);
+
+    // arbitrarily picking the first osmid to be the osmid of the new node. the
+    // remaining node ids will be removed along with the old version of the first osmid.
+    let new_node_id: OsmNodeId = node_ids.first().cloned().ok_or_else(|| {
         OsmError::InternalError(String::from(
-            "create_merged_nodes called with empty node_ids collection",
+            "consolidate_nodes called with empty node_ids collection",
         ))
     })?;
-    let old_node_id = OsmNodeId(-new_node_id.0);
+    let remove_nodes = node_ids.iter().cloned().collect::<HashSet<_>>();
 
-    // collect the nodes to remove and create consolidated node
+    // create a new node from the old nodes. does not mutate the graph.
     let nodes = &node_ids
         .iter()
         .map(|node_id| graph.get_node_data(node_id))
         .collect::<Result<Vec<_>, OsmError>>()?;
-    let node = OsmNodeData::consolidate(&new_node_id, &nodes[..])?;
-    let adjacencies = node
-        .consolidated_ids
-        .iter()
-        .map(|consolidated_node_id| {
-            match graph.get_neighbors(consolidated_node_id, AdjacencyDirection::Forward) {
-                None => Ok(vec![]),
-                Some(neighbors) => neighbors
-                    .iter()
-                    .map(|dst| {
-                        let way = graph.get_ways_from_od(consolidated_node_id, dst)?;
-                        Ok((new_node_id, way.clone(), *dst))
-                    })
-                    .collect::<Result<Vec<_>, _>>(),
+    let new_node = OsmNodeData::consolidate(&new_node_id, &nodes)?;
+
+    // collect the ways that are adjacent to all of the consolidated nodes as (u, v) id pairs
+    // where u is the source, v is the destination of a way.
+    // does not mutate the graph.
+    let id_lookup = node_ids.iter().cloned().collect::<HashSet<_>>();
+    let mut way_consolidation_map: HashMap<(OsmNodeId, AdjacencyDirection), HashSet<OsmWayId>> =
+        HashMap::new();
+    let mut all_ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
+
+    for consolidated_id in node_ids.iter() {
+        let neighbors = graph.get_directed_neighbors(consolidated_id);
+        for (neighbor, dir) in neighbors.iter() {
+            if id_lookup.contains(neighbor) {
+                continue; // ignore ways that connect to any nodes being consolidated
             }
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .flatten()
-        .collect_vec();
 
-    graph.create_isolated_node(node)?;
-    for (src, ways, dst) in adjacencies.into_iter() {
-        graph.add_new_adjacency(&src, &dst, ways)?;
-    }
+            // get the (directed) node pair containing way data using the original node IDs
+            let (src, dst) = match dir {
+                AdjacencyDirection::Forward => (consolidated_id, neighbor),
+                AdjacencyDirection::Reverse => (neighbor, consolidated_id),
+            };
+            let adjacent_ways = graph.get_ways_from_od(src, dst)?;
 
-    // retire old nodes so that they are disconnected but their data is preserved.
-    for node_id in node_ids.iter() {
-        if node_id != &new_node_id {
-            graph.retire_node(node_id, true)?;
+            // Group way IDs by (neighbor, direction) and store way data
+            let key = (*neighbor, *dir);
+            let way_ids = way_consolidation_map
+                .entry(key)
+                .or_insert_with(HashSet::new);
+            for way in adjacent_ways {
+                way_ids.insert(way.osmid);
+                all_ways.insert(way.osmid, way.clone());
+            }
         }
     }
 
-    // find all in+out edges, replace their source node id with the new one
-    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Forward)?;
-    update_incident_way_data(new_node_id, &node_ids, graph, AdjacencyDirection::Reverse)?;
+    // Convert to consolidation records and update way nodes
+    let mut way_consolidation_records = vec![];
+    for ((neighbor, dir), way_ids) in way_consolidation_map.into_iter() {
+        // Collect the actual way data for these IDs
+        let mut ways: Vec<OsmWayData> = way_ids
+            .into_iter()
+            .filter_map(|way_id| all_ways.get(&way_id).cloned())
+            .collect();
+
+        update_way_nodes(&mut ways, &new_node_id, &remove_nodes, &dir)?;
+        let way_consolidation = WayConsolidation::new(&neighbor, &dir, ways);
+        way_consolidation_records.push(way_consolidation);
+    }
+
+    // begin graph mutation with DELETIONS.
+    // here we remove every node from the original node id list.
+    // this detaches all ways that touched any of the nodes as well, which we have stored clones of above.
+    // the new consolidated node will be added back in next.
+    log::debug!("Removing {} nodes before consolidation", node_ids.len());
+    for node_id in node_ids.iter() {
+        log::debug!("Removing node {}", node_id);
+        graph.remove_node(node_id)?;
+    }
+
+    // at this point, we can begin ADDITIONS, starting with the new consolidated node.
+    log::debug!("Creating consolidated node with ID {}", new_node_id);
+    graph.create_isolated_node(new_node)?;
+
+    // way insertion. for each (u, v) pair and way, wire it together with the consolidated
+    // node and whatever node existed outside of the consolidated nodes.
+    log::debug!(
+        "Adding {} way consolidation records",
+        way_consolidation_records.len()
+    );
+    for way_consolidation in way_consolidation_records.iter_mut() {
+        let (src, dst) = way_consolidation.get_src_dst(&new_node_id);
+        log::debug!("Adding adjacency from {} to {}", src, dst);
+        graph.add_new_adjacency(&src, &dst, way_consolidation.drain_ways())?;
+    }
 
     Ok(())
 }
 
-/// helper to update the graph edges incident to a new consolidated node.
-///
-/// # Arguments
-/// * `new_node_id` - id replacing the src/dst node id for this way
-/// * `node_ids`    - ids that are being consolidated
-/// * `graph`       - graph to modify
-/// * `dir`         - direction in adjacency list to find the ways to modify
-fn update_incident_way_data(
-    new_node_id: OsmNodeId,
-    node_ids: &[OsmNodeId],
-    graph: &mut OsmGraph,
-    dir: AdjacencyDirection,
+/// modifies the way.nodes collection so it does not include any removed nodes and
+/// the new consolidated node is inserted in the correct place depending on the way direction.
+fn update_way_nodes(
+    ways: &mut Vec<OsmWayData>,
+    new_node_id: &OsmNodeId,
+    remove_nodes: &HashSet<OsmNodeId>,
+    dir: &AdjacencyDirection,
 ) -> Result<(), OsmError> {
-    // find the ways that will be impacted by consolidation
-    let remove_nodes: HashSet<&OsmNodeId> = node_ids.iter().collect();
-    let mut updated_ods: HashSet<(OsmNodeId, OsmNodeId)> = HashSet::new();
-    let mut update_tuples: Vec<(&OsmNodeId, &OsmNodeId, usize, OsmWayData)> = vec![];
-    for src in node_ids.iter() {
-        let neighbors = graph.get_neighbors(src, dir).unwrap_or_default();
-        for dst in neighbors.iter() {
-            updated_ods.insert((*src, *dst));
-        }
-    }
-
-    for (src, dst) in updated_ods.iter() {
-        let ways = graph.get_ways_from_od(src, dst)?;
-        for (index, way) in ways.iter().enumerate() {
-            let mut updated_way = way.clone();
-            if updated_way.nodes.is_empty() {
-                return Err(OsmError::InternalError(format!(
-                    "way ({})-[{}]->({}) has empty node list",
-                    src, updated_way.osmid, dst
+    for (way_idx, way) in ways.iter_mut().enumerate() {
+        if way.nodes.is_empty() {
+            return Err(OsmError::InternalError(format!(
+                    "during consolidation (but before way.nodes update), way ()-[{}]->() (way index {}) has empty node list",
+                    way.osmid, way_idx
                 )));
-            }
-
-            // remove consolidated nodes from the Way nodelist, they are becoming a single point
-            updated_way.nodes.retain(|n| !remove_nodes.contains(n));
-
-            // insert the new node in the correct position along this way
-            match dir {
-                AdjacencyDirection::Forward => updated_way.nodes.insert(0, new_node_id),
-                AdjacencyDirection::Reverse => updated_way.nodes.push(new_node_id),
-            }
-
-            update_tuples.push((src, dst, index, updated_way));
         }
+
+        // remove consolidated nodes from the Way nodelist, they are becoming a single point
+        way.nodes.retain(|n| !remove_nodes.contains(n));
+
+        // insert the new node in the correct position along this way
+        match dir {
+            AdjacencyDirection::Forward => {
+                way.nodes.insert(0, *new_node_id);
+            }
+            AdjacencyDirection::Reverse => {
+                way.nodes.push(*new_node_id);
+            }
+        };
     }
 
-    for (src, dst, index, updated_way) in update_tuples.into_iter() {
-        graph.update_way(src, dst, index, updated_way)?;
-    }
     Ok(())
 }
 
@@ -608,7 +408,8 @@ fn ccc(cluster_ids: &[OsmNodeId], graph: &OsmGraph) -> Result<Vec<Vec<OsmNodeId>
     // of using their geometry index, use their NodeOSMID.
     // only do a progress bar for non-trivial sizes of the geometry_ids argument
     // such as things larger than a road network intersection.
-    let use_progress_bar = cluster_ids.len() > 1000;
+    // let use_progress_bar = cluster_ids.len() > 1000;
+    let use_progress_bar = false;
     let cc_iter: Box<dyn Iterator<Item = &OsmNodeId>> = if use_progress_bar {
         Box::new(tqdm!(
             cluster_ids.iter(),
@@ -653,45 +454,3 @@ fn ccc(cluster_ids: &[OsmNodeId], graph: &OsmGraph) -> Result<Vec<Vec<OsmNodeId>
     }
     Ok(clusters)
 }
-
-// /// finds the set of indices that are part of the same geometry cluster
-// /// using a breadth-first search over an undirected graph of geometry
-// /// intersection relations.
-// ///
-// fn bfs(src: OsmNodeId, valid_set: &HashSet<OsmNodeId>, graph: &OsmGraph) -> HashSet<OsmNodeId> {
-//     // initial search state. if a NodeOsmid has been visited, it is appended
-//     // to the visited set.
-//     // breadth-first search is modeled here with a linked list FIFO queue.
-//     let mut visited: HashSet<OsmNodeId> = HashSet::new();
-//     let mut frontier: LinkedList<OsmNodeId> = LinkedList::new();
-//     // let mut frontier = BinaryHeap::new();
-//     visited.insert(src);
-//     // frontier.push(Reverse((0, src)));
-//     frontier.push_back(src);
-
-//     // while let Some(Reverse((next_depth, next_id))) = frontier.pop() {
-//     while let Some(next_id) = frontier.pop_front() {
-//         // add to the search tree
-//         visited.insert(next_id);
-
-//         // expand the frontier
-//         let next_in = graph.in_neighbors.get(&next_id);
-//         let next_out = graph.out_neighbors.get(&next_id);
-//         let neighbors: Box<dyn Iterator<Item = &OsmNodeId>> = match (next_in, next_out) {
-//             (None, None) => Box::new(std::iter::empty()),
-//             (None, Some(b)) => Box::new(b.iter()),
-//             (Some(a), None) => Box::new(a.iter()),
-//             (Some(a), Some(b)) => Box::new(a.union(b)),
-//         };
-//         // neighbors are only reviewed here that are "valid" (all fall within the spatial cluster).
-//         // they are sorted for algorithmic determinism (frontier insertion order).
-//         let valid_neighbors = neighbors.filter(|n| valid_set.contains(*n)).sorted();
-//         for neighbor in valid_neighbors {
-//             if !visited.contains(neighbor) {
-//                 // frontier.push(Reverse((next_depth + 1, *neighbor))); // min heap
-//                 frontier.push_back(*neighbor); // min heap
-//             }
-//         }
-//     }
-//     visited
-// }
