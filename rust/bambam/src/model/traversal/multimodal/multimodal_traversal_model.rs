@@ -30,12 +30,12 @@ impl TraversalModel for MultimodalTraversalModel {
     fn input_features(&self) -> Vec<(String, InputFeature)> {
         self.feature_dependencies
             .iter()
-            .map(|f| f.as_input_feature())
+            .map(|f| (f.input_name.clone(), f.input_feature.clone()))
             .collect_vec()
     }
 
     fn output_features(&self) -> Vec<(String, OutputFeature)> {
-        self.output_features.to_vec()
+        self.output_features.clone()
     }
 
     fn traverse_edge(
