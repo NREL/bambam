@@ -54,6 +54,11 @@ fn get_paths_to_simplify(
     graph: &OsmGraph,
     parallelize: bool,
 ) -> Result<Vec<Path3>, OsmError> {
+    log::info!(
+        "get_paths_to_simplify: found {} endpoints out of {} total nodes",
+        endpoints.len(),
+        graph.n_connected_nodes()
+    );
     // let graph_shared = Arc::new(graph);
 
     // create pairs of (endpoint, successor)
@@ -320,6 +325,8 @@ fn get_enpoint_node_ids(
 
     // run algorithm
     if parallelize {
+        // let endpoint_count = Arc::new(Mutex::new(0));
+        // let error_count = Arc::new(Mutex::new(0));
         let result = graph
             .connected_node_iterator(false)
             .collect_vec()
@@ -329,20 +336,56 @@ fn get_enpoint_node_ids(
                     let _ = b.update(1);
                 }
                 // choosing filter_map over filter in order to end up with deref'd OsmNodeIds
-                match node_is_endpoint(id, graph).unwrap_or(false) {
-                    true => Some(**id),
-                    false => None,
+                match node_is_endpoint(id, graph) {
+                    Ok(true) => {
+                        // if let Ok(mut count) = endpoint_count.clone().lock() {
+                        //     *count += 1;
+                        // }
+                        Some(**id)
+                    }
+                    Ok(false) => None,
+                    Err(e) => {
+                        // if let Ok(mut count) = error_count.clone().lock() {
+                        //     *count += 1;
+                        // }
+                        log::warn!("Error checking if node {} is endpoint: {}", id, e);
+                        None
+                    }
                 }
             })
             .collect::<HashSet<_>>();
+        // let final_endpoint_count = *endpoint_count.lock().unwrap();
+        // let final_error_count = *error_count.lock().unwrap();
+        // log::info!(
+        //     "Found {} endpoints, {} errors during endpoint detection",
+        //     final_endpoint_count,
+        //     final_error_count
+        // );
         eprintln!();
         Ok(result)
     } else {
+        // let mut endpoint_count = 0;
+        // let mut error_count = 0;
         let result = graph
             .connected_node_iterator(false)
-            .filter(|id| node_is_endpoint(id, graph).unwrap_or(false))
-            .cloned()
+            .filter_map(|id| match node_is_endpoint(id, graph) {
+                Ok(true) => {
+                    // endpoint_count += 1;
+                    Some(*id)
+                }
+                Ok(false) => None,
+                Err(e) => {
+                    // error_count += 1;
+                    log::warn!("Error checking if node {} is endpoint: {}", id, e);
+                    None
+                }
+            })
             .collect::<HashSet<_>>();
+        // log::info!(
+        //     "Found {} endpoints, {} errors during endpoint detection",
+        //     endpoint_count,
+        //     error_count
+        // );
         eprintln!();
         Ok(result)
     }
@@ -481,14 +524,21 @@ fn node_is_endpoint(id: &OsmNodeId, graph: &OsmGraph) -> Result<bool, OsmError> 
     // if the node appears in its list of neighbors, it self-loops: this is
     // always an endpoint
     if neighbors.contains(id) {
-        // log::debug!("{} : endpoint=TRUE - self-loop", msg);
+        // log::debug!("{} : endpoint=TRUE - self-loop (n={}, d={})", id, n, d);
         return Ok(true);
     }
 
     // RULE 2
     // if node has no incoming edges or no outgoing edges, it is an endpoint
     if in_deg == 0 || out_deg == 0 {
-        // log::debug!("{} : endpoint=TRUE - no in or no out edges", msg);
+        // log::debug!(
+        //     "{} : endpoint=TRUE - no in or no out edges (in_deg={}, out_deg={}, n={}, d={})",
+        //     id,
+        //     in_deg,
+        //     out_deg,
+        //     n,
+        //     d
+        // );
         return Ok(true);
     }
 
@@ -500,7 +550,12 @@ fn node_is_endpoint(id: &OsmNodeId, graph: &OsmGraph) -> Result<bool, OsmError> 
     // degree (indicating a parallel edge) and thus is an endpoint
     // if not ((n == 2) and (d in {2, 4})):
     if !((n == 2) && (d == 2 || d == 4)) {
-        // log::debug!("{} : endpoint=TRUE - not2 + 2or4 rule", msg);
+        // log::debug!(
+        //     "{} : endpoint=TRUE - not2 + 2or4 rule (n={}, d={})",
+        //     id,
+        //     n,
+        //     d
+        // );
         return Ok(true);
     }
 
@@ -520,6 +575,6 @@ fn node_is_endpoint(id: &OsmNodeId, graph: &OsmGraph) -> Result<bool, OsmError> 
     //         out_values = {v for _, _, v in G.out_edges(node, data=attr, keys=False)}
     //         if len(in_values | out_values) > 1:
     //             return True
-    // log::debug!("{} : endpoint=FALSE", msg);
+    // log::debug!("{} : endpoint=FALSE (n={}, d={})", id, n, d);
     Ok(false)
 }
