@@ -11,4 +11,4 @@ type = "keep_all"
 
 [element_filter]
 type = "highway_tags"
-tags = ['footway', 'cycleway', 'tertiary_link', 'trunk_link', 'elevator', 'secondary', 'residential', 'motorway', 'trunk', 'primary_link', 'corridor', 'primary', 'living_street', 'service', 'steps', 'track', 'path', 'trailhead', 'pedestrian', 'motorway_link', 'unclassified', 'road', 'secondary_link', 'tertiary']
+tags = ['footway', 'cycleway', 'tertiary_link', 'trunk_link', 'elevator', 'secondary', 'residential', 'motorway', 'trunk', 'primary_link', 'corridor', 'primary', 'living_street', 'service', 'steps', 'track', 'path', 'trailhead', 'pedestrian', 'motorway_link', 'unclassified', 'road', 'secondary_link', 'tertiary', 'sidewalk', 'footway']
