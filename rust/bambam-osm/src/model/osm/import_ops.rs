@@ -448,9 +448,9 @@ fn insert_op(
 ) -> Result<(), OsmError> {
     let highway = match &way.highway {
         Some(h) => {
-            let highway = h.parse::<Highway>().map_err(|e| {
-                OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}"))
-            })?;
+            let highway = h
+                .parse::<Highway>()
+                .map_err(|e| OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}")))?;
             Some(highway)
         }
         None => None,
@@ -516,9 +516,9 @@ fn insert_op2(
 
     let highway = match &way.highway {
         Some(h) => {
-            let highway = h.parse::<Highway>().map_err(|e| {
-                OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}"))
-            })?;
+            let highway = h
+                .parse::<Highway>()
+                .map_err(|e| OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}")))?;
             Some(highway)
         }
         None => None,
