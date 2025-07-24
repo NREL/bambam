@@ -138,7 +138,7 @@ fn find_simplified_paths(
     let bar = Arc::new(Mutex::new(
         Bar::builder()
             .total(graph.n_connected_nodes())
-            .desc(format!("simplify: find paths to simplify ({})", par_str))
+            .desc(format!("simplify: find paths to simplify ({par_str})"))
             .build()
             .map_err(OsmError::InternalError)?,
     ));
@@ -225,8 +225,7 @@ fn generate_simplified_ways(
         Bar::builder()
             .total(graph.n_connected_nodes())
             .desc(format!(
-                "simplify: create simplified adjacencies ({})",
-                par_str
+                "simplify: create simplified adjacencies ({par_str})"
             ))
             .build()
             .map_err(OsmError::InternalError)?,
@@ -314,7 +313,7 @@ fn get_enpoint_node_ids(
     let bar = Arc::new(Mutex::new(
         Bar::builder()
             .total(graph.n_connected_nodes())
-            .desc(format!("simplify: find enpoints ({})", par_str))
+            .desc(format!("simplify: find enpoints ({par_str})"))
             .build()
             .map_err(OsmError::InternalError)?,
     ));
@@ -410,7 +409,7 @@ fn build_path(
                         //                 msg = f"Unexpected simplify pattern handled near {successor}"
                         //                 utils.log(msg, level=lg.WARNING)
                         //                 return path
-                        log::warn!("Unexpected simplify pattern handled near {}", successor);
+                        log::warn!("Unexpected simplify pattern handled near {successor}");
                         return Ok(path);
                     }
                     _ => {
@@ -424,7 +423,7 @@ fn build_path(
                             "Impossible simplify pattern failed near node {}, which should be an endpoint as it has {} successors {{{}}}",
                             successor,
                             successors.len(),
-                            successors.iter().map(|s| format!("{}", s)).join(", ")
+                            successors.iter().map(|s| format!("{s}")).join(", ")
                         )));
                     }
                 }

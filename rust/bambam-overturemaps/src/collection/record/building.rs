@@ -52,8 +52,7 @@ impl TryFrom<OvertureRecord> for BuildingsRecord {
         match value {
             OvertureRecord::Buildings(record) => Ok(record),
             _ => Err(OvertureMapsCollectionError::DeserializeTypeError(format!(
-                "Cannot transform record {:#?} into BuildingRecord",
-                value
+                "Cannot transform record {value:#?} into BuildingRecord"
             ))),
         }
     }

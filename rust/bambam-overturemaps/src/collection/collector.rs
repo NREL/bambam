@@ -54,8 +54,7 @@ impl OvertureMapsCollector {
             .build()
             .map_err(|e| {
                 OvertureMapsCollectionError::TokioError(format!(
-                    "failure creating async rust tokio runtime: {}",
-                    e
+                    "failure creating async rust tokio runtime: {e}"
                 ))
             })?;
 
@@ -67,8 +66,7 @@ impl OvertureMapsCollector {
             .block_on(self.obj_store.list_with_delimiter(Some(&common_path)))
             .map_err(|e| {
                 OvertureMapsCollectionError::ConnectionError(format!(
-                    "Could not retrieve list of folders to get latest OvertureMaps release: {}",
-                    e
+                    "Could not retrieve list of folders to get latest OvertureMaps release: {e}"
                 ))
             })?;
 
@@ -110,8 +108,7 @@ impl OvertureMapsCollector {
             .build()
             .map_err(|e| {
                 OvertureMapsCollectionError::TokioError(format!(
-                    "failure creating async rust tokio runtime: {}",
-                    e
+                    "failure creating async rust tokio runtime: {e}"
                 ))
             })?;
 
@@ -221,8 +218,7 @@ impl OvertureMapsCollector {
             other => String::from(other),
         };
         log::info!(
-            "Collecting OvertureMaps records from release {}",
-            release_str
+            "Collecting OvertureMaps records from release {release_str}"
         );
         let path = Path::from(record_type.format_url(release_str));
         self.collect_from_path(path, record_type, row_filter_config)

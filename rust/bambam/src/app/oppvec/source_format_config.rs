@@ -38,8 +38,7 @@ impl std::fmt::Display for SourceFormatConfig {
             } => {
                 write!(
                     f,
-                    "geometry from '{}' and single activity row with category from '{}'",
-                    geometry_format, category_column
+                    "geometry from '{geometry_format}' and single activity row with category from '{category_column}'"
                 )
             }
             // SourceFormatConfig::OvertureMaps {
@@ -64,13 +63,12 @@ impl std::fmt::Display for SourceFormatConfig {
             } => {
                 let cats_middle = column_mapping
                     .iter()
-                    .map(|(k, v)| format!("'{}': '{:?}'", k, v))
+                    .map(|(k, v)| format!("'{k}': '{v:?}'"))
                     .join(",");
-                let cats = format!("{{{}}}", cats_middle);
+                let cats = format!("{{{cats_middle}}}");
                 write!(
                     f,
-                    "geometry from '{}' and category mapping: '{}'",
-                    geometry_format, cats
+                    "geometry from '{geometry_format}' and category mapping: '{cats}'"
                 )
             }
         }

@@ -120,7 +120,7 @@ impl OsmWayData {
             "service" => Ok(self.service.clone()),
             "tunnel" => Ok(self.tunnel.clone()),
             "width" => Ok(self.width.clone()),
-            _ => Err(format!("unknown edge field {}", fieldname)),
+            _ => Err(format!("unknown edge field {fieldname}")),
         }
     }
 
@@ -131,8 +131,7 @@ impl OsmWayData {
             Some(string_value) => {
                 let f64_value = string_value.parse::<f64>().map_err(|e| {
                     format!(
-                        "could not parse value {} of osm way field {} as numeric: {}",
-                        string_value, fieldname, e
+                        "could not parse value {string_value} of osm way field {fieldname} as numeric: {e}"
                     )
                 })?;
                 Ok(Some(f64_value))
@@ -158,7 +157,7 @@ impl OsmWayData {
         match &self.highway {
             Some(h) => {
                 let highway = Highway::from_str(h).map_err(|e| {
-                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {}", h))
+                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {h}"))
                 })?;
                 Ok(Some(highway))
             }
@@ -300,8 +299,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| {
                 OsmError::GraphSimplificationError(format!(
-                    "failed aggregating maxspeed values for a simplified way: {}",
-                    e
+                    "failed aggregating maxspeed values for a simplified way: {e}"
                 ))
             })?
             .into_iter()
@@ -333,8 +331,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| {
                 OsmError::GraphConsolidationError(format!(
-                    "failure aggregating 'highway' tag on segment: {}",
-                    e
+                    "failure aggregating 'highway' tag on segment: {e}"
                 ))
             })?
             .into_iter()
@@ -401,8 +398,7 @@ fn deserialize_maxspeed(
     let separated_entries = s.split([',', ';']).collect_vec();
     match separated_entries[..] {
         [] => Err(format!(
-            "internal error: attempting to unpack empty maxspeed value '{}'",
-            s
+            "internal error: attempting to unpack empty maxspeed value '{s}'"
         )),
         [entry] => {
             match entry.split(" ").collect_vec()[..] {
@@ -428,7 +424,7 @@ fn deserialize_maxspeed(
                 }
                 [speed_str] => {
                     let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {} not a valid number: {}", speed_str, e)
+                        format!("speed value {speed_str} not a valid number: {e}")
                     });
 
                     let speed = match speed_result {
@@ -446,7 +442,7 @@ fn deserialize_maxspeed(
                 }
                 [speed_str, unit_str] => {
                     let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {} not a valid number: {}", speed_str, e)
+                        format!("speed value {speed_str} not a valid number: {e}")
                     });
 
                     let speed = match speed_result {
@@ -464,8 +460,7 @@ fn deserialize_maxspeed(
                         "mph" => SpeedUnit::MPH,
                         _ if !ignore_invalid_entries => {
                             return Err(format!(
-                                "unknown speed unit {} with value {}",
-                                unit_str, speed
+                                "unknown speed unit {unit_str} with value {speed}"
                             ));
                         }
                         _ => {
@@ -476,7 +471,7 @@ fn deserialize_maxspeed(
                     let result = (Speed::from(speed), speed_unit);
                     Ok(Some(result))
                 }
-                _ => Err(format!("unexpected maxspeed entry '{}'", s)),
+                _ => Err(format!("unexpected maxspeed entry '{s}'")),
             }
         }
         _ => {
@@ -508,13 +503,12 @@ fn merge_fieldname(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| {
             OsmError::GraphSimplificationError(format!(
-                "failure merging '{}' field across ways: {}",
-                fieldname, e
+                "failure merging '{fieldname}' field across ways: {e}"
             ))
         })?;
     let result = opt_values
         .into_iter()
         .flatten()
-        .reduce(|a, b| format!("{}{}{}", a, sep, b));
+        .reduce(|a, b| format!("{a}{sep}{b}"));
     Ok(result)
 }

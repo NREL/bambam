@@ -301,8 +301,7 @@ impl OsmGraph {
                     Dir::Reverse => None,
                     Dir::Forward => match self.nodes.get(src) {
                         None => Some(Err(OsmError::InternalError(format!(
-                            "node data for node '{}' missing from graph",
-                            src
+                            "node data for node '{src}' missing from graph"
                         )))),
                         Some(node_data) => Some(Ok(node_data)),
                     },
@@ -405,8 +404,7 @@ impl OsmGraph {
         let node_id = node.osmid;
         if self.nodes.insert(node_id, node).is_some() {
             return Err(OsmError::InvalidOsmData(format!(
-                "attempting to insert node {} already present in graph",
-                node_id
+                "attempting to insert node {node_id} already present in graph"
             )));
         }
         Ok(())
@@ -727,8 +725,7 @@ impl OsmGraph {
 fn init_adjacency(adj: &mut AdjacencyList3, node_id: &OsmNodeId, dir: Dir) -> Result<(), OsmError> {
     match adj.insert((*node_id, dir), HashSet::new()) {
         Some(_) => Err(OsmError::InvalidOsmData(format!(
-            "attempting to insert node {} already present in {} adjacencies",
-            node_id, dir
+            "attempting to insert node {node_id} already present in {dir} adjacencies"
         ))),
         None => Ok(()),
     }
@@ -744,7 +741,7 @@ fn remove_adjacency_list_entry(
         Some(_) => Ok(()),
         None if fail_if_missing => Err(OsmError::AdjacencyRemovalError(
             *node_id,
-            format!("no {} adjacency to remove for this node", dir),
+            format!("no {dir} adjacency to remove for this node"),
         )),
         None => Ok(()),
     }
@@ -805,8 +802,7 @@ fn add_ways_to_graph(
         }
         (P::UpdateAtIndex { index }, None, _) => {
             return Err(OsmError::InternalError(format!(
-                "add ways to graph called but multiedge is empty, has no index index {}",
-                index
+                "add ways to graph called but multiedge is empty, has no index index {index}"
             )))
         }
         (P::UpdateAtIndex { index }, Some(_), _) => {
@@ -849,8 +845,7 @@ fn remove_way_from_adjacency(
         let was_present = adjacencies.remove(dst);
         if !was_present && fail_if_missing {
             return Err(OsmError::GraphSimplificationError(format!(
-                "attempting to remove {} adjacency ({}) -> ({}) that does not exist",
-                dir, src, dst
+                "attempting to remove {dir} adjacency ({src}) -> ({dst}) that does not exist"
             )));
         }
     }

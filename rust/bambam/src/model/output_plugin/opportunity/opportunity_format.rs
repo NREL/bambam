@@ -26,7 +26,7 @@ impl std::fmt::Display for OpportunityFormat {
             OpportunityFormat::Aggregate => OPP_FMT_AGGREGATE,
             OpportunityFormat::Disaggregate => OPP_FMT_DISAGGREGATE,
         };
-        write!(f, "{}", key)
+        write!(f, "{key}")
     }
 }
 
@@ -73,10 +73,7 @@ impl OpportunityFormat {
                                 .get(idx)
                                 .cloned()
                                 .ok_or_else(|| OutputPluginError::InternalError(format!(
-                                    "index {} invalid for opportunity vector {:?}, should match cardinality of activity types dataset {:?}",
-                                    idx,
-                                    row_value,
-                                    activity_types
+                                    "index {idx} invalid for opportunity vector {row_value:?}, should match cardinality of activity types dataset {activity_types:?}"
                                 )))?;
                         row_obj.insert(activity_type, json!(row_value));
                     }

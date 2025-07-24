@@ -51,20 +51,20 @@ fn read_overlay_shapefile(
         let geometry = match shape {
             shapefile::Shape::Polygon(generic_polygon) => {
                 let mp: geo::MultiPolygon<f64> = generic_polygon.try_into().map_err(|e| {
-                    format!("failed to convert shapefile polygon at row {}: {}", idx, e)
+                    format!("failed to convert shapefile polygon at row {idx}: {e}")
                 })?;
                 geo::Geometry::MultiPolygon(mp)
             }
             shapefile::Shape::PolygonM(generic_polygon) => {
                 let mp: geo::MultiPolygon<f64> = generic_polygon.try_into().map_err(|e| {
-                    format!("failed to convert shapefile polygon at row {}: {}", idx, e)
+                    format!("failed to convert shapefile polygon at row {idx}: {e}")
                 })?;
                 geo::Geometry::MultiPolygon(mp)
             }
             _ => {
                 return Err(format!(
                     "unexpected shape type {} found at row {}, must be polygonal",
-                    shape.shapetype().to_string(),
+                    shape.shapetype(),
                     idx
                 ))
             }
@@ -102,10 +102,10 @@ fn read_overlay_csv(
         .collect::<HashMap<_, _>>();
     let overlay_geom_idx = overlay_headers
         .get(geometry_column)
-        .ok_or_else(|| format!("overlay file missing {} column", geometry_column))?;
+        .ok_or_else(|| format!("overlay file missing {geometry_column} column"))?;
     let overlay_id_idx = overlay_headers
         .get(id_column)
-        .ok_or_else(|| format!("overlay file missing {} column", id_column))?;
+        .ok_or_else(|| format!("overlay file missing {id_column} column"))?;
 
     let overlay_data = overlay_reader
         .records()
@@ -114,12 +114,12 @@ fn read_overlay_csv(
             let row = r.map_err(|e| e.to_string())?;
             let geometry_str = row
                 .get(*overlay_geom_idx)
-                .ok_or_else(|| format!("row {} missing geometry index", idx))?;
+                .ok_or_else(|| format!("row {idx} missing geometry index"))?;
             let geometry: Geometry =
                 Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
             let id_str = row
                 .get(*overlay_id_idx)
-                .ok_or_else(|| format!("row {} missing id index", idx))?
+                .ok_or_else(|| format!("row {idx} missing id index"))?
                 .to_string();
             let geoid = Geoid::try_from(id_str.as_str())?;
 

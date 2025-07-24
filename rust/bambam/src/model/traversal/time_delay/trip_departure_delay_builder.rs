@@ -14,7 +14,7 @@ impl TraversalModelBuilder for TripDepartureDelayBuilder {
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn TraversalModelService>, TraversalModelError> {
         let config: TimeDelayConfig = serde_json::from_value(parameters.clone()).map_err(|e| {
-            TraversalModelError::BuildError(format!("failed to build departure delay model: {}", e))
+            TraversalModelError::BuildError(format!("failed to build departure delay model: {e}"))
         })?;
         let lookup = Arc::new(TimeDelayLookup::try_from(config)?);
         let service = Arc::new(TripDepartureDelayModel::new(lookup));

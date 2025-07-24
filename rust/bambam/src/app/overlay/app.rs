@@ -35,7 +35,7 @@ pub fn run(
     let mep_result_file =
         File::open(mep_filepath).map_err(|e| format!("error reading '{mep_filepath}': {e}"))?;
     let mut output_writer = csv::Writer::from_path(output_filepath)
-        .map_err(|e| format!("failure opening output file '{}': {}", output_filepath, e))?;
+        .map_err(|e| format!("failure opening output file '{output_filepath}': {e}"))?;
 
     // read overlay dataset
     let overlay_data = overlay_source.build()?;
@@ -62,7 +62,7 @@ pub fn run(
         let _ = bar.update(1);
         let mut lines = buf_reader.by_ref().lines().take(chunksize);
         let mut any = false;
-        while let Some(line) = lines.next() {
+        for line in lines {
             let line = line.map_err(|e| format!("error reading line: {e}"))?;
             chunk.push_str(&line);
             chunk.push('\n');
@@ -141,7 +141,7 @@ fn match_chunk(
                     let found_geoids = found.iter().map(|r| r.data.to_string()).join(", ");
                     vec![Err(format!(
                         "point {} unexpectedly found multiple geoids: [{}]",
-                        point.to_wkt().to_string(),
+                        point.to_wkt(),
                         found_geoids
                     ))]
                 }

@@ -70,8 +70,7 @@ impl OutputPlugin for MepScorePlugin {
         let mode = field::get::mode(output)?;
         let mode_factors = self.modal_weighting_factors.get(&mode).ok_or_else(|| {
             OutputPluginError::OutputPluginFailed(format!(
-                "missing weighting factors for mode {}",
-                mode
+                "missing weighting factors for mode {mode}"
             ))
         })?;
 
@@ -137,22 +136,19 @@ pub fn create_opportunity_term(
     let freq_norm = activity_frequencies.get_frequency_term(act, Some(geom))?;
     let nj = opportunity_totals.get(act).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
-            "activity frequence missing for activity '{}'",
-            act
+            "activity frequence missing for activity '{act}'"
         ))
     })?;
     if nj == &0.0 {
         return Err(OutputPluginError::OutputPluginFailed(format!(
-            "invalid activity count total of 0 for category '{}'",
-            act
+            "invalid activity count total of 0 for category '{act}'"
         )));
     }
     let nstar = opportunity_totals
         .get(normalizing_activity)
         .ok_or_else(|| {
             OutputPluginError::OutputPluginFailed(format!(
-                "activity frequence missing for normalizing activity '{}'",
-                normalizing_activity
+                "activity frequence missing for normalizing activity '{normalizing_activity}'"
             ))
         })?;
     let opp_term = count * (nstar / nj) * freq_norm;

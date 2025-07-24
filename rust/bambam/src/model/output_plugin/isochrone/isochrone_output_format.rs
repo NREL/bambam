@@ -26,30 +26,27 @@ impl IsochroneOutputFormat {
             IsochroneOutputFormat::Wkt => {
                 let wkt = value.as_str().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "expected WKT string for geometry deserialization, found: {:?}",
-                        value
+                        "expected WKT string for geometry deserialization, found: {value:?}"
                     ))
                 })?;
-                let g = Geometry::try_from_wkt_str(wkt).map_err(|e| OutputPluginError::OutputPluginFailed(format!("failure deserializing WKT geometry from output row due to: {} - WKT string: \"{}\"", e, wkt)))?;
+                let g = Geometry::try_from_wkt_str(wkt).map_err(|e| OutputPluginError::OutputPluginFailed(format!("failure deserializing WKT geometry from output row due to: {e} - WKT string: \"{wkt}\"")))?;
                 Ok(g)
             }
             IsochroneOutputFormat::Wkb => {
                 let wkb_str = value.as_str().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "expected WKB string for geometry deserialization, found: {:?}",
-                        value
+                        "expected WKB string for geometry deserialization, found: {value:?}"
                     ))
                 })?;
                 // Decode hex string to bytes
                 let wkb_bytes = hex::decode(wkb_str).map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "failed to decode WKB hex string: {} - WKB string: \"{}\"",
-                        e, wkb_str
+                        "failed to decode WKB hex string: {e} - WKB string: \"{wkb_str}\""
                     ))
                 })?;
                 // Read geometry as f64, then convert to f32
                 let geom_trait = wkb::reader::read_wkb(&wkb_bytes).map_err(|e| OutputPluginError::OutputPluginFailed(format!(
-                    "failure deserializing WKB geometry from output row due to: {} - WKB string: \"{}\"", e, wkb_str
+                    "failure deserializing WKB geometry from output row due to: {e} - WKB string: \"{wkb_str}\""
                 )))?;
                 let geometry_f64 = geom_trait.to_geometry();
                 let geometry_f32 = try_convert_f32(&geometry_f64)?;
@@ -58,20 +55,17 @@ impl IsochroneOutputFormat {
             IsochroneOutputFormat::GeoJson => {
                 let geojson_str = value.as_str().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "expected string for geometry deserialization, found: {:?}",
-                        value
+                        "expected string for geometry deserialization, found: {value:?}"
                     ))
                 })?;
                 let geojson_obj = geojson_str.parse::<geojson::GeoJson>().map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "failure parsing GeoJSON from geometry string due to: {}, found: {:?}",
-                        e, value
+                        "failure parsing GeoJSON from geometry string due to: {e}, found: {value:?}"
                     ))
                 })?;
                 let geometry = geo_types::Geometry::<f32>::try_from(geojson_obj).map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "failure converting GeoJSON to Geometry due to: {}",
-                        e
+                        "failure converting GeoJSON to Geometry due to: {e}"
                     ))
                 })?;
                 Ok(geometry)
@@ -89,8 +83,7 @@ impl IsochroneOutputFormat {
                 let mut out_bytes = vec![];
                 let geom: Geometry<f64> = geometry.try_convert().map_err(|e| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "unable to convert geometry from f32 to f64: {}",
-                        e
+                        "unable to convert geometry from f32 to f64: {e}"
                     ))
                 })?;
                 let write_options = wkb::writer::WriteOptions {
@@ -99,15 +92,14 @@ impl IsochroneOutputFormat {
                 wkb::writer::write_geometry(&mut out_bytes, &geom, &write_options).map_err(
                     |e| {
                         OutputPluginError::OutputPluginFailed(format!(
-                            "failed to write geometry as WKB: {}",
-                            e
+                            "failed to write geometry as WKB: {e}"
                         ))
                     },
                 )?;
 
                 Ok(out_bytes
                     .iter()
-                    .map(|b| format!("{:02X?}", b))
+                    .map(|b| format!("{b:02X?}"))
                     .collect::<Vec<String>>()
                     .join(""))
             }
@@ -132,25 +124,21 @@ fn try_convert_f32(g: &Geometry<f64>) -> Result<Geometry<f32>, OutputPluginError
     g.try_map_coords(|geo::Coord { x, y }| {
         if x < min || max < x {
             Err(OutputPluginError::OutputPluginFailed(format!(
-                "could not express x value '{}' as f32, exceeds range of possible values [{}, {}]",
-                x, min, max
+                "could not express x value '{x}' as f32, exceeds range of possible values [{min}, {max}]"
             )))
         } else if y < min || max < y {
             Err(OutputPluginError::OutputPluginFailed(format!(
-                "could not express y value '{}' as f32, exceeds range of possible values [{}, {}]",
-                y, min, max
+                "could not express y value '{y}' as f32, exceeds range of possible values [{min}, {max}]"
             )))
         } else {
             let x32 = std::panic::catch_unwind(|| x as f32).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "could not express x value '{}' as f32",
-                    x
+                    "could not express x value '{x}' as f32"
                 ))
             })?;
             let y32 = std::panic::catch_unwind(|| y as f32).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "could not express y value '{}' as f32",
-                    x
+                    "could not express y value '{x}' as f32"
                 ))
             })?;
             Ok(geo::Coord { x: x32, y: y32 })

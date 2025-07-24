@@ -20,6 +20,6 @@ impl Display for IntensityCategory {
             IntensityCategory::Cost => "cost",
             IntensityCategory::Time => "time",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }

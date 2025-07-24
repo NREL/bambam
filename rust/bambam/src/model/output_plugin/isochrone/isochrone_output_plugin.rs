@@ -109,7 +109,7 @@ fn get_isochrone(
     )
     .collect::<Result<Vec<_>, _>>()
     .map_err(|e| {
-        OutputPluginError::OutputPluginFailed(format!("failure collecting destinations: {}", e))
+        OutputPluginError::OutputPluginFailed(format!("failure collecting destinations: {e}"))
     })?;
     let tree_size = tree_destinations.len();
 

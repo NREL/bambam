@@ -62,9 +62,9 @@ impl FromStr for FilterQuery {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // regex here should be built at compile time
         let re = Regex::new(Self::QUERY_REGEX)
-            .map_err(|e| format!("internal error building overpass query regex: {}", e))?;
+            .map_err(|e| format!("internal error building overpass query regex: {e}"))?;
         match re.captures(s) {
-            None => Err(format!("unable to parse overpass query: '{}'", s)),
+            None => Err(format!("unable to parse overpass query: '{s}'")),
             Some(groups) => {
                 let tag = String::from(&groups[0]);
                 let op = FilterOp::from_str(&groups[1])?;
