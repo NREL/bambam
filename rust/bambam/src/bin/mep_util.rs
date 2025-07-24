@@ -129,10 +129,10 @@ pub enum App {
         // activity_categories: String,
     },
     #[command(
-        name = "overlay",
+        name = "overlay-shapefile",
         about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
     )]
-    ShapefileOverlay {
+    OverlayShapefile {
         /// a CSV file containing a bambam output
         mep_matrix_filename: String,
         /// a file containing WKT geometries tagged with ids
@@ -223,7 +223,7 @@ impl App {
                 println!("Wrote newline-delimited JSON to {output_file}");
                 Ok(())
             }
-            Self::ShapefileOverlay {
+            Self::OverlayShapefile {
                 mep_matrix_filename,
                 overlay_filename,
                 output_filename,

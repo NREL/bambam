@@ -46,6 +46,7 @@ pub fn run(
     let overlay: Arc<PolygonalRTree<f64, Geoid>> = Arc::new(PolygonalRTree::new(overlay_data)?);
 
     // Read chunks of CSV rows at a time. the mep output can be very large on the order of 10s of GBs.
+    kdam::term::hide_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
     let mut bar = BarBuilder::default()
         .desc("chunking mep data rows")
         .position(0)
@@ -94,6 +95,9 @@ pub fn run(
             }
         }
     }
+    eprintln!();
+    eprintln!();
+    kdam::term::show_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
 
     // aggregate results
     let result = grouped

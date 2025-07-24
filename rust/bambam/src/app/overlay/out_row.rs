@@ -1,5 +1,5 @@
 use super::MepRow;
-use bamsoda_core::model::identifier::Geoid;
+use bamsoda_core::model::identifier::{Geoid, HasGeoidString};
 use geo::Geometry;
 use serde::{Deserialize, Serialize};
 use wkt::ToWkt;
@@ -7,7 +7,7 @@ use wkt::ToWkt;
 /// a row of MEP data aggregated to some Geoid geometry
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OutRow {
-    pub geoid: Geoid,
+    pub geoid: String,
     pub geometry: String,
     pub mep: f64,
     pub mep_entertainment: f64,
@@ -31,7 +31,7 @@ impl OutRow {
     /// sets up the OutRow with empty accumulators
     pub fn empty(geoid: Geoid, geometry: &Geometry) -> Self {
         OutRow {
-            geoid,
+            geoid: geoid.geoid_string(),
             geometry: geometry.to_wkt().to_string(),
             mep: Default::default(),
             mep_entertainment: Default::default(),
