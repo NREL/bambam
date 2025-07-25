@@ -116,7 +116,7 @@ type = "turn_restriction"
 turn_restriction_input_file = "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_denver/edges-turn-restrictions.csv.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 

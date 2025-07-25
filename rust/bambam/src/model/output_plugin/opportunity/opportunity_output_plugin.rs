@@ -9,7 +9,9 @@ use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
 use routee_compass::plugin::output::OutputPlugin;
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::algorithm::search::SearchInstance;
+use routee_compass_core::util::duration_extension::DurationExtension;
 use serde_json::json;
+use std::time::{Duration, Instant};
 
 /// RouteE Compass output plugin that appends opportunities to a search result row.
 /// uses the loaded [`OpportunityModel`] to look up points-of-interest and returns
@@ -29,9 +31,20 @@ impl OutputPlugin for OpportunityOutputPlugin {
         output: &mut serde_json::Value,
         result: &Result<(SearchAppResult, SearchInstance), CompassAppError>,
     ) -> Result<(), OutputPluginError> {
+        let start_time = Instant::now();
         let (app_result, si) = match result {
             Ok((r, si)) => (r, si),
-            Err(e) => return Ok(()),
+            Err(e) => {
+                field::insert_nested_with_parents(
+                    output,
+                    &[field::INFO],
+                    field::OPPORTUNITY_PLUGIN_RUNTIME,
+                    json![Duration::ZERO.hhmmss()],
+                    true,
+                )
+                .map_err(OutputPluginError::OutputPluginFailed)?;
+                return Ok(());
+            }
         };
 
         // write down model and global info
@@ -43,12 +56,24 @@ impl OutputPlugin for OpportunityOutputPlugin {
         // the previous TimeBin.min_time during iteration
         match self.opportunity_format {
             OpportunityFormat::Aggregate => {
-                process_aggregate_opportunities(output, app_result, si, self)
+                process_aggregate_opportunities(output, app_result, si, self)?;
             }
             OpportunityFormat::Disaggregate => {
-                process_disaggregate_opportunities(output, app_result, si, self)
+                process_disaggregate_opportunities(output, app_result, si, self)?;
             }
         }
+
+        // write the plugin runtime
+        let dur = Instant::now().duration_since(start_time);
+        field::insert_nested_with_parents(
+            output,
+            &[field::INFO],
+            field::OPPORTUNITY_PLUGIN_RUNTIME,
+            json![dur.hhmmss()],
+            false,
+        )
+        .map_err(OutputPluginError::OutputPluginFailed)?;
+        Ok(())
     }
 }
 
@@ -106,22 +131,36 @@ fn process_aggregate_opportunities(
     let bins = field::get_time_bins(output).map_err(OutputPluginError::OutputPluginFailed)?;
 
     for time_bin in bins {
+        let start_time = Instant::now();
+
+        // collect all opportunities from destinations within this time bin as a JSON object
         let destinations_iter =
             mep_output_ops::collect_destinations(result, Some(&time_bin), &instance.state_model);
         let destination_opportunities = plugin
             .model
             .collect_trip_opportunities(destinations_iter, instance)?;
-
         let opportunities_json = plugin
             .opportunity_format
             .serialize_opportunities(&destination_opportunities, &plugin.model.activity_types())?;
 
+        // write opportunities
         let time_bin_key = time_bin.key();
-        field::insert_nested(
+        field::insert_nested_with_parents(
             output,
             &[field::TIME_BINS, &time_bin_key],
             field::OPPORTUNITIES,
             opportunities_json,
+            false,
+        )
+        .map_err(OutputPluginError::OutputPluginFailed)?;
+
+        // write runtime
+        let runtime = Instant::now().duration_since(start_time);
+        field::insert_nested_with_parents(
+            output,
+            &[field::TIME_BINS, &time_bin_key, field::INFO],
+            field::OPPORTUNITY_BIN_RUNTIME,
+            json![runtime.hhmmss()],
             false,
         )
         .map_err(OutputPluginError::OutputPluginFailed)?;

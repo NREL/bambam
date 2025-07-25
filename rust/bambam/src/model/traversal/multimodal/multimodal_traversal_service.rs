@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use crate::model::traversal::multimodal::MultimodalTraversalModel;
+use crate::model::traversal::multimodal::{FeatureDependency, MultimodalTraversalModel};
 
 use super::MultimodalTraversalConfig;
 use itertools::Itertools;
-use routee_compass_core::model::traversal::{
-    TraversalModel, TraversalModelError, TraversalModelService,
+use routee_compass_core::model::{
+    state::OutputFeature,
+    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
 };
 use serde_json::Value;
 
@@ -35,21 +36,29 @@ impl TraversalModelService for MultimodalTraversalService {
                 serde_json::to_string(mode_json).unwrap_or_default()
             ))
         })?;
-        let feature_dependencies = self.config.modes.get(mode).ok_or_else(|| {
+        let dependency_configurations = self.config.dependencies.get(mode).ok_or_else(|| {
             TraversalModelError::BuildError(format!(
                 "mode '{}' not found, must be one of [{}]",
                 mode,
-                self.config.modes.keys().join(", ")
+                self.config.dependencies.keys().join(", ")
             ))
         })?;
+
+        // get all output features here but dedup by field name. all OutputFeatures with the same key must have
+        // matching definitions in order to accept it.
+        let feature_dependencies = dependency_configurations
+            .iter()
+            .map(|conf| FeatureDependency::new(conf, &self.config.output_features))
+            .try_collect()?;
         let output_features = self
             .config
             .output_features
             .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
+            .map(|(n, f)| (n.clone(), f.clone()))
             .collect_vec();
+
         let model = Arc::new(MultimodalTraversalModel::new(
-            feature_dependencies.to_vec(),
+            feature_dependencies,
             output_features,
         ));
         Ok(model)

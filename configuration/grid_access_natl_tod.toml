@@ -199,7 +199,7 @@ type = "turn_restriction"
 turn_restriction_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-turn-restrictions.csv.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 
@@ -273,14 +273,7 @@ collect_format = "aggregate"
 [plugin.output_plugins.model]
 type = "api"
 vertex_input_file = "../../routee-compass-tomtom/data/tomtom_national/vertices-compass.csv.gz"
-activity_column_names = [
-    "retail",
-    "entertainment",
-    "services",
-    "healthcare",
-    "food",
-    "jobs",
-]
+activity_column_names = ["retail", "entertainment", "services", "healthcare", "food", "jobs"]
 table_orientation = "destination_vertex_oriented"
 
 [plugin.output_plugins.model.opportunity_source]

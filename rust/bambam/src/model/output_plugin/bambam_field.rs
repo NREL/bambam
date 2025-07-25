@@ -24,14 +24,19 @@
 //!   "opportunity_format": "disaggregate",
 //!   "opportunity_totals": {},
 //!   "activity_types": [],
+//!   "info": {
+//!     "opportunity_runtime": "hh:mm:ss",
+//!     "mep_runtime": "hh:mm:ss",
+//!     "tree_size": 0,
+//!   }
 //!   "bin": {
 //!     10: {
 //!       "isochrone": {},
-//!       "opportunity_counts" {},
+//!       "opportunities" {},
 //!       "mep": {},
 //!       "info": {
 //!         "time_bin": { .. },
-//!         "tree_size": 0
+//!         "bin_runtime":
 //!       },
 //!     }
 //!   }
@@ -61,6 +66,11 @@ pub const VEHICLE_STATE: &str = "vehicle_state";
 pub const OPP_FMT_AGGREGATE: &str = "aggregate";
 pub const OPP_FMT_DISAGGREGATE: &str = "disaggregate";
 pub const MEP: &str = "mep";
+pub const OPPORTUNITY_PLUGIN_RUNTIME: &str = "opportunity_runtime";
+pub const OPPORTUNITY_BIN_RUNTIME: &str = "bin_runtime";
+pub const MEP_SCORE_PLUGIN_RUNTIME: &str = "mep_runtime";
+pub const MEP_LOAD_OPPS_RUNTIME: &str = "mep_load_opps_runtime";
+pub const MEP_ROW_RUNTIME: &str = "mep_row_runtime";
 
 pub mod get {
     use routee_compass::plugin::output::OutputPluginError;
@@ -138,6 +148,23 @@ pub fn get_nested<T: DeserializeOwned>(json: &Value, path: &[&str]) -> Result<T,
     let result = serde_json::from_value(cursor.clone())
         .map_err(|e| format!("unable to deserialize value '{cursor}': {e}"))?;
     Ok(result)
+}
+
+/// inserts a json value into a json object at some path, adding any missing parent objects
+/// along the way. not compatible with json arrays.
+pub fn insert_nested_with_parents(
+    json: &mut Value,
+    path: &[&str],
+    key: &str,
+    value: Value,
+    overwrite: bool,
+) -> Result<(), String> {
+    let parents = path.to_vec();
+    for i in 0..parents.len() {
+        let key = parents[i];
+        insert_nested(json, &parents[0..i], key, json![{}], false)?;
+    }
+    insert_nested(json, path, key, value, overwrite)
 }
 
 /// inserts a json value into a json object at some path. not compatible with json arrays.

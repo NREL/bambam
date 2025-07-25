@@ -28,68 +28,13 @@ lon = "request.origin_x"
 lat = "request.origin_y"
 mode = "request.mode"
 population = "request.population"
-mep = { sum = [
-    "bin.10.mep.entertainment",
-    "bin.10.mep.food",
-    "bin.10.mep.healthcare",
-    "bin.10.mep.jobs",
-    "bin.10.mep.retail",
-    "bin.10.mep.services",
-    "bin.20.mep.entertainment",
-    "bin.20.mep.food",
-    "bin.20.mep.healthcare",
-    "bin.20.mep.jobs",
-    "bin.20.mep.retail",
-    "bin.20.mep.services",
-    "bin.30.mep.entertainment",
-    "bin.30.mep.food",
-    "bin.30.mep.healthcare",
-    "bin.30.mep.jobs",
-    "bin.30.mep.retail",
-    "bin.30.mep.services",
-    "bin.40.mep.entertainment",
-    "bin.40.mep.food",
-    "bin.40.mep.healthcare",
-    "bin.40.mep.jobs",
-    "bin.40.mep.retail",
-    "bin.40.mep.services",
-] }
-mep_entertainment = { sum = [
-    "bin.10.mep.entertainment",
-    "bin.20.mep.entertainment",
-    "bin.30.mep.entertainment",
-    "bin.40.mep.entertainment",
-] }
-mep_food = { sum = [
-    "bin.10.mep.food",
-    "bin.20.mep.food",
-    "bin.30.mep.food",
-    "bin.40.mep.food",
-] }
-mep_healthcare = { sum = [
-    "bin.10.mep.healthcare",
-    "bin.20.mep.healthcare",
-    "bin.30.mep.healthcare",
-    "bin.40.mep.healthcare",
-] }
-mep_jobs = { sum = [
-    "bin.10.mep.jobs",
-    "bin.20.mep.jobs",
-    "bin.30.mep.jobs",
-    "bin.40.mep.jobs",
-] }
-mep_retail = { sum = [
-    "bin.10.mep.retail",
-    "bin.20.mep.retail",
-    "bin.30.mep.retail",
-    "bin.40.mep.retail",
-] }
-mep_services = { sum = [
-    "bin.10.mep.services",
-    "bin.20.mep.services",
-    "bin.30.mep.services",
-    "bin.40.mep.services",
-] }
+mep = { sum = ["bin.10.mep.entertainment", "bin.10.mep.food", "bin.10.mep.healthcare", "bin.10.mep.jobs", "bin.10.mep.retail", "bin.10.mep.services", "bin.20.mep.entertainment", "bin.20.mep.food", "bin.20.mep.healthcare", "bin.20.mep.jobs", "bin.20.mep.retail", "bin.20.mep.services", "bin.30.mep.entertainment", "bin.30.mep.food", "bin.30.mep.healthcare", "bin.30.mep.jobs", "bin.30.mep.retail", "bin.30.mep.services", "bin.40.mep.entertainment", "bin.40.mep.food", "bin.40.mep.healthcare", "bin.40.mep.jobs", "bin.40.mep.retail", "bin.40.mep.services"] }
+mep_entertainment = { sum = ["bin.10.mep.entertainment", "bin.20.mep.entertainment", "bin.30.mep.entertainment", "bin.40.mep.entertainment"] }
+mep_food = { sum = ["bin.10.mep.food", "bin.20.mep.food", "bin.30.mep.food", "bin.40.mep.food"] }
+mep_healthcare = { sum = ["bin.10.mep.healthcare", "bin.20.mep.healthcare", "bin.30.mep.healthcare", "bin.40.mep.healthcare"] }
+mep_jobs = { sum = ["bin.10.mep.jobs", "bin.20.mep.jobs", "bin.30.mep.jobs", "bin.40.mep.jobs"] }
+mep_retail = { sum = ["bin.10.mep.retail", "bin.20.mep.retail", "bin.30.mep.retail", "bin.40.mep.retail"] }
+mep_services = { sum = ["bin.10.mep.services", "bin.20.mep.services", "bin.30.mep.services", "bin.40.mep.services"] }
 
 [[response_output_policy.policies]]
 type = "file"
@@ -214,7 +159,7 @@ type = "road_class"
 road_class_input_file = "../../routee-compass-tomtom/data/tomtom_national/edges-routing-class-enumerated.txt.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 
@@ -271,14 +216,7 @@ type = "opportunity"
 [plugin.output_plugins.model]
 type = "file"
 opportunity_input_file = "../data/national_vertex_opportunities.csv"
-activity_column_names = [
-    "retail",
-    "entertainment",
-    "services",
-    "healthcare",
-    "food",
-    "jobs",
-]
+activity_column_names = ["retail", "entertainment", "services", "healthcare", "food", "jobs"]
 table_orientation = "destination_vertex_oriented"
 collect_format = "aggregate"
 

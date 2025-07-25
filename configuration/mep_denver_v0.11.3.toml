@@ -64,21 +64,22 @@ stride = 300
 
 [[traversal.models]]
 type = "multimodal"
-[traversal.models.output_features]
-trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
-edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
-# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
 
-[traversal.models.modes]
-walk = [{ speed_feature = "walk_speed", destinations = ["edge_time", "trip_time"] }]
-bike = [{ speed_feature = "bike_speed", destinations = ["edge_time", "trip_time"] }]
+[traversal.models.dependencies]
+walk = [{ input_name = "walk_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
+bike = [{ input_name = "bike_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
 drive = [
-    { speed_feature = "edge_speed", destinations = ["edge_time", "trip_time"] },
+    { input_name = "edge_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] },
     # { time_feature = "trip_enroute_delay", destinations = [
     #     "edge_time",
     #     "trip_time",
     # ] },
 ]
+
+[traversal.models.output_features]
+trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
+edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
+# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
 
 # use a time-optimal routing strategy
 [cost]
@@ -86,7 +87,7 @@ weights = { trip_time = 1.0 }
 vehicle_rates = { trip_time = { type = "raw" } }
 # weights = { trip_time = 1.0, penalty_factor = 1.0 }
 # vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "mul"
+cost_aggregation = "sum"
 
 [access]
 type = "turn_delay"
@@ -116,7 +117,7 @@ type = "turn_restriction"
 turn_restriction_input_file = "../tomtom_denver/edges-turn-restrictions.csv.gz"
 
 [[frontier.models]]
-type = "isochrone"
+type = "time_limit"
 time_limit = 40.0
 time_unit = "minutes"
 

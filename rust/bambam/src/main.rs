@@ -8,8 +8,8 @@ fn main() {
     log::debug!("cwd: {:?}", std::env::current_dir());
     let args = CliArgs::parse();
     // let args = CliArgs {
-    //     config_file: String::from("configuration/mep_denver_census.toml"),
-    //     query_file: String::from("queries/denver_extent_h3_grid.json"),
+    //     config_file: String::from("test.toml"),
+    //     query_file: String::from("test.json"),
     //     chunksize: None,
     //     newline_delimited: false,
     // };
