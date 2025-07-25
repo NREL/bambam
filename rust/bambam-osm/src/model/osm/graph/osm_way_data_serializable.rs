@@ -108,7 +108,7 @@ impl OsmWayDataSerializable {
         if linestring.coords().collect_vec().len() < 2 {
             return Err(OsmError::InternalError(format!(
                 "during output processing, way ({})-[{}]->({}) produces a linestring with less than 2 nodes: '{}'",
-                src_node_id, way.osmid, dst_node_id, linestring.to_wkt().to_string()
+                src_node_id, way.osmid, dst_node_id, linestring.to_wkt()
             )));
         }
         let length_meters = Haversine.length(&linestring);
