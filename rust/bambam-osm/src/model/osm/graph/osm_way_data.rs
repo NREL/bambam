@@ -423,9 +423,9 @@ fn deserialize_maxspeed(
                     )))
                 }
                 [speed_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,
@@ -441,9 +441,9 @@ fn deserialize_maxspeed(
                     }
                 }
                 [speed_str, unit_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,

@@ -45,9 +45,7 @@ pub fn truncate_graph_polygon(
             "removed {n_removed} nodes not connected by edges to nodes within the provided extent"
         )
     } else {
-        format!(
-            "removed {n_removed} nodes found outside the provided extent"
-        )
+        format!("removed {n_removed} nodes found outside the provided extent")
     };
     log::info!("{done_msg}");
     // msg = "Truncated graph by polygon"

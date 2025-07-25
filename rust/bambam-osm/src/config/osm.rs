@@ -50,16 +50,14 @@ impl TryFrom<&String> for OsmImportConfiguration {
             let s = std::fs::read_to_string(f).map_err(|e| {
                 OsmCliError::ConfigurationError(format!("failure reading {f}: {e}"))
             })?;
-            toml::from_str(&s).map_err(|e| {
-                OsmCliError::ConfigurationError(format!("failure decoding {f}: {e}"))
-            })
+            toml::from_str(&s)
+                .map_err(|e| OsmCliError::ConfigurationError(format!("failure decoding {f}: {e}")))
         } else if f.ends_with(".json") {
             let s = std::fs::read_to_string(f).map_err(|e| {
                 OsmCliError::ConfigurationError(format!("failure reading {f}: {e}"))
             })?;
-            serde_json::from_str(&s).map_err(|e| {
-                OsmCliError::ConfigurationError(format!("failure decoding {f}: {e}"))
-            })
+            serde_json::from_str(&s)
+                .map_err(|e| OsmCliError::ConfigurationError(format!("failure decoding {f}: {e}")))
         } else {
             Err(OsmCliError::ConfigurationError(format!(
                 "unsupported file type: {f}"

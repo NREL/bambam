@@ -13,14 +13,10 @@ pub fn load() -> Result<PolygonalRTree<Geoid>, String> {
     let mut file = GzDecoder::new(&state_file[..]);
     let mut buf = String::new();
     let _ = file.read_to_string(&mut buf).map_err(|e| {
-        format!(
-            "failure reading tl_2023_us_state_in_tiger_lines.geojson.gz into memory: {e}"
-        )
+        format!("failure reading tl_2023_us_state_in_tiger_lines.geojson.gz into memory: {e}")
     })?;
     let json = buf.parse::<geojson::GeoJson>().map_err(|e| {
-        format!(
-            "failure reading tl_2023_us_state_in_tiger_lines.geojson.gz as geojson: {e}"
-        )
+        format!("failure reading tl_2023_us_state_in_tiger_lines.geojson.gz as geojson: {e}")
     })?;
     let tree_nodes = match json {
         geojson::GeoJson::FeatureCollection(feature_collection) => {

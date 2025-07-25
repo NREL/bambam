@@ -72,9 +72,7 @@ pub fn collect_lodes_opportunities(
 
             for mapped_act in mapped_acts.iter() {
                 let index = idx_lookup.get(mapped_act).ok_or_else(|| {
-                    format!(
-                        "activity type {mapped_act} missing from expected activity types"
-                    )
+                    format!("activity type {mapped_act} missing from expected activity types")
                 })?;
                 out_row[*index] += row.value.value;
             }

@@ -267,9 +267,7 @@ fn get_u32_from_row(
     })?;
 
     let number: u32 = value.parse().map_err(|e| {
-        OutputPluginError::OutputPluginFailed(format!(
-            "could not read {value} as an integer: {e}"
-        ))
+        OutputPluginError::OutputPluginFailed(format!("could not read {value} as an integer: {e}"))
     })?;
     Ok(number)
 }
