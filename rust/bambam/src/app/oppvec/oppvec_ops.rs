@@ -21,8 +21,7 @@ pub fn create_mapping(string: &str) -> Result<HashMap<String, Vec<String>>, Stri
                     Ok((col.to_string(), activity_categories))
                 }
                 _ => Err(format!(
-                    "invalid mapping string '{}' must be in the format 'col->acts'",
-                    inner
+                    "invalid mapping string '{inner}' must be in the format 'col->acts'"
                 )),
             }
         })

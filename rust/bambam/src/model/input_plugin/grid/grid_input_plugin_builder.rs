@@ -16,15 +16,11 @@ pub fn plugin_builder(
         data.get_config_serde(&super::EXTENT_FORMAT, &"")
             .map_err(|e| {
                 CompassConfigurationError::UserConfigurationError(format!(
-                    "failure reading extent: {}",
-                    e
+                    "failure reading extent: {e}"
                 ))
             })?;
     let grid_type: GridType = data.get_config_serde(&super::GRID_TYPE, &"").map_err(|e| {
-        CompassConfigurationError::UserConfigurationError(format!(
-            "failure reading grid type: {}",
-            e
-        ))
+        CompassConfigurationError::UserConfigurationError(format!("failure reading grid type: {e}"))
     })?;
     let population_source = match pop_config {
         Some(conf) => conf
@@ -60,16 +56,14 @@ impl InputPluginBuilder for GridInputPluginBuilder {
             .get_config_serde(&super::EXTENT_FORMAT, &"")
             .map_err(|e| {
             CompassConfigurationError::UserConfigurationError(format!(
-                "failure reading extent: {}",
-                e
+                "failure reading extent: {e}"
             ))
         })?;
         let grid_type: GridType = parameters
             .get_config_serde(&super::GRID_TYPE, &"")
             .map_err(|e| {
                 CompassConfigurationError::UserConfigurationError(format!(
-                    "failure reading grid type: {}",
-                    e
+                    "failure reading grid type: {e}"
                 ))
             })?;
         let population_source = match pop_config {

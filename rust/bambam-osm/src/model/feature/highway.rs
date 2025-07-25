@@ -204,7 +204,7 @@ impl Display for Highway {
             Highway::TrafficSignals => write!(f, "traffic_signals"),
             Highway::TurningCircle => write!(f, "turning_circle"),
             Highway::TurningLoop => write!(f, "turning_loop"),
-            Highway::Other(tag) => write!(f, "{}", tag),
+            Highway::Other(tag) => write!(f, "{tag}"),
         }
     }
 }

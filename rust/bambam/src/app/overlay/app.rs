@@ -1,168 +1,155 @@
 use super::OverlayOperation;
-use crate::util::polygonal_rtree::PolygonalRTree;
+use crate::{
+    app::overlay::{MepRow, OutRow, OverlaySource},
+    util::polygonal_rtree::PolygonalRTree as PrtBambam,
+};
+use bamsoda_core::model::identifier::Geoid;
 use csv::StringRecord;
 use geo::Geometry;
 use itertools::Itertools;
-use kdam::{tqdm, Bar};
+use kdam::{tqdm, Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
+use routee_compass_core::util::geo::PolygonalRTree;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
+    fs::File,
+    io::{BufRead, Read},
     path::Path,
     sync::{Arc, Mutex},
 };
-use wkt::TryFromWkt;
+use wkt::{ToWkt, TryFromWkt};
 
-/// aggregate a bambam output to some other geospatial dataset via some overlay operation.
-///
-/// # Arguments
-/// * `bambam_output_filepath` - an output CSV file from a bambam run
-/// * `overlay_filepath` - a file containing the overlay geometry dataset
-/// * `how` - an overlay method, a map algebra
-/// * `geometry_column` - column in overlay file containing a WKT geometry
-/// * `id_column` - column in overlay file containing an identifier
-///
-/// # Result
-///
-///
+/// function to aggregate mep output rows to some overlay geometry dataset.
+/// the number of output rows is not dependent on the size of the source geometry dataset,
+/// instead based on the number of geometry rows with matches in the mep dataset.
+/// only mep score and population data are aggregated at this time, via summation.
 pub fn run(
-    bambam_output_filepath: &String,
-    overlay_filepath: &String,
-    output_filename: &String,
+    mep_filepath: &str,
+    output_filepath: &str,
+    overlay_source: &OverlaySource,
     how: &OverlayOperation,
-    geometry_column: &String,
-    id_column: &String,
+    chunksize: usize,
 ) -> Result<(), String> {
-    // read in bambam outputs into a spatial index
-    let bambam_path = Path::new(bambam_output_filepath);
-    let mut bambam_reader = csv::Reader::from_path(bambam_path).map_err(|e| e.to_string())?;
-    let bambam_header_record = bambam_reader.headers().map_err(|e| e.to_string())?.clone();
-    let bambam_header_lookup = bambam_header_record
+    // fail early if IO error from read/write destinations
+    let mep_result_file =
+        File::open(mep_filepath).map_err(|e| format!("error reading '{mep_filepath}': {e}"))?;
+    let mut output_writer = csv::Writer::from_path(output_filepath)
+        .map_err(|e| format!("failure opening output file '{output_filepath}': {e}"))?;
+
+    // read overlay dataset
+    let overlay_data = overlay_source.build()?;
+    let overlay_lookup = overlay_data
         .iter()
-        .enumerate()
-        .map(|(i, s)| (s, i))
+        .map(|(geom, geoid)| (geoid.clone(), geom.clone()))
         .collect::<HashMap<_, _>>();
-    let bambam_geometry_lookup = bambam_header_lookup
-        .get("geometry")
-        .ok_or_else(|| String::from("overlay file missing `geometry` column"))?;
-    let bambam_geometries = bambam_reader
-        .records()
-        .enumerate()
-        .map(|(row_idx, row)| {
-            let r = row.map_err(|e| e.to_string())?;
-            let geometry_str = r
-                .get(*bambam_geometry_lookup)
-                .ok_or_else(|| format!("row {} missing geometry index", row_idx))?;
-            let geometry: Geometry =
-                Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
-            Ok((geometry, r.clone()))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let bambam_rtree = Arc::new(PolygonalRTree::new(bambam_geometries)?);
+    let overlay: Arc<PolygonalRTree<f64, Geoid>> = Arc::new(PolygonalRTree::new(overlay_data)?);
 
-    // read in overlay geometries file
-    let overlay_path = Path::new(overlay_filepath);
-    let mut overlay_reader = csv::Reader::from_path(overlay_path).map_err(|e| e.to_string())?;
-    let overlay_header_record = overlay_reader.headers().map_err(|e| e.to_string())?.clone();
-    let overlay_headers = overlay_header_record
-        .into_iter()
-        .enumerate()
-        .map(|(i, s)| (s, i))
-        .collect::<HashMap<_, _>>();
-    let overlay_geom_idx = overlay_headers
-        .get(geometry_column.as_str())
-        .ok_or_else(|| format!("overlay file missing {} column", geometry_column))?;
-    let overlay_id_idx = overlay_headers
-        .get(id_column.as_str())
-        .ok_or_else(|| format!("overlay file missing {} column", id_column))?;
+    // Read chunks of CSV rows at a time. the mep output can be very large on the order of 10s of GBs.
+    kdam::term::hide_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
+    let mut bar = BarBuilder::default()
+        .desc("chunking mep data rows")
+        .position(0)
+        .build()?;
+    let mut chunk = String::new();
+    let mut chunks = 0;
+    let mut lines_read = 0;
+    let mut buf_reader = std::io::BufReader::new(mep_result_file);
+    let mut grouped: HashMap<Geoid, (Geometry, Vec<MepRow>)> = HashMap::new();
+    loop {
+        // Read a chunk of lines into `chunk`
+        chunk.clear();
+        chunks += 1;
+        let _ = bar.update(1);
+        let mut lines = buf_reader.by_ref().lines().take(chunksize);
+        let mut any = false;
+        for line in lines {
+            let line = line.map_err(|e| format!("error reading line: {e}"))?;
+            chunk.push_str(&line);
+            chunk.push('\n');
+            lines_read += 1;
+            any = true;
+        }
+        if !any {
+            // done reading from the buffer, all rows processed
+            break;
+        }
 
-    // TODO!
-    //  this just writes the aggregated overlay dataset to stdout
-    //  let's write to a file location
-    //  let's parallelize the intersection operation
-    let overlay_dataset = overlay_reader.records().enumerate().collect_vec();
-    let overlay_bar = Arc::new(Mutex::new(
-        Bar::builder()
-            .desc("overlay dataset")
-            .total(overlay_dataset.len())
-            .build()
-            .map_err(|e| e.to_string())?,
-    ));
-
-    let result: std::collections::LinkedList<Vec<Result<_, String>>> = overlay_dataset
-        .into_par_iter()
-        .map(|(row_idx, row)| {
-            let r = row.map_err(|e| e.to_string())?;
-
-            let geometry_str = r
-                .get(*overlay_geom_idx)
-                .ok_or_else(|| format!("row {} missing geometry index", row_idx))?;
-            let geometry: Geometry =
-                Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
-            let id = r
-                .get(*overlay_id_idx)
-                .ok_or_else(|| format!("row {} missing id index", row_idx))?
-                .to_string();
-
-            match how {
-                OverlayOperation::Intersection => {
-                    for node in bambam_rtree.intersection(&geometry)? {
-                        let mut out: StringRecord = StringRecord::new();
-                        for (j, sr) in node.data.iter().enumerate() {
-                            if j == *bambam_geometry_lookup {
-                                let enquoted = format!("\"{}\"", sr);
-                                out.push_field(enquoted.as_str());
-                            } else {
-                                out.push_field(sr);
-                            }
-                        }
-                        out.push_field(&id);
-                        println!("{}", out.into_iter().join(","));
-                    }
+        // read the next chunk, process it, and append the grouped collection
+        let mut reader = csv::Reader::from_reader(chunk.as_bytes());
+        let rows = reader
+            .deserialize()
+            .collect::<Result<Vec<MepRow>, _>>()
+            .map_err(|e| format!("failure deserializing chunk {chunks}: {e}"))?;
+        let tagged_rows: Vec<(Geoid, MepRow)> =
+            match_chunk(rows, output_filepath, overlay.clone())?;
+        for (geoid, row) in tagged_rows.into_iter() {
+            match grouped.get_mut(&geoid) {
+                Some((_, v)) => v.push(row),
+                None => {
+                    let geometry = overlay_lookup.get(&geoid).ok_or_else(|| {
+                        format!("internal error, lookup missing geometry entry for geoid '{geoid}'")
+                    })?;
+                    let _ = grouped.insert(geoid, (geometry.clone(), vec![row]));
                 }
             }
-            Ok(todo!())
-        })
-        .collect_vec_list();
+        }
+    }
+    eprintln!();
+    eprintln!();
+    kdam::term::show_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
 
-    todo!("unsure what is below, does it aggregate the rows?");
+    // aggregate results
+    let result = grouped
+        .into_iter()
+        .map(|(geoid, (geometry, mep_rows))| OutRow::new(geoid, &geometry, &mep_rows))
+        .collect_vec();
 
-    let output_filepath = Path::new(output_filename);
+    for row in result.into_iter() {
+        output_writer
+            .serialize(row)
+            .map_err(|e| format!("failure writing row to output: {e}"))?;
+    }
 
-    // graveyard:
-
-    // let out_headers = bambam_header_record.iter().chain(["join_id"]).join(",");
-    // println!("{}", out_headers);
-
-    // for (row_idx, row) in tqdm!(overlay_reader.records().enumerate(), desc = "process") {
-    //     let r = row.map_err(|e| e.to_string())?;
-    //     let geometry_str = r
-    //         .get(*overlay_geom_idx)
-    //         .ok_or_else(|| format!("row {} missing geometry index", row_idx))?;
-    //     let geometry: Geometry =
-    //         Geometry::try_from_wkt_str(geometry_str).map_err(|e| e.to_string())?;
-    //     let id = r
-    //         .get(*overlay_id_idx)
-    //         .ok_or_else(|| format!("row {} missing id index", row_idx))?
-    //         .to_string();
-
-    //     match how {
-    //         OverlayOperation::Intersection => {
-    //             for node in bambam_rtree.intersection(&geometry)? {
-    //                 let mut out: StringRecord = StringRecord::new();
-    //                 for (j, sr) in node.data.iter().enumerate() {
-    //                     if j == *bambam_geometry_lookup {
-    //                         let enquoted = format!("\"{}\"", sr);
-    //                         out.push_field(enquoted.as_str());
-    //                     } else {
-    //                         out.push_field(sr);
-    //                     }
-    //                 }
-    //                 out.push_field(&id);
-    //                 println!("{}", out.into_iter().join(","));
-    //             }
-    //         }
-    //     }
-    // }
+    println!("written to {output_filepath}");
     Ok(())
+}
+
+fn match_chunk(
+    rows: Vec<MepRow>,
+    output_filename: &str,
+    overlay: Arc<PolygonalRTree<f64, Geoid>>,
+) -> Result<Vec<(Geoid, MepRow)>, String> {
+    let bar = Arc::new(Mutex::new(
+        BarBuilder::default()
+            .position(1)
+            .desc("spatial lookup")
+            .total(rows.len())
+            .build()?,
+    ));
+    rows.into_par_iter()
+        .flat_map(|row| {
+            if let Ok(mut b) = bar.clone().lock() {
+                let _ = b.update(1);
+            }
+            let point = geo::Geometry::Point(geo::Point::new(row.lon, row.lat));
+            let intersection_result = overlay.intersection(&point);
+            let found = match intersection_result {
+                Err(e) => return vec![Err(e)],
+                Ok(found) => found.collect_vec(),
+            };
+            match found[..] {
+                [] => vec![],
+                [single] => vec![Ok((single.data.clone(), row))],
+                _ => {
+                    let found_geoids = found.iter().map(|r| r.data.to_string()).join(", ");
+                    vec![Err(format!(
+                        "point {} unexpectedly found multiple geoids: [{}]",
+                        point.to_wkt(),
+                        found_geoids
+                    ))]
+                }
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()
 }

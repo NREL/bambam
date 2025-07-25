@@ -176,7 +176,7 @@ fn get_long_activity_names(
     mapping
         .get(category_name)
         .cloned()
-        .ok_or_else(|| format!("category '{}' missing from category mapping", category_name))
+        .ok_or_else(|| format!("category '{category_name}' missing from category mapping"))
 }
 
 /// pulls out an activity count from a record by it's column name
@@ -199,7 +199,7 @@ fn get_count_from_record(
 fn easy_parse_u64(s: &str) -> Result<u64, String> {
     let r1 = s
         .parse::<u64>()
-        .map_err(|e| format!("unable to parse count '{}' as a non-negative integer", s));
+        .map_err(|e| format!("unable to parse count '{s}' as a non-negative integer"));
     r1.or_else(|e| match s.parse::<f64>().ok() {
         None => Err(e),
         Some(f) if f < 0.0 => Err(e),
@@ -215,9 +215,9 @@ fn get_value_from_record(
 ) -> Result<String, String> {
     let column_index = headers
         .get(key)
-        .ok_or_else(|| format!("column name '{}' missing from CSV", key))?;
+        .ok_or_else(|| format!("column name '{key}' missing from CSV"))?;
     let record_value = record
         .get(*column_index)
-        .ok_or_else(|| format!("row missing index '{}' for '{}' column", column_index, key))?;
+        .ok_or_else(|| format!("row missing index '{column_index}' for '{key}' column"))?;
     Ok(record_value.to_string())
 }

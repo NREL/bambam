@@ -20,6 +20,6 @@ impl Display for DependencyUnitType {
             DependencyUnitType::UnsignedInteger => String::from("unsigned_integer"),
             DependencyUnitType::Boolean => String::from("boolean"),
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }

@@ -15,7 +15,7 @@ pub fn from_polygon_extent(
         .build();
     tiler
         .add(extent.clone())
-        .map_err(|e| format!("failure adding extent to h3 tiler: {}", e))?;
+        .map_err(|e| format!("failure adding extent to h3 tiler: {e}"))?;
 
     let cells = tiler.into_coverage().collect_vec();
 

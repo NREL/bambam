@@ -43,7 +43,7 @@ pub fn run(
         Some(bar_builder),
         None,
     )
-    .map_err(|e| format!("{}", e))?;
+    .map_err(|e| format!("{e}"))?;
     let spatial_index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
         Some((Distance::from(200.0), DistanceUnit::Meters)),
@@ -101,7 +101,7 @@ pub fn run(
     // aggregate long-format data to wide-format using the activity type lookup to
     // increment values at vector indices.
     term::init(false);
-    term::hide_cursor().map_err(|e| format!("progress bar error: {}", e))?;
+    term::hide_cursor().map_err(|e| format!("progress bar error: {e}"))?;
     let result_iter = tqdm!(
         vertices.iter(),
         desc = "aggregate opportunities",
@@ -149,7 +149,7 @@ pub fn run(
     for _ in act_bars.iter() {
         eprintln!();
     }
-    term::show_cursor().map_err(|e| format!("progress bar error: {}", e))?;
+    term::show_cursor().map_err(|e| format!("progress bar error: {e}"))?;
 
     // write opportunity vectors
     let opportunities_compass_file = Path::new(output_filename);
@@ -158,7 +158,7 @@ pub fn run(
         .from_path(opportunities_compass_file)
         .map_err(|e| {
             let opp_file_str = opportunities_compass_file.to_string_lossy();
-            format!("failure opening output file {}: {}", opp_file_str, e)
+            format!("failure opening output file {opp_file_str}: {e}")
         })?;
     let n_output_rows = result.len();
     let write_iter = tqdm!(
@@ -167,10 +167,10 @@ pub fn run(
         total = n_output_rows
     );
     for (idx, row) in write_iter {
-        let serialized = row.into_iter().map(|v| format!("{}", v)).collect_vec();
+        let serialized = row.into_iter().map(|v| format!("{v}")).collect_vec();
         writer
             .write_record(&serialized)
-            .map_err(|e| format!("failure writing CSV output row {}: {}", idx, e))?;
+            .map_err(|e| format!("failure writing CSV output row {idx}: {e}"))?;
     }
     eprintln!();
 
@@ -191,7 +191,7 @@ pub fn read_opportunity_rows_v2(
     let mut opps_reader = csv::ReaderBuilder::new()
         .has_headers(true)
         .from_path(opportunities_filename)
-        .map_err(|e| format!("failed to load {}: {}", opportunities_filename, e))?;
+        .map_err(|e| format!("failed to load {opportunities_filename}: {e}"))?;
     let headers = build_header_lookup(&mut opps_reader)?;
     let bar = Arc::new(Mutex::new(
         Bar::builder()
@@ -296,10 +296,10 @@ fn downsample_polygon(
     let triangles = match polygon {
         geo::Geometry::Polygon(g) => g
             .unconstrained_triangulation()
-            .map_err(|e| format!("failure triangulating polygon: {}", e)),
+            .map_err(|e| format!("failure triangulating polygon: {e}")),
         geo::Geometry::MultiPolygon(g) => g
             .unconstrained_triangulation()
-            .map_err(|e| format!("failure triangulating polygon: {}", e)),
+            .map_err(|e| format!("failure triangulating polygon: {e}")),
         _ => Err(format!(
             "cannot triangulate non-polygonal geometry: {}",
             polygon.to_wkt()
@@ -369,7 +369,7 @@ pub fn build_header_lookup(reader: &mut Reader<File>) -> Result<HashMap<String, 
     // We nest this call in its own scope because of lifetimes.
     let headers = reader
         .headers()
-        .map_err(|e| format!("failure retrieving headers: {}", e))?;
+        .map_err(|e| format!("failure retrieving headers: {e}"))?;
     let lookup: HashMap<String, usize> = headers
         .iter()
         .enumerate()

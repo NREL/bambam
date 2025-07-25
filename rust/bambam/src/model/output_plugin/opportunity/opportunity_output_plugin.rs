@@ -84,13 +84,12 @@ impl OpportunityOutputPlugin {
     ) -> Result<OpportunityOutputPlugin, OutputPluginError> {
         let model = config.build()?;
         let totals = model.opportunity_totals().map_err(|e| {
-            OutputPluginError::BuildFailed(format!("failed to collect opportunity totals: {}", e))
+            OutputPluginError::BuildFailed(format!("failed to collect opportunity totals: {e}"))
         })?;
         for (act, total) in totals.iter() {
             if total == &0.0 {
                 return Err(OutputPluginError::BuildFailed(format!(
-                    "opportunity totals for activity type {} are zero, which is invalid",
-                    act
+                    "opportunity totals for activity type {act} are zero, which is invalid"
                 )));
             }
         }

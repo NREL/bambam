@@ -207,6 +207,6 @@ mod tests {
 
         let result = super::bfs_undirected(&source, &undirected_graph).unwrap();
         assert_eq!(result.len(), n_connected_nodes);
-        eprintln!("{:?}", result);
+        eprintln!("{result:?}");
     }
 }

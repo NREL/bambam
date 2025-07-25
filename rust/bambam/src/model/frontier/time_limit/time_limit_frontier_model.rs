@@ -35,8 +35,7 @@ impl FrontierModel for TimeLimitFrontierModel {
             .convert(&mut time_cow, &self.time_limit.time_unit)
             .map_err(|e| {
                 FrontierModelError::FrontierModelError(format!(
-                    "failure converting time unit during isochrone frontier model: {}",
-                    e
+                    "failure converting time unit during isochrone frontier model: {e}"
                 ))
             })?;
         let is_valid = time_cow.as_ref() <= &self.time_limit.time;

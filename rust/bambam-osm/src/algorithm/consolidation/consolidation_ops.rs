@@ -51,7 +51,7 @@ pub fn consolidate_graph(
     // buffer nodes to passed-in distance and merge overlaps. turn merged nodes
     // into gdf and get centroids of each cluster as x, y.
 
-    log::info!("buffering with tolerance {:?}", tolerance);
+    log::info!("buffering with tolerance {tolerance:?}");
     let node_geometries = buffer_nodes(graph, tolerance)?;
 
     // STEP 2
@@ -61,8 +61,7 @@ pub fn consolidate_graph(
     let mut rtree: RTree<ClusteredIntersections> =
         clustering::build(&node_geometries).map_err(|e| {
             OsmError::GraphConsolidationError(format!(
-                "failure building geometry intersection graph: {}",
-                e
+                "failure building geometry intersection graph: {e}"
             ))
         })?;
 
@@ -325,8 +324,7 @@ pub fn buffer_nodes(
             let point = geo::Point(Coord::from((node.x, node.y)));
             let circle_g: Geometry<f32> = point.buffer(radius).map_err(|e| {
                 OsmError::GraphConsolidationError(format!(
-                    "while buffering nodes for consolidation, an error occurred: {}",
-                    e
+                    "while buffering nodes for consolidation, an error occurred: {e}"
                 ))
             })?;
             let circle = match circle_g {

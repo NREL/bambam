@@ -17,8 +17,7 @@ impl FrontierModelBuilder for TimeLimitFrontierBuilder {
         let conf: TimeLimitFrontierConfig =
             serde_json::from_value(config.clone()).map_err(|e| {
                 FrontierModelError::BuildError(format!(
-                    "failure reading isochrone frontier model configuration: {}",
-                    e
+                    "failure reading isochrone frontier model configuration: {e}"
                 ))
             })?;
         let model = TimeLimitFrontierService::new(&conf);

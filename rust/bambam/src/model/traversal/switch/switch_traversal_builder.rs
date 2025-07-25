@@ -28,13 +28,13 @@ impl TraversalModelBuilder for SwitchTraversalBuilder {
                 .iter()
                 .enumerate()
                 .map(|(idx, params)| {
-                    let parent_key = format!("models[{}]", idx);
+                    let parent_key = format!("models[{idx}]");
                     let mode =
                         params.get_config_string(&String::from("mode"),&parent_key)?;
                     let model_type = params.get_config_string(&String::from("type"), &parent_key)?;
                     let model_builder = self.models.get(&model_type).ok_or_else(|| {
                         let options = self.models.keys().join(",");
-                        TraversalModelError::BuildError(format!("unknown traversal model type {}, must be one of [{}]", model_type, options))
+                        TraversalModelError::BuildError(format!("unknown traversal model type {model_type}, must be one of [{options}]"))
                     })?;
                     let service = model_builder.build(params)?;
                     Ok((mode, service))

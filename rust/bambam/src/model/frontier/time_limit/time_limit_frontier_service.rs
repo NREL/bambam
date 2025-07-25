@@ -34,8 +34,7 @@ impl FrontierModelService for TimeLimitFrontierService {
                 let time_limit: TimeLimitConfig = serde_json::from_value(time_limit_json.clone())
                     .map_err(|e| {
                     FrontierModelError::FrontierModelError(format!(
-                        "failure reading query time_limit for isochrone frontier model: {}",
-                        e
+                        "failure reading query time_limit for isochrone frontier model: {e}"
                     ))
                 })?;
                 Ok(time_limit)

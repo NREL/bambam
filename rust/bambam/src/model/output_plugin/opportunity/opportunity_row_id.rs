@@ -72,7 +72,7 @@ impl OpportunityRowId {
         }?;
 
         let vertex = graph.get_vertex(vertex_id).map_err(|e| {
-            OutputPluginError::OutputPluginFailed(format!("unknown vertex id '{}'", vertex_id))
+            OutputPluginError::OutputPluginFailed(format!("unknown vertex id '{vertex_id}'"))
         })?;
         let point = geo::Point::new(vertex.x(), vertex.y());
         Ok(point)
@@ -90,7 +90,7 @@ impl OpportunityRowId {
             ))),
         }?;
         map_model.get(edge_id).cloned().map_err(|e| {
-            OutputPluginError::OutputPluginFailed(format!("unknown edge id '{}'", edge_id))
+            OutputPluginError::OutputPluginFailed(format!("unknown edge id '{edge_id}'"))
         })
     }
 

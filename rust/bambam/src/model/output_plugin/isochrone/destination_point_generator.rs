@@ -44,8 +44,7 @@ impl DestinationPointGenerator {
             let edge_id = branch.edge_traversal.edge_id;
             let linestring = map_model.get(&edge_id).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "failure generating destination points: {}",
-                    e
+                    "failure generating destination points: {e}"
                 ))
             })?;
             let points = self.linestring_to_points(edge_id, linestring)?;
@@ -65,8 +64,7 @@ impl DestinationPointGenerator {
             DestinationPointGenerator::DestinationPoint => {
                 let last_point = linestring.points().next_back().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
-                        "geometry for edge_id {} has no points",
-                        edge_id,
+                        "geometry for edge_id {edge_id} has no points",
                     ))
                 })?;
                 Ok(vec![last_point])
@@ -81,8 +79,7 @@ impl DestinationPointGenerator {
                     .convert(&mut meters, &DistanceUnit::Meters)
                     .map_err(|e| {
                         OutputPluginError::OutputPluginFailed(format!(
-                            "failure converting stride {} to meters: {}",
-                            stride, e
+                            "failure converting stride {stride} to meters: {e}"
                         ))
                     })?;
                 let dense_linestring = linestring.densify(&Haversine, meters.as_f64() as f32);

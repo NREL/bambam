@@ -102,8 +102,7 @@ impl TryFrom<&ModalIntensityConfig> for ModalIntensityModel {
                     .collect::<Result<_, CompassConfigurationError>>()?;
                 let intensities = PolygonalRTree::new(intensities_data).map_err(|e| {
                     CompassConfigurationError::UserConfigurationError(format!(
-                        "failure building spatial index from file {}: {}",
-                        zonal_intensities_input_file, e
+                        "failure building spatial index from file {zonal_intensities_input_file}: {e}"
                     ))
                 })?;
                 Ok(Self::Zonal { intensities })
@@ -180,14 +179,12 @@ fn intensity_lookup(
         _ => {
             let mode_intensities = intensities.get(mode_name).ok_or_else(|| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "mode '{}' missing from modal intensities",
-                    mode_name
+                    "mode '{mode_name}' missing from modal intensities"
                 ))
             })?;
             let intensity = mode_intensities.get(intensity_category).ok_or_else(|| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "intensity category '{}' missing from modal intensities",
-                    intensity_category
+                    "intensity category '{intensity_category}' missing from modal intensities"
                 ))
             })?;
             let value = intensity.get_value();
@@ -216,8 +213,7 @@ fn spatial_intensity_lookup(
         .intersection_with_overlap_area(geometry)
         .map_err(|e| {
             OutputPluginError::OutputPluginFailed(format!(
-                "failure during spatial intensity lookup: {}",
-                e
+                "failure during spatial intensity lookup: {e}"
             ))
         })?;
     let found_intensities: Vec<(f64, f64)> = intersecting_zones_by_area
@@ -354,8 +350,7 @@ fn get_total_cost(state: &[StateVariable], si: &SearchInstance) -> Result<f64, O
     })?;
     let cost = cost_json.as_f64().ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
-            "could not deserialize 'total_cost' from JSON into f64: {:?}",
-            cost_json
+            "could not deserialize 'total_cost' from JSON into f64: {cost_json:?}"
         ))
     })?;
     Ok(cost)
@@ -367,19 +362,17 @@ fn read_geojson_feature_collection(
 ) -> Result<geojson::FeatureCollection, CompassConfigurationError> {
     let contents = std::fs::read_to_string(input_file).map_err(|e| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "unable to load file {}: {}",
-            input_file, e
+            "unable to load file {input_file}: {e}"
         ))
     })?;
     let dataset = GeoJson::from_str(&contents).map_err(|e| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "failed to read file {} as GeoJSON: {}",
-            input_file, e
+            "failed to read file {input_file} as GeoJSON: {e}"
         ))
     })?;
     let feature_collection = match dataset {
-        GeoJson::Geometry(_) => Err(CompassConfigurationError::UserConfigurationError(format!("GeoJSON intensities must be a FeatureCollection but found single 'Geometry' in file {}", input_file))),
-        GeoJson::Feature(_) => Err(CompassConfigurationError::UserConfigurationError(format!("GeoJSON intensities must be a FeatureCollection but found single 'Feature' in file {}", input_file))),
+        GeoJson::Geometry(_) => Err(CompassConfigurationError::UserConfigurationError(format!("GeoJSON intensities must be a FeatureCollection but found single 'Geometry' in file {input_file}"))),
+        GeoJson::Feature(_) => Err(CompassConfigurationError::UserConfigurationError(format!("GeoJSON intensities must be a FeatureCollection but found single 'Feature' in file {input_file}"))),
         GeoJson::FeatureCollection(feature_collection) => Ok(feature_collection),
     }?;
 
@@ -398,20 +391,17 @@ fn feature_to_intensities(
     };
     let geom = f.geometry.ok_or_else(|| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "feature {} has no geometry which is invalid",
-            id
+            "feature {id} has no geometry which is invalid"
         ))
     })?;
     let geometry: geo::Geometry<f32> = geom.try_into().map_err(|e| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "failed to decode geometry for feature {}: {}",
-            id, e
+            "failed to decode geometry for feature {id}: {e}"
         ))
     })?;
     let props = f.properties.ok_or_else(|| {
         CompassConfigurationError::UserConfigurationError(format!(
-            "feature {} has no properties which is invalid",
-            id
+            "feature {id} has no properties which is invalid"
         ))
     })?;
     let intensities: Intensities = props
@@ -419,8 +409,7 @@ fn feature_to_intensities(
         .map(|(k, v)| {
             let v: ModeIntensities = serde_json::from_value(v).map_err(|e| {
                 CompassConfigurationError::UserConfigurationError(format!(
-                    "feature {} entry for mode {} has invalid mode intensities: {}",
-                    id, k, e
+                    "feature {id} entry for mode {k} has invalid mode intensities: {e}"
                 ))
             })?;
             Ok((k, v))

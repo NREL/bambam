@@ -64,7 +64,7 @@ impl OutputPlugin for FinalizeOutputPlugin {
         for (name, prefix) in FinalizeOutputPlugin::FLATTEN_NESTED.iter() {
             let map_kvs = finalize_ops::get_map_kvs(output, name)?;
             for (k, v) in map_kvs.iter() {
-                let new_k = format!("{}_{}", prefix, k);
+                let new_k = format!("{prefix}_{k}");
                 finalized.insert(new_k, (*v).clone());
             }
         }

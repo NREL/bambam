@@ -65,8 +65,7 @@ pub fn points_along_linestring(
         match (linestring.points().next(), linestring.points().next_back()) {
             (Some(first), Some(last)) => Ok(vec![first, last]),
             _ => Err(format!(
-                "invalid linestring, should have at least two points: {:?}",
-                linestring
+                "invalid linestring, should have at least two points: {linestring:?}"
             )),
         }
     } else {

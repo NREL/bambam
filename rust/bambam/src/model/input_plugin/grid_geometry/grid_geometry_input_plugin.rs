@@ -23,8 +23,7 @@ impl InputPlugin for GridGeometryInputPlugin {
         // Map to correct type
         let grid_id_value: u64 = u64::from_str_radix(&row_grid_id, 16).map_err(|e| {
             InputPluginError::InputPluginFailed(format!(
-                "Invalid grid value. {} cannot be interpreted as u64",
-                row_grid_id
+                "Invalid grid value. {row_grid_id} cannot be interpreted as u64"
             ))
         })?;
         let h3_cell: CellIndex = CellIndex::try_from(grid_id_value).map_err(|e| {
@@ -47,7 +46,7 @@ impl InputPlugin for GridGeometryInputPlugin {
         input["geometry"] = serde_json::Value::String(
             out_bytes
                 .iter()
-                .map(|b| format!("{:02X?}", b))
+                .map(|b| format!("{b:02X?}"))
                 .collect::<Vec<String>>()
                 .join(""),
         );

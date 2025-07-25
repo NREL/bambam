@@ -47,7 +47,7 @@ pub fn new_aggregated<'a>(
                 aggregated_row_iterator(time_bin, bin_value, activity_types, &isochrone_format)
             }
             Err(e) => Box::new(std::iter::once(Err(OutputPluginError::OutputPluginFailed(
-                format!("failure reading bins from output: {}", e),
+                format!("failure reading bins from output: {e}"),
             )))),
         }));
 
@@ -94,7 +94,7 @@ fn disaggregated_row_iterator<'a>(
             Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
         };
         // the identifier is a serialized EdgeId or VertexId
-        let id_result: Result<usize, _> = k.parse().map_err(|e| OutputPluginError::InternalError(format!("disaggregate opportunity should be stored alongside numeric graph element identifier, an integer, but found {}", k)));
+        let id_result: Result<usize, _> = k.parse().map_err(|e| OutputPluginError::InternalError(format!("disaggregate opportunity should be stored alongside numeric graph element identifier, an integer, but found {k}")));
         let id = match id_result {
             Ok(i) => i,
             Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
@@ -108,7 +108,7 @@ fn disaggregated_row_iterator<'a>(
         };
 
         // pull the values (counts, state) from the JSON
-        let row_result: Result<DestinationOpportunity, _> = serde_json::from_value(v.clone()).map_err(|e| OutputPluginError::OutputPluginFailed(format!("disaggregate opportunity '{}' has unexpected shape: {}", id, e)));
+        let row_result: Result<DestinationOpportunity, _> = serde_json::from_value(v.clone()).map_err(|e| OutputPluginError::OutputPluginFailed(format!("disaggregate opportunity '{id}' has unexpected shape: {e}")));
         let row = match row_result {
             Ok(r) => r,
             Err(e) => {
@@ -188,14 +188,12 @@ fn deserialize_row<'a>(
     let iter = activity_types.iter().map(|act| {
         let count_json = input.get(act).ok_or_else(|| {
             OutputPluginError::OutputPluginFailed(format!(
-                "activity type '{}' missing from aggregate opportunity data",
-                act
+                "activity type '{act}' missing from aggregate opportunity data"
             ))
         })?;
         let count = count_json.as_f64().ok_or_else(|| {
             OutputPluginError::OutputPluginFailed(format!(
-                "activity count value for '{}' is not a valid number: '{}'",
-                act, count_json
+                "activity count value for '{act}' is not a valid number: '{count_json}'"
             ))
         })?;
         Ok((act, count))
@@ -214,8 +212,7 @@ fn geometry_from_map(
         O::OriginVertexOriented | O::DestinationVertexOriented => {
             let vertex = graph.get_vertex(&VertexId(id)).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "vertex-oriented disaggregate opportunity has unknown vertex_id '{}'",
-                    id
+                    "vertex-oriented disaggregate opportunity has unknown vertex_id '{id}'"
                 ))
             })?;
             Ok(geo::Geometry::Point(geo::Point::new(
@@ -226,8 +223,7 @@ fn geometry_from_map(
         O::EdgeOriented => {
             let linestring = map_model.get(&EdgeId(id)).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
-                    "edge-oriented disaggregate opportunity has unknown edge_id '{}'",
-                    id
+                    "edge-oriented disaggregate opportunity has unknown edge_id '{id}'"
                 ))
             })?;
             Ok(geo::Geometry::LineString(linestring.clone()))

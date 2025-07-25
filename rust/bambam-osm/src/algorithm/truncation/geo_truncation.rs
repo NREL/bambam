@@ -42,16 +42,12 @@ pub fn truncate_graph_polygon(
 
     let done_msg = if truncate_by_edge {
         format!(
-            "removed {} nodes not connected by edges to nodes within the provided extent",
-            n_removed
+            "removed {n_removed} nodes not connected by edges to nodes within the provided extent"
         )
     } else {
-        format!(
-            "removed {} nodes found outside the provided extent",
-            n_removed
-        )
+        format!("removed {n_removed} nodes found outside the provided extent")
     };
-    log::info!("{}", done_msg);
+    log::info!("{done_msg}");
     // msg = "Truncated graph by polygon"
     // utils.log(msg, level=lg.INFO)
     // return G
