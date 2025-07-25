@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use bamsoda_core::model::identifier::Geoid;
+use bamcensus_core::model::identifier::Geoid;
 use geo::Geometry;
 use routee_compass_core::util::geo::PolygonalRTree;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub enum OverlaySource {
     },
     /// reads overlay geometries from a shapefile with an id field
     Shapefile { file: String, id_field: String },
-    /// uses bamsoda-tiger to retrieve the geometries associated with the given geoids from the web
+    /// uses bamcensus-tiger to retrieve the geometries associated with the given geoids from the web
     TigerLines { geoids: Vec<Geoid> },
 }
 

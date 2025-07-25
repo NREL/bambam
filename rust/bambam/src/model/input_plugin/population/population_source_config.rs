@@ -1,8 +1,8 @@
 use crate::model::input_plugin::population::{
     population_source::PopulationSource, us_states_lookup,
 };
-use bamsoda_acs::model::AcsType;
-use bamsoda_core::model::identifier::GeoidType;
+use bamcensus_acs::model::AcsType;
+use bamcensus_core::model::identifier::GeoidType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

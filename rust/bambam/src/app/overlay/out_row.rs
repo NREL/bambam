@@ -1,5 +1,5 @@
 use super::MepRow;
-use bamsoda_core::model::identifier::{Geoid, HasGeoidString};
+use bamcensus_core::model::identifier::{Geoid, HasGeoidString};
 use geo::Geometry;
 use serde::{Deserialize, Serialize};
 use wkt::ToWkt;

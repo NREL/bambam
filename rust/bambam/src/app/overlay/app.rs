@@ -3,7 +3,7 @@ use crate::{
     app::overlay::{MepRow, OutRow, OverlaySource},
     util::polygonal_rtree::PolygonalRTree as PrtBambam,
 };
-use bamsoda_core::model::identifier::Geoid;
+use bamcensus_core::model::identifier::Geoid;
 use csv::StringRecord;
 use geo::Geometry;
 use itertools::Itertools;

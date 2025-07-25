@@ -4,9 +4,11 @@ use super::{
     study_region::StudyRegion,
 };
 use bambam_overturemaps::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
-use bamsoda_app::app::lodes_tiger;
-use bamsoda_core::model::identifier::GeoidType;
-use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
+use bamcensus::app::lodes_tiger;
+use bamcensus_core::model::identifier::GeoidType;
+use bamcensus_lehd::model::{
+    LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment,
+};
 use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
