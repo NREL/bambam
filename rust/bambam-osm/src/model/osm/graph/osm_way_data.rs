@@ -24,6 +24,7 @@ pub struct OsmWayData {
     pub landuse: Option<String>,
     pub lanes: Option<String>,
     pub maxspeed: Option<String>,
+    pub speed_kph: Option<String>,
     pub name: Option<String>,
     pub oneway: Option<String>,
     pub _ref: Option<String>,
@@ -67,6 +68,7 @@ impl OsmWayData {
                 "landuse" => out.landuse = Some(String::from(v.trim())),
                 "lanes" => out.lanes = Some(String::from(v.trim())),
                 "maxspeed" => out.maxspeed = Some(String::from(v.trim())),
+                "speed_kph" => out.speed_kph = Some(String::from(v.trim())),
                 "name" => out.name = Some(String::from(v.trim())),
                 "oneway" => out.oneway = Some(String::from(v.trim())),
                 "ref" => out._ref = Some(String::from(v.trim())),
@@ -120,6 +122,7 @@ impl OsmWayData {
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
             "maxspeed" => Ok(self.maxspeed.clone()),
+            "speed_kph" => Ok(self.speed_kph.clone()),
             "name" => Ok(self.name.clone()),
             "oneway" => Ok(self.oneway.clone()),
             "ref" => Ok(self._ref.clone()),
@@ -147,11 +150,12 @@ impl OsmWayData {
 
     /// follows the rules described in
     /// https://wiki.openstreetmap.org/wiki/Key:maxspeed#Values
-    pub fn get_maxspeed(
+    pub fn get_speed_value(
         &self,
+        key: &str,
         ignore_invalid_entries: bool,
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
-        match self.get_string_at_field("maxspeed") {
+        match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => deserialize_maxspeed(&s, ignore_invalid_entries),
             Err(e) => Err(e),
@@ -299,37 +303,8 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let mut nodes = ways.iter().flat_map(|w| w.nodes.clone()).collect_vec();
         nodes.dedup();
 
-        let maxspeeds: Vec<(Speed, SpeedUnit)> = ways
-            .iter()
-            .map(|w| w.get_maxspeed(true))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| {
-                OsmError::GraphSimplificationError(format!(
-                    "failed aggregating maxspeed values for a simplified way: {e}"
-                ))
-            })?
-            .into_iter()
-            .flatten()
-            .collect_vec();
-        let maxspeed: Option<String> = maxspeeds
-            .iter()
-            .map(|(s, su)| {
-                let mut s_convert = Cow::Borrowed(s);
-                su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
-                    OsmError::GraphSimplificationError(format!(
-                        "failure converting way speed {}/{} into {}: {}",
-                        s,
-                        su,
-                        SpeedUnit::KPH,
-                        e
-                    ))
-                })?;
-                Ok(s_convert.into_owned())
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .max()
-            .map(|s| s.to_string());
+        let maxspeed: Option<String> = aggregate_speed("maxspeed", ways)?;
+        let speed_kph: Option<String> = aggregate_speed("speed_kph", ways)?;
 
         let highway = ways
             .iter()
@@ -356,6 +331,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let footway = merge_fieldname(ways, "footway", Self::VALUE_DELIMITER)?;
         let landuse = merge_fieldname(ways, "landuse", Self::VALUE_DELIMITER)?;
         let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
+        let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
         // let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
         let name = merge_fieldname(ways, "name", Self::VALUE_DELIMITER)?;
         let oneway = Some(String::from("true"));
@@ -378,6 +354,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             landuse,
             lanes,
             maxspeed,
+            speed_kph,
             name,
             oneway,
             _ref,
@@ -389,6 +366,41 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
 
         Ok(new_way)
     }
+}
+
+fn aggregate_speed(key: &str, ways: &[&OsmWayData]) -> Result<Option<String>, OsmError> {
+    let speed_tuples = ways
+        .iter()
+        .map(|w| w.get_speed_value(key, true))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| {
+            OsmError::GraphSimplificationError(format!(
+                "failed aggregating maxspeed values for a simplified way: {e}"
+            ))
+        })?
+        .into_iter()
+        .flatten()
+        .collect_vec();
+    let max_speed_serialized: Option<String> = speed_tuples
+        .iter()
+        .map(|(s, su)| {
+            let mut s_convert = Cow::Borrowed(s);
+            su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
+                OsmError::GraphSimplificationError(format!(
+                    "failure converting way speed {}/{} into {}: {}",
+                    s,
+                    su,
+                    SpeedUnit::KPH,
+                    e
+                ))
+            })?;
+            Ok(s_convert.into_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .max()
+        .map(|s| s.to_string());
+    Ok(max_speed_serialized)
 }
 
 /// deals with the various ways that the maxspeed key can appear. handles
@@ -433,9 +445,9 @@ fn deserialize_maxspeed(
                     )))
                 }
                 [speed_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,
@@ -451,9 +463,9 @@ fn deserialize_maxspeed(
                     }
                 }
                 [speed_str, unit_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,

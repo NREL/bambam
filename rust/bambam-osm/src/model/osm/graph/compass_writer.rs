@@ -146,9 +146,10 @@ impl CompassWriter for OsmGraphVectorized {
         //     .map(|way| OsmWayDataSerializable::new(way, &raw_nodes, &vertex_lookup, true))
         //     .collect::<Result<Vec<_>, _>>()?;
 
+        /// TODO: copy this for speed_kph as well
         /// build a speed fill value lookup table
         let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            r.get_maxspeed(true)
+            r.get_speed("maxspeed", true)
                 .and_then(|r_opt| {
                     if let Some((s, su)) = r_opt {
                         let mut s_convert = Cow::Owned(s);

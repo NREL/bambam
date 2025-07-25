@@ -204,8 +204,7 @@ fn consolidate_clusters(
     );
 
     term::init(false);
-    term::hide_cursor()
-        .map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
+    term::hide_cursor().map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
     let mut consolidated_count = 0;
     let outer_iter = tqdm!(
         spatial_clusters.iter(),
@@ -230,8 +229,7 @@ fn consolidate_clusters(
 
     eprintln!();
     eprintln!();
-    term::show_cursor()
-        .map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
+    term::show_cursor().map_err(|e| OsmError::InternalError(format!("progress bar error: {e}")))?;
     Ok(consolidated_count)
 }
 
@@ -288,9 +286,7 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
 
             // Group way IDs by (neighbor, direction) and store way data
             let key = (*neighbor, *dir);
-            let way_ids = way_consolidation_map
-                .entry(key)
-                .or_default();
+            let way_ids = way_consolidation_map.entry(key).or_default();
             for way in adjacent_ways {
                 way_ids.insert(way.osmid);
                 all_ways.insert(way.osmid, way.clone());
@@ -318,8 +314,13 @@ fn consolidate_nodes(node_ids: Vec<OsmNodeId>, graph: &mut OsmGraph) -> Result<(
     // the new consolidated node will be added back in next.
     log::debug!("Removing {} nodes before consolidation", node_ids.len());
     for node_id in node_ids.iter() {
-        log::debug!("Removing node {node_id}");
-        graph.remove_node(node_id)?;
+        if node_id == &new_node_id {
+            log::debug!("Removing node {node_id} (to be reintroduced as the consolidated node)");
+            graph.remove_node(node_id)?;
+        } else {
+            log::debug!("Disconnecting node {node_id} during consolidation");
+            graph.disconnect_node(node_id, true)?;
+        }
     }
 
     // at this point, we can begin ADDITIONS, starting with the new consolidated node.

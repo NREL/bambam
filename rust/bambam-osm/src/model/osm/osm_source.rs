@@ -139,7 +139,7 @@ impl OsmSource {
                 }
 
                 // finalize the graph via vectorization
-                let result = OsmGraphVectorized::new(graph)?;
+                let result = OsmGraphVectorized::new(graph, true)?;
 
                 log::info!(
                     "loaded PBF-sourced Compass graph with {} nodes, {} ways",
@@ -155,9 +155,7 @@ impl OsmSource {
 /// helper function that attempts to read an optional WKT from a file if provided.
 fn read_extent_wkt(extent_filter_filepath: &str) -> Result<Geometry<f32>, OsmError> {
     let wkt_str = std::fs::read_to_string(extent_filter_filepath).map_err(|e| {
-        OsmError::ConfigurationError(format!(
-            "unable to read file {extent_filter_filepath}: {e}"
-        ))
+        OsmError::ConfigurationError(format!("unable to read file {extent_filter_filepath}: {e}"))
     })?;
 
     deserialize_validate_extent_str(&wkt_str)

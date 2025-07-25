@@ -1,4 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
@@ -33,6 +36,7 @@ pub struct OsmWayDataSerializable {
     pub landuse: Option<String>,
     pub lanes: Option<String>,
     pub maxspeed: Option<String>,
+    pub speed_kph: Option<String>,
     pub name: Option<String>,
     pub oneway: Option<String>,
     pub _ref: Option<String>,
@@ -59,6 +63,17 @@ impl OsmWayDataSerializable {
         graph: &OsmGraph,
         vertex_lookup: &HashMap<OsmNodeId, (usize, Vertex)>,
     ) -> Result<Self, OsmError> {
+        // prevent building invalid linestring objects with 0 or 1 coordinates
+        let nodes_connected = traj
+            .iter()
+            .flat_map(|(_, e, _)| e.nodes.clone())
+            .collect::<HashSet<_>>();
+        if nodes_connected.len() < 2 {
+            return Err(OsmError::InternalError(String::from(
+                "attempting to build output row with fewer than 2 unique nodes/coordinates present",
+            )));
+        }
+
         // in OSMNx, the first edge in a multi-edge is the one that is taken.
         // but perhaps we should consider combining edges here with OsmWayData::try_from(ways.as_slice())?
         // note from osmnx.simplification:
@@ -70,7 +85,7 @@ impl OsmWayDataSerializable {
         // # and just take the first one.
         let (src_node, way, dst_node) = traj.into_iter().next().ok_or_else(|| {
             OsmError::InternalError(String::from(
-                "attempting to build output row for adjacency triplet with no ways",
+                "attempting to build output row from empty trajectory",
             ))
         })?;
         let src_node_id = src_node.osmid;
@@ -90,6 +105,12 @@ impl OsmWayDataSerializable {
         })?;
 
         let linestring = create_linestring_for_od_path(&src_node_id, &dst_node_id, way, graph)?;
+        if linestring.coords().collect_vec().len() < 2 {
+            return Err(OsmError::InternalError(format!(
+                "during output processing, way ({})-[{}]->({}) produces a linestring with less than 2 nodes: '{}'",
+                src_node_id, way.osmid, dst_node_id, linestring.to_wkt().to_string()
+            )));
+        }
         let length_meters = Haversine.length(&linestring);
         let highway = top_highway(&way.highway, OsmWayData::VALUE_DELIMITER)?;
         let row = Self {
@@ -108,6 +129,7 @@ impl OsmWayDataSerializable {
             landuse: replace_delimiter(&way.landuse, Self::VALUE_DELIMITER),
             lanes: replace_delimiter(&way.lanes, Self::VALUE_DELIMITER),
             maxspeed: replace_delimiter(&way.maxspeed, Self::VALUE_DELIMITER),
+            speed_kph: replace_delimiter(&way.speed_kph, Self::VALUE_DELIMITER),
             name: replace_delimiter(&way.name, Self::VALUE_DELIMITER),
             oneway: replace_delimiter(&way.oneway, Self::VALUE_DELIMITER),
             _ref: replace_delimiter(&way._ref, Self::VALUE_DELIMITER),
@@ -134,6 +156,7 @@ impl OsmWayDataSerializable {
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
             "maxspeed" => Ok(self.maxspeed.clone()),
+            "speed_kph" => Ok(self.speed_kph.clone()),
             "name" => Ok(self.name.clone()),
             "oneway" => Ok(self.oneway.clone()),
             "ref" => Ok(self._ref.clone()),
@@ -146,11 +169,12 @@ impl OsmWayDataSerializable {
 
     /// follows the rules described in
     /// https://wiki.openstreetmap.org/wiki/Key:maxspeed#Values
-    pub fn get_maxspeed(
+    pub fn get_speed(
         &self,
+        key: &str,
         ignore_invalid_entries: bool,
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
-        match self.get_string_at_field("maxspeed") {
+        match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => deserialize_maxspeed(&s, ignore_invalid_entries),
             Err(e) => Err(e),
@@ -184,7 +208,7 @@ fn join_way_ids(value: &[OsmWayId], delimiter: &'static str) -> Option<String> {
     }
 }
 
-fn create_linestring_for_od_path(
+pub fn create_linestring_for_od_path(
     src: &OsmNodeId,
     dst: &OsmNodeId,
     way: &OsmWayData,
@@ -281,9 +305,9 @@ fn deserialize_maxspeed(
                     )))
                 }
                 [speed_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,
@@ -299,9 +323,9 @@ fn deserialize_maxspeed(
                     }
                 }
                 [speed_str, unit_str] => {
-                    let speed_result = speed_str.parse::<f64>().map_err(|e| {
-                        format!("speed value {speed_str} not a valid number: {e}")
-                    });
+                    let speed_result = speed_str
+                        .parse::<f64>()
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
 
                     let speed = match speed_result {
                         Ok(speed) => speed,

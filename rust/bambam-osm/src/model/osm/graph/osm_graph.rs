@@ -387,6 +387,9 @@ impl OsmGraph {
             "collect adjancencies for edge list"
         };
 
+        // TODO: is this function ignoring the effect of consolidation? we are seeing
+        // ways with one trajectory tuple constructed in OsmWayDataSerializable::new.
+
         // get each src, dst in the adjacencies and grab the connecting way(s)
         let triplets_iter = self.adj.iter().map(|((src, dir), adjacencies)| match dir {
             Dir::Reverse => Ok(None),

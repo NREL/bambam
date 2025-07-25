@@ -1,11 +1,17 @@
+use std::collections::HashSet;
+
 use super::{
     CompassIndex, HashMap, Itertools, OsmError, OsmGraph, OsmNodeDataSerializable, OsmNodeId,
     OsmNodes, OsmNodesSerializable, OsmWayDataSerializable, OsmWaysSerializable, Vertex,
     VertexLookup,
 };
-use crate::model::osm::graph::{osm_segment::OsmSegment, AdjacencyDirection};
+use crate::model::osm::graph::{
+    osm_segment::OsmSegment, osm_way_data_serializable::create_linestring_for_od_path,
+    AdjacencyDirection, OsmNodeData, OsmWayData,
+};
 use kdam::tqdm;
 use serde::{Deserialize, Serialize};
+use wkt::ToWkt;
 
 pub struct OsmGraphVectorized {
     /// the collection of OSM nodes associated via their OSMID
@@ -22,7 +28,10 @@ pub struct OsmGraphVectorized {
 impl OsmGraphVectorized {
     /// vectorizes an [`OsmGraph`] such that the position of each node and way in each vector
     /// (their index) becomes their respective VectorId/EdgeId.
-    pub fn new(graph: OsmGraph) -> Result<OsmGraphVectorized, OsmError> {
+    pub fn new(
+        graph: OsmGraph,
+        ignore_serialization_errors: bool,
+    ) -> Result<OsmGraphVectorized, OsmError> {
         // create vertex_ids, serializable nodes and vertex lookup (one-pass)
         let mut nodes: OsmNodesSerializable = Vec::with_capacity(graph.n_connected_nodes());
         let mut vertex_lookup: HashMap<OsmNodeId, (CompassIndex, Vertex)> = HashMap::new();
@@ -56,10 +65,15 @@ impl OsmGraphVectorized {
                         "way with EdgeId {idx} has no trajectories"
                     )))
                 }
-                Ok(Some(traj)) => {
-                    let result = OsmWayDataSerializable::new(traj, &graph, &vertex_lookup)?;
-                    ways.push(result);
+                Ok(Some(traj)) if invalid_linestring(&traj, &graph) => {
+                    let linestring = debug_linestring(&traj, &graph);
+                    log::warn!("connected ways triplet iterator provided invalid trajectory with linestring: '{linestring}'");
                 }
+                Ok(Some(traj)) => match OsmWayDataSerializable::new(traj, &graph, &vertex_lookup) {
+                    Ok(way) => ways.push(way),
+                    Err(_) if ignore_serialization_errors => {}
+                    Err(e) => return Err(e),
+                },
                 Err(e) => return Err(OsmError::GraphModificationError(e.to_string())),
             }
         }
@@ -72,5 +86,37 @@ impl OsmGraphVectorized {
             reference_graph: graph,
         };
         Ok(result)
+    }
+}
+
+fn invalid_linestring(
+    traj: &[(&OsmNodeData, &OsmWayData, &OsmNodeData)],
+    graph: &OsmGraph,
+) -> bool {
+    let nodes_connected = traj
+        .iter()
+        .flat_map(|(_, e, _)| e.nodes.clone())
+        .collect::<HashSet<_>>();
+    let mut coords = nodes_connected
+        .iter()
+        .flat_map(|n| graph.get_node_data(n).ok())
+        .map(|n| n.get_point())
+        .collect_vec();
+    coords.dedup_by(|a, b| {
+        ((a.x() * 10000.0f32) as i64) == ((b.x() * 10000.0f32) as i64)
+            && ((a.y() * 10000.0f32) as i64) == ((b.y() * 10000.0f32) as i64)
+    });
+    nodes_connected.len() < 2
+}
+
+fn debug_linestring(
+    traj: &[(&OsmNodeData, &OsmWayData, &OsmNodeData)],
+    graph: &OsmGraph,
+) -> String {
+    match traj.first() {
+        None => "invalid: empty linestring".to_string(),
+        Some((src, way, dst)) => create_linestring_for_od_path(&src.osmid, &dst.osmid, way, graph)
+            .map(|l| l.to_wkt().to_string())
+            .unwrap_or_else(|_| "invalid: unable to construct linestring".to_string()),
     }
 }
