@@ -12,9 +12,7 @@ pub fn create_grid_row(
 ) -> Result<serde_json::Value, String> {
     let mut output_value = template.clone();
     let output_map = output_value.as_object_mut().ok_or_else(|| {
-        format!(
-            "internal error, cannot build from template that is not JSON mappable: {template}"
-        )
+        format!("internal error, cannot build from template that is not JSON mappable: {template}")
     })?;
     output_map.insert(super::GRID_ID.to_string(), json![grid_id]);
     output_map.insert(super::ORIGIN_X.to_string(), json![x]);

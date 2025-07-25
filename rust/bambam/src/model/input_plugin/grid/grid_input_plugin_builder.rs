@@ -20,9 +20,7 @@ pub fn plugin_builder(
                 ))
             })?;
     let grid_type: GridType = data.get_config_serde(&super::GRID_TYPE, &"").map_err(|e| {
-        CompassConfigurationError::UserConfigurationError(format!(
-            "failure reading grid type: {e}"
-        ))
+        CompassConfigurationError::UserConfigurationError(format!("failure reading grid type: {e}"))
     })?;
     let population_source = match pop_config {
         Some(conf) => conf

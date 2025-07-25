@@ -29,9 +29,7 @@ impl FrontierModelService for IsochroneFrontierService {
                 &String::from("isochrone"),
             )
             .map_err(|e| {
-                FrontierModelError::BuildError(format!(
-                    "failure reading time_unit from query: {e}"
-                ))
+                FrontierModelError::BuildError(format!("failure reading time_unit from query: {e}"))
             })?
             .unwrap_or(TimeUnit::Minutes);
 

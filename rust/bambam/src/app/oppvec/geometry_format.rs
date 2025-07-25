@@ -63,9 +63,7 @@ impl GeometryFormat {
                     .ok_or_else(|| format!("file does not contain column '{column_name}'"))?;
                 let value = row.get(*idx).ok_or_else(|| format!("internal error: column index lookup has col '{column_name}' at idx '{idx}' which is not found in the lookup"))?;
                 let g = Geometry::try_from_wkt_str(value).map_err(|e| {
-                    format!(
-                        "failure reading geometry at column '{column_name}': {e}"
-                    )
+                    format!("failure reading geometry at column '{column_name}': {e}")
                 })?;
                 Ok(g)
                 // match g {
@@ -82,12 +80,12 @@ impl GeometryFormat {
                     .ok_or_else(|| format!("file does not contain column '{y_column}'"))?;
                 let x_str = row.get(*x_idx).ok_or_else(|| format!("internal error: column index lookup has col '{x_column}' at idx '{x_idx}' which is not found in the lookup"))?;
                 let y_str = row.get(*y_idx).ok_or_else(|| format!("internal error: column index lookup has col '{y_column}' at idx '{y_idx}' which is not found in the lookup"))?;
-                let x = x_str.parse::<f32>().map_err(|e| {
-                    format!("failure reading number in column '{x_column}': {e}")
-                })?;
-                let y = y_str.parse::<f32>().map_err(|e| {
-                    format!("failure reading number in column '{y_column}': {e}")
-                })?;
+                let x = x_str
+                    .parse::<f32>()
+                    .map_err(|e| format!("failure reading number in column '{x_column}': {e}"))?;
+                let y = y_str
+                    .parse::<f32>()
+                    .map_err(|e| format!("failure reading number in column '{y_column}': {e}"))?;
                 let point = geo::Point::new(x, y);
                 Ok(geo::Geometry::Point(point))
             }
