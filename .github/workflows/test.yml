@@ -14,6 +14,10 @@ jobs:
     name: cargo test
     runs-on: bam-runners
     steps:
+      - name: set git config for access to github.com/NREL/bamcensus
+        run: |
+          git config --global url."https://${{ secrets.BAMCENSUS_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: setup libssl for Ubuntu 24.04 runner
         run: |
           apt-get update && apt-get install -y librust-openssl-sys-dev
@@ -21,11 +25,12 @@ jobs:
         with: 
           token: ${{ secrets.BAMCENSUS_GITHUB_TOKEN }}
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Formatting
         run: |
           rustup component add rustfmt
           cargo fmt --all --manifest-path rust/Cargo.toml -- --check
+          
       - name: Test
         run: |
-          git config --global url."https://${{ secrets.BAMCENSUS_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
           cargo test --workspace --verbose --manifest-path rust/Cargo.toml
