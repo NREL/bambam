@@ -1,7 +1,7 @@
 use crate::model::output_plugin::opportunity::{
     opportunity_source::OpportunitySource, study_region::StudyRegion,
 };
-use bamsoda_app::app::lodes_tiger;
+use bamsoda::app::lodes_tiger;
 use bamsoda_core::model::identifier::{Geoid, GeoidType};
 use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
 use geo::Geometry;

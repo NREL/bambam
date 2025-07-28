@@ -1,6 +1,6 @@
 use crate::{model::input_plugin::grid, util::polygonal_rtree::PolygonalRTree};
+use bamsoda::app::acs_tiger::{self, AcsTigerResponse};
 use bamsoda_acs::model::{AcsApiQueryParams, AcsGeoidQuery, AcsType};
-use bamsoda_app::app::acs_tiger::{self, AcsTigerResponse};
 use bamsoda_core::model::identifier::{Geoid, GeoidType};
 use geo::Geometry;
 use itertools::Itertools;

@@ -6,9 +6,15 @@ consolidate = true
 parallelize = true
 overwrite = true
 
+# [component_filter]
+# type = "keep_all"
+
 [component_filter]
-type = "keep_all"
+type = "largest"
+
+# [element_filter]
+# type = "highway_tags"
+# tags = ['footway', 'cycleway', 'tertiary_link', 'trunk_link', 'elevator', 'secondary', 'residential', 'motorway', 'trunk', 'primary_link', 'corridor', 'primary', 'living_street', 'service', 'steps', 'track', 'path', 'trailhead', 'pedestrian', 'motorway_link', 'unclassified', 'road', 'secondary_link', 'tertiary', 'sidewalk', 'footway']
 
 [element_filter]
-type = "highway_tags"
-tags = ['footway', 'cycleway', 'tertiary_link', 'trunk_link', 'elevator', 'secondary', 'residential', 'motorway', 'trunk', 'primary_link', 'corridor', 'primary', 'living_street', 'service', 'steps', 'track', 'path', 'trailhead', 'pedestrian', 'motorway_link', 'unclassified', 'road', 'secondary_link', 'tertiary', 'sidewalk', 'footway']
+type = "osmnx_all_public"
