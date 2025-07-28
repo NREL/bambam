@@ -259,10 +259,7 @@ where
     match as_t {
         Ok(ts) => {
             let agg_result = agg(&ts);
-            match agg_result {
-                Some(agg_t) => return Some(format!("{agg_t}")),
-                None => return None,
-            }
+            agg_result.map(|agg_t| format!("{agg_t}"))
         }
         Err(_) => None,
     }
