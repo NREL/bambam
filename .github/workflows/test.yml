@@ -18,6 +18,8 @@ jobs:
         run: |
           apt-get update && apt-get install -y librust-openssl-sys-dev
       - uses: actions/checkout@v4
+        with: 
+          token: ${{ secrets.BAMCENSUS_GITHUB_TOKEN }}
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Formatting
         run: |
@@ -25,4 +27,5 @@ jobs:
           cargo fmt --all --manifest-path rust/Cargo.toml -- --check
       - name: Test
         run: |
+          git config --global url."https://${{ secrets.BAMCENSUS_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
           cargo test --workspace --verbose --manifest-path rust/Cargo.toml
