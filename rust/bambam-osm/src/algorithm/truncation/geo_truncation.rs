@@ -66,7 +66,7 @@ fn truncate_graph_by_edge(
     let remove_segments = {
         let shared_graph = Arc::new(&graph);
         shared_graph
-            .connected_ways_triplet_iterator(false)
+            .connected_multiedge_way_triplet_iterator(false)
             .par_bridge()
             .filter_map(|result| {
                 let triplets = match result {

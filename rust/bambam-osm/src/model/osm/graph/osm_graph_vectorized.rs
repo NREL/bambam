@@ -51,13 +51,13 @@ impl OsmGraphVectorized {
         eprintln!();
 
         // create edge_ids and serializable ways
-        let edge_iter = tqdm!(
-            graph.connected_ways_triplet_iterator(true),
+        let triplet_iter = tqdm!(
+            graph.connected_multiedge_way_triplet_iterator(true),
             total = graph.n_connected_ways(),
             desc = "osm ways to compass edges"
         );
         let mut ways: OsmWaysSerializable = vec![];
-        for (idx, traj_result) in edge_iter.enumerate() {
+        for (idx, traj_result) in triplet_iter.enumerate() {
             match traj_result {
                 Ok(None) => {}
                 Ok(Some(traj)) if traj.is_empty() => {

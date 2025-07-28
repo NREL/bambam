@@ -303,9 +303,10 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let mut nodes = ways.iter().flat_map(|w| w.nodes.clone()).collect_vec();
         nodes.dedup();
 
-        let maxspeed: Option<String> = aggregate_speed("maxspeed", ways)?;
-        let speed_kph: Option<String> = aggregate_speed("speed_kph", ways)?;
+        // let maxspeed: Option<String> = aggregate_speed("maxspeed", ways)?;
+        // let speed_kph: Option<String> = aggregate_speed("speed_kph", ways)?;
 
+        // we always want to aggregate to a single OSM:Highway key for this way data
         let highway = ways
             .iter()
             .flat_map(|w| w.highway.clone().map(|h| Highway::from_str(&h)))
@@ -319,7 +320,6 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             .min_by_key(|h| h.hierarchy())
             .map(|h| h.to_string());
 
-        // todo: make this a 1-pass operation.
         // oneway is "true" for any aggregated link in our system
         let access = merge_fieldname(ways, "access", Self::VALUE_DELIMITER)?;
         let area = merge_fieldname(ways, "area", Self::VALUE_DELIMITER)?;
@@ -331,8 +331,8 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let footway = merge_fieldname(ways, "footway", Self::VALUE_DELIMITER)?;
         let landuse = merge_fieldname(ways, "landuse", Self::VALUE_DELIMITER)?;
         let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
-        let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
-        // let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
+        let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
+        let speed_kph = merge_fieldname(ways, "speed_kph", Self::VALUE_DELIMITER)?;
         let name = merge_fieldname(ways, "name", Self::VALUE_DELIMITER)?;
         let oneway = Some(String::from("true"));
         let _ref = merge_fieldname(ways, "ref", Self::VALUE_DELIMITER)?;
@@ -368,40 +368,40 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
     }
 }
 
-fn aggregate_speed(key: &str, ways: &[&OsmWayData]) -> Result<Option<String>, OsmError> {
-    let speed_tuples = ways
-        .iter()
-        .map(|w| w.get_speed_value(key, true))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| {
-            OsmError::GraphSimplificationError(format!(
-                "failed aggregating maxspeed values for a simplified way: {e}"
-            ))
-        })?
-        .into_iter()
-        .flatten()
-        .collect_vec();
-    let max_speed_serialized: Option<String> = speed_tuples
-        .iter()
-        .map(|(s, su)| {
-            let mut s_convert = Cow::Borrowed(s);
-            su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
-                OsmError::GraphSimplificationError(format!(
-                    "failure converting way speed {}/{} into {}: {}",
-                    s,
-                    su,
-                    SpeedUnit::KPH,
-                    e
-                ))
-            })?;
-            Ok(s_convert.into_owned())
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .max()
-        .map(|s| s.to_string());
-    Ok(max_speed_serialized)
-}
+// fn aggregate_speed(key: &str, ways: &[&OsmWayData]) -> Result<Option<String>, OsmError> {
+//     let speed_tuples = ways
+//         .iter()
+//         .map(|w| w.get_speed_value(key, true))
+//         .collect::<Result<Vec<_>, _>>()
+//         .map_err(|e| {
+//             OsmError::GraphSimplificationError(format!(
+//                 "failed aggregating maxspeed values for a simplified way: {e}"
+//             ))
+//         })?
+//         .into_iter()
+//         .flatten()
+//         .collect_vec();
+//     let max_speed_serialized: Option<String> = speed_tuples
+//         .iter()
+//         .map(|(s, su)| {
+//             let mut s_convert = Cow::Borrowed(s);
+//             su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
+//                 OsmError::GraphSimplificationError(format!(
+//                     "failure converting way speed {}/{} into {}: {}",
+//                     s,
+//                     su,
+//                     SpeedUnit::KPH,
+//                     e
+//                 ))
+//             })?;
+//             Ok(s_convert.into_owned())
+//         })
+//         .collect::<Result<Vec<_>, _>>()?
+//         .into_iter()
+//         .max()
+//         .map(|s| s.to_string());
+//     Ok(max_speed_serialized)
+// }
 
 /// deals with the various ways that the maxspeed key can appear. handles
 /// valid cases such as:

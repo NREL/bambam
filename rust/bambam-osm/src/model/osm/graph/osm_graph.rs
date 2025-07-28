@@ -375,9 +375,10 @@ impl OsmGraph {
     }
 
     /// iterator that returns each triple in the adjacency list of (src node) -[segment]-> (dst node)
+    /// where multiples may exist as they are stored as multiedges.
     ///
-    /// the iterator is first sorted in order to guarantee idempotency on repeated runs.
-    pub fn connected_ways_triplet_iterator<'a>(
+    /// the iterator can be sorted in order to guarantee idempotency on repeated runs.
+    pub fn connected_multiedge_way_triplet_iterator<'a>(
         &'a self,
         sorted: bool,
     ) -> Box<dyn Iterator<Item = TripletRow<'a>> + 'a + Send + Sync> {
@@ -386,9 +387,6 @@ impl OsmGraph {
         } else {
             "collect adjancencies for edge list"
         };
-
-        // TODO: is this function ignoring the effect of consolidation? we are seeing
-        // ways with one trajectory tuple constructed in OsmWayDataSerializable::new.
 
         // get each src, dst in the adjacencies and grab the connecting way(s)
         let triplets_iter = self.adj.iter().map(|((src, dir), adjacencies)| match dir {
@@ -419,6 +417,7 @@ impl OsmGraph {
                 }
             }
         });
+
         let iter = tqdm!(triplets_iter, desc = desc, total = self.adj.len());
         if sorted {
             // sort by the first segment id. assumed here that the None branch is never reached and that failure due to
