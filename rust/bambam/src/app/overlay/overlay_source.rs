@@ -1,9 +1,9 @@
-use std::{collections::HashMap, path::Path};
-
 use bamsoda_core::model::identifier::Geoid;
+use flate2::read::GzDecoder;
 use geo::Geometry;
 use routee_compass_core::util::geo::PolygonalRTree;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 use wkt::TryFromWkt;
 
 /// source of overlay geometry dataset
@@ -74,6 +74,10 @@ fn read_overlay_shapefile(
             .ok_or_else(|| format!("field {id_field} missing from shapefile record"))?;
         let geoid = match field {
             shapefile::dbase::FieldValue::Character(Some(s)) => Geoid::try_from(s.as_str()),
+            shapefile::dbase::FieldValue::Numeric(Some(f)) => {
+                let serialized_int = format!("{}", *f as i64);
+                Geoid::try_from(serialized_int.as_str())
+            }
             _ => Err(format!(
                 "field '{}' has unexpected field type '{}'",
                 id_field,
@@ -92,8 +96,20 @@ fn read_overlay_csv(
     id_column: &str,
 ) -> Result<Vec<(Geometry, Geoid)>, String> {
     // read in overlay geometries file
-    let overlay_path = Path::new(overlay_filepath);
-    let mut overlay_reader = csv::Reader::from_path(overlay_path).map_err(|e| e.to_string())?;
+    // let overlay_path = Path::new(overlay_filepath);
+    let overlay_file = File::open(overlay_filepath)
+        .map_err(|e| format!("failure reading file {}: {}", overlay_filepath, e))?;
+    let r: Box<dyn std::io::Read> = if overlay_filepath.ends_with(".gz") {
+        Box::new(BufReader::new(GzDecoder::new(overlay_file)))
+    } else {
+        Box::new(overlay_file)
+    };
+    let mut overlay_reader = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .trim(csv::Trim::Fields)
+        .from_reader(r);
+
+    // let mut overlay_reader = csv::Reader::from_path(overlay_path).map_err(|e| e.to_string())?;
     let overlay_header_record = overlay_reader.headers().map_err(|e| e.to_string())?.clone();
     let overlay_headers = overlay_header_record
         .into_iter()
