@@ -98,7 +98,7 @@ fn read_overlay_csv(
     // read in overlay geometries file
     // let overlay_path = Path::new(overlay_filepath);
     let overlay_file = File::open(overlay_filepath)
-        .map_err(|e| format!("failure reading file {}: {}", overlay_filepath, e))?;
+        .map_err(|e| format!("failure reading file {overlay_filepath}: {e}"))?;
     let r: Box<dyn std::io::Read> = if overlay_filepath.ends_with(".gz") {
         Box::new(BufReader::new(GzDecoder::new(overlay_file)))
     } else {

@@ -89,8 +89,7 @@ pub fn run(
                 }
                 Err(e) => {
                     return Err(format!(
-                        "failure reading line {} in chunk {}: {}",
-                        lines_in_chunk, chunks, e
+                        "failure reading line {lines_in_chunk} in chunk {chunks}: {e}"
                     ))
                 }
             }
