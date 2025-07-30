@@ -30,7 +30,6 @@ pub fn run(
     output_filepath: &str,
     overlay_source: &OverlaySource,
     how: &OverlayOperation,
-    chunksize: usize,
 ) -> Result<(), String> {
     // fail early if IO error from read/write destinations
     let mep_result_file =
@@ -47,89 +46,37 @@ pub fn run(
         .collect::<HashMap<_, _>>();
     let overlay: Arc<PolygonalRTree<f64, Geoid>> = Arc::new(PolygonalRTree::new(overlay_data)?);
 
-    // Read chunks of CSV rows at a time. the mep output can be very large on the order of 10s of GBs.
-    // kdam::term::hide_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
-    let mut bar = BarBuilder::default()
-        .desc("chunking mep data rows")
-        .unit_scale(true)
-        .unit_divisor(1_000_000)
-        .position(0)
-        .build()?;
-    let mut chunk = String::new();
-    let mut chunks = 0;
-    let mut lines_read = 0;
-    let mut buf_reader: Box<dyn std::io::BufRead> = if mep_filepath.ends_with("gz") {
-        Box::new(BufReader::new(GzDecoder::new(mep_result_file)))
-    } else {
-        Box::new(BufReader::new(mep_result_file))
-    };
-    // let mut buf_reader = if mep_filepath.ends_with("gz") {
-    //     GzDecoder::new(mep_result_file)
-    // } else {
-    //     std::io::BufReader::new(mep_result_file)
-    // };
-    // let mut buf_reader = std::io::BufReader::new(mep_result_file);
-    let mut grouped: HashMap<Grouping, (Geometry, Vec<MepRow>)> = HashMap::new();
-    loop {
-        // Read a chunk of lines into `chunk`
-        chunk.clear();
-        chunks += 1;
-        let _ = bar.update(1);
-        let mut any = false;
+    let mut csv_reader = csv::Reader::from_reader(mep_result_file);
+    let rows_iter = tqdm!(csv_reader.deserialize(), desc = "reading MEP rows");
+    let rows = rows_iter
+        .collect::<Result<Vec<MepRow>, _>>()
+        .map_err(|e| format!("failed reading {mep_filepath}: {e}"))?;
+    eprintln!();
+    log::info!("processed {} rows", rows.len());
 
-        let mut lines_in_chunk = 0;
-        for _ in 0..chunksize {
-            let mut line: String = String::new();
-            match buf_reader.read_line(&mut line) {
-                Ok(0) => break,
-                Ok(_) => {
-                    chunk.push_str(&line);
-                    any = true;
-                    lines_in_chunk += 1;
-                }
-                Err(e) => {
-                    return Err(format!(
-                        "failure reading line {lines_in_chunk} in chunk {chunks}: {e}"
-                    ))
-                }
-            }
-        }
-        lines_read += lines_in_chunk;
-        if !any {
-            break;
-        }
+    let grouped_rows: Vec<(Grouping, MepRow)> = spatial_lookup(rows, overlay.clone())?;
 
-        // read the next chunk, process it, and append the grouped collection
-        let mut reader = csv::Reader::from_reader(chunk.as_bytes());
-        let rows = reader
-            .deserialize()
-            .collect::<Result<Vec<MepRow>, _>>()
-            .map_err(|e| format!("failure deserializing chunk {chunks}: {e}"))?;
-        let tagged_rows: Vec<(Grouping, MepRow)> = match_chunk(rows, overlay.clone())?;
-        for (grouping, row) in tagged_rows.into_iter() {
-            match grouped.get_mut(&grouping) {
-                Some((_, v)) => v.push(row),
-                None => {
-                    let geometry = overlay_lookup.get(&grouping.geoid).ok_or_else(|| {
-                        format!(
-                            "internal error, lookup missing geometry entry for geoid '{}'",
-                            grouping.geoid
-                        )
-                    })?;
-                    let _ = grouped.insert(grouping.clone(), (geometry.clone(), vec![row]));
-                }
+    let mut grouped_lookup: HashMap<Grouping, (Geometry, Vec<MepRow>)> = HashMap::new();
+    for (grouping, row) in grouped_rows.into_iter() {
+        match grouped_lookup.get_mut(&grouping) {
+            Some((_, v)) => v.push(row),
+            None => {
+                let geometry = overlay_lookup.get(&grouping.geoid).ok_or_else(|| {
+                    format!(
+                        "internal error, lookup missing geometry entry for geoid '{}'",
+                        grouping.geoid
+                    )
+                })?;
+                let _ = grouped_lookup.insert(grouping.clone(), (geometry.clone(), vec![row]));
             }
         }
     }
-    eprintln!();
-    // eprintln!();
-    // kdam::term::show_cursor().map_err(|e| format!("internal error modifying terminal: {e}"))?;
 
     // aggregate results into the overlay dataset
     let agg_iter = tqdm!(
-        grouped.iter(),
+        grouped_lookup.iter(),
         desc = "aggregating results",
-        total = grouped.len()
+        total = grouped_lookup.len()
     );
     let result = agg_iter
         .map(|(grouping, (geometry, mep_rows))| OutRow::new(grouping, geometry, mep_rows))
@@ -148,22 +95,23 @@ pub fn run(
 /// performs batch geospatial intersection operations to assign each [`MepRow`] its
 /// grouping identifier (GEOID). run in parallel over the rows argument, a chunk of
 /// the source MEP dataset.
-fn match_chunk(
+fn spatial_lookup(
     rows: Vec<MepRow>,
     overlay: Arc<PolygonalRTree<f64, Geoid>>,
 ) -> Result<Vec<(Grouping, MepRow)>, String> {
-    // let bar = Arc::new(Mutex::new(
-    //     BarBuilder::default()
-    //         .position(1)
-    //         .desc("spatial lookup")
-    //         .total(rows.len())
-    //         .build()?,
-    // ));
-    rows.into_par_iter()
+    let bar = Arc::new(Mutex::new(
+        BarBuilder::default()
+            .desc("spatial lookup")
+            .total(rows.len())
+            .build()?,
+    ));
+
+    let result = rows
+        .into_par_iter()
         .flat_map(|row| {
-            // if let Ok(mut b) = bar.clone().lock() {
-            //     let _ = b.update(1);
-            // }
+            if let Ok(mut b) = bar.clone().lock() {
+                let _ = b.update(1);
+            }
             let point = geo::Geometry::Point(geo::Point::new(row.lon, row.lat));
             let intersection_result = overlay.intersection(&point);
             let found = match intersection_result {
@@ -186,5 +134,7 @@ fn match_chunk(
                 }
             }
         })
-        .collect::<Result<Vec<_>, _>>()
+        .collect::<Result<Vec<_>, _>>()?;
+    eprintln!();
+    Ok(result)
 }

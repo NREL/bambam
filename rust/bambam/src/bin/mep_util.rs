@@ -145,9 +145,6 @@ pub enum App {
         /// name of the id field in the shapefile
         #[arg(long, default_value_t = String::from("GEOID"))]
         id_field: String,
-        /// size of each chunk of the dataset to process at-a-time
-        #[arg(long, default_value_t = 100_000)]
-        chunksize: usize,
     },
     #[command(
         name = "overlay-csv",
@@ -169,9 +166,6 @@ pub enum App {
         /// name of the id field in the shapefile
         #[arg(long, default_value_t = String::from("geometry"))]
         geometry_column: String,
-        /// size of each chunk of the dataset to process at-a-time
-        #[arg(long, default_value_t = 100_000)]
-        chunksize: usize,
     },
 }
 
@@ -253,19 +247,12 @@ impl App {
                 output_filename,
                 how,
                 id_field,
-                chunksize,
             } => {
                 let overlay_source = OverlaySource::Shapefile {
                     file: overlay_filename.clone(),
                     id_field: id_field.clone(),
                 };
-                overlay::run(
-                    mep_matrix_filename,
-                    output_filename,
-                    &overlay_source,
-                    how,
-                    *chunksize,
-                )
+                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
             }
             Self::OverlayCsv {
                 mep_matrix_filename,
@@ -274,20 +261,13 @@ impl App {
                 how,
                 id_column,
                 geometry_column,
-                chunksize,
             } => {
                 let overlay_source = OverlaySource::Csv {
                     file: overlay_filename.clone(),
                     geometry_column: geometry_column.clone(),
                     id_column: id_column.clone(),
                 };
-                overlay::run(
-                    mep_matrix_filename,
-                    output_filename,
-                    &overlay_source,
-                    how,
-                    *chunksize,
-                )
+                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
             }
             Self::OpportunitiesLongFormat {
                 vertices_compass_filename,
