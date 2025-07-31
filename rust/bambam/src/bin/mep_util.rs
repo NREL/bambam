@@ -14,6 +14,7 @@ pub struct CliArgs {
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
 use bambam::model::input_plugin::grid::grid_input_plugin;
 use bambam::model::input_plugin::grid::grid_input_plugin_builder;
+use bambam::util::wci;
 use bambam::model::input_plugin::grid::grid_type::GridType;
 use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
 use bamsoda_acs::model::AcsType;
@@ -26,6 +27,15 @@ use std::io::Write;
 
 #[derive(Subcommand)]
 pub enum App {
+    #[command(
+        name = "walk comfort index",
+        about = "calculate the WCI of links, set to file"
+    )]
+    WalkComfortIndexSet {
+        /// file to write WCI values to, one per line
+        wci_file: String,
+        input_osm: String,
+    },
     #[command(
         name = "preprocess_grid",
         about = "processs the grid before running bambam to avoid time-out errors"
@@ -155,6 +165,13 @@ impl App {
     pub fn run(&self) -> Result<(), String> {
         env_logger::init();
         match self {
+            Self::WalkComfortIndexSet {
+                wci_file,
+                input_osm,
+            } => {
+                wci::process_wci(&input_osm, &wci_file);
+                Ok(())
+            }
             Self::PreProcessGrid {
                 acs_type,
                 acs_year,
