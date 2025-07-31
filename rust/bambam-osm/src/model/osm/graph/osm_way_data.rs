@@ -19,6 +19,7 @@ pub struct OsmWayData {
     pub est_width: Option<String>,
     pub highway: Option<String>,
     pub sidewalk: Option<String>,
+    pub cycleway: Option<String>,
     pub footway: Option<String>,
     pub junction: Option<String>,
     pub landuse: Option<String>,
@@ -63,6 +64,7 @@ impl OsmWayData {
                 "est_width" => out.est_width = Some(String::from(v.trim())),
                 "highway" => out.highway = Some(String::from(v.trim())),
                 "sidewalk" => out.sidewalk = Some(String::from(v.trim())),
+                "cycleway" => out.cycleway = Some(String::from(v.trim())),
                 "footway" => out.footway = Some(String::from(v.trim())),
                 "junction" => out.junction = Some(String::from(v.trim())),
                 "landuse" => out.landuse = Some(String::from(v.trim())),
@@ -118,6 +120,7 @@ impl OsmWayData {
             "highway" => Ok(self.highway.clone()),
             "sidewalk" => Ok(self.sidewalk.clone()),
             "footway" => Ok(self.footway.clone()),
+            "cycleway" => Ok(self.cycleway.clone()),
             "junction" => Ok(self.junction.clone()),
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
@@ -328,6 +331,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         // let highway = merge_fieldname(ways, "highway", Self::VALUE_DELIMITER)?;
         let junction = merge_fieldname(ways, "junction", Self::VALUE_DELIMITER)?;
         let sidewalk = merge_fieldname(ways, "sidewalk", Self::VALUE_DELIMITER)?;
+        let cycleway = merge_fieldname(ways, "cycleway", Self::VALUE_DELIMITER)?;
         let footway = merge_fieldname(ways, "footway", Self::VALUE_DELIMITER)?;
         let landuse = merge_fieldname(ways, "landuse", Self::VALUE_DELIMITER)?;
         let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
@@ -349,6 +353,7 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             est_width,
             highway,
             sidewalk,
+            cycleway,
             footway,
             junction,
             landuse,
