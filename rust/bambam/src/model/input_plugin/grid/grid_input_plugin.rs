@@ -55,12 +55,12 @@ pub fn process_grid_input(
     // allow for user override of extent format and grid type.
     let extent_format: ExtentFormat = input
         .get_config_serde_optional(&super::EXTENT_FORMAT, &"")
-        .map_err(|e| InputPluginError::InputPluginFailed(format!("failure reading extent: {}", e)))?
+        .map_err(|e| InputPluginError::InputPluginFailed(format!("failure reading extent: {e}")))?
         .unwrap_or(extent_format);
     let grid_type: GridType = input
         .get_config_serde_optional(&super::GRID_TYPE, &"")
         .map_err(|e| {
-            InputPluginError::InputPluginFailed(format!("failure reading grid type: {}", e))
+            InputPluginError::InputPluginFailed(format!("failure reading grid type: {e}"))
         })?
         .unwrap_or(grid_type);
 
@@ -180,10 +180,10 @@ fn add_population_source(
     population_source: &PopulationSource,
 ) -> Result<(), InputPluginError> {
     let pop_data = population_source.create_dataset(extent).map_err(|e| {
-        InputPluginError::InputPluginFailed(format!("failure creating population dataset: {}", e))
+        InputPluginError::InputPluginFailed(format!("failure creating population dataset: {e}"))
     })?;
     let rtree = Arc::new(PolygonalRTree::new(pop_data).map_err(|e| {
-        InputPluginError::InputPluginFailed(format!("failure building spatial lookup: {}", e))
+        InputPluginError::InputPluginFailed(format!("failure building spatial lookup: {e}"))
     })?);
     let mut bar = Arc::new(Mutex::new(
         Bar::builder()
@@ -191,7 +191,7 @@ fn add_population_source(
             .total(queries.len())
             .build()
             .map_err(|e| {
-                InputPluginError::InputPluginFailed(format!("failure building progress bar: {}", e))
+                InputPluginError::InputPluginFailed(format!("failure building progress bar: {e}"))
             })?,
     ));
 
@@ -205,8 +205,7 @@ fn add_population_source(
             }
             let population = get_query_population_proportion(query, &rtree).map_err(|e| {
                 InputPluginError::InputPluginFailed(format!(
-                    "failure matching query with population data: {}",
-                    e
+                    "failure matching query with population data: {e}"
                 ))
             })?;
             Ok((idx, population))

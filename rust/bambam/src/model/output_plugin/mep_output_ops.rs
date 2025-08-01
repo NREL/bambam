@@ -1,11 +1,10 @@
 use super::{
+    bambam_field,
     isochrone::time_bin::TimeBin,
-    mep_output_field,
     mep_score::{
-        activity_parameters::ActivityParameters, modal_intensity_values::ModalIntensityValues,
+        activity_frequencies::ActivityFrequencies, modal_intensity_model::ModalIntensityModel,
     },
 };
-use crate::model::output_plugin::mep_score::mep_score_ops;
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
@@ -66,8 +65,7 @@ pub fn points_along_linestring(
         match (linestring.points().next(), linestring.points().next_back()) {
             (Some(first), Some(last)) => Ok(vec![first, last]),
             _ => Err(format!(
-                "invalid linestring, should have at least two points: {:?}",
-                linestring
+                "invalid linestring, should have at least two points: {linestring:?}"
             )),
         }
     } else {
@@ -119,41 +117,41 @@ pub fn accumulate_global_opps(
     Ok(result)
 }
 
-pub fn accumulate_global_mep_scores(
-    opportunities: &HashMap<String, f64>,
-    search_result: &SearchAppResult,
-    mode: &String,
-    time_bin: &TimeBin,
-    modal_intensity_values: &ModalIntensityValues,
-    activity_parameters: &ActivityParameters,
-) -> Result<HashMap<String, f64>, PluginError> {
-    let intensity_vector =
-        modal_intensity_values.get_intensity_vector(mode, Some(time_bin), None, search_result)?;
-    let opps = opportunities.iter().map(|(k, v)| (k, Some(*v)));
-    let meps = mep_score_ops::compute_mep_from_opportunities(
-        None,
-        Box::new(opps),
-        activity_parameters,
-        &intensity_vector,
-        search_result,
-    )?;
-    Ok(meps)
-}
+// pub fn accumulate_global_mep_scores(
+//     opportunities: &HashMap<String, f64>,
+//     search_result: &SearchAppResult,
+//     mode: &String,
+//     time_bin: &TimeBin,
+//     modal_intensity_values: &ModalIntensityModel,
+//     activity_parameters: &ActivityFrequencies,
+// ) -> Result<HashMap<String, f64>, PluginError> {
+//     let intensity_vector =
+//         modal_intensity_values.get_intensity_vector(mode, Some(time_bin), None, search_result)?;
+//     let opps = opportunities.iter().map(|(k, v)| (k, Some(*v)));
+//     let meps = mep_score_ops::compute_mep_from_opportunities(
+//         None,
+//         Box::new(opps),
+//         activity_parameters,
+//         &intensity_vector,
+//         search_result,
+//     )?;
+//     Ok(meps)
+// }
 
 /// steps through each bin's output section for mutable updates
 pub fn iterate_bins<'a>(
     output: &'a mut serde_json::Value,
 ) -> Result<Box<dyn Iterator<Item = (&'a String, &'a mut serde_json::Value)> + 'a>, PluginError> {
-    let bins = output.get_mut(mep_output_field::TIME_BIN).ok_or_else(|| {
+    let bins = output.get_mut(bambam_field::TIME_BINS).ok_or_else(|| {
         PluginError::UnexpectedQueryStructure(format!(
             "after running json structure plugin, cannot find key {}",
-            mep_output_field::TIME_BIN
+            bambam_field::TIME_BINS
         ))
     })?;
     let bins_map = bins.as_object_mut().ok_or_else(|| {
         PluginError::UnexpectedQueryStructure(format!(
             "after running json structure plugin, field {} was not a key/value map",
-            mep_output_field::TIME_BIN
+            bambam_field::TIME_BINS
         ))
     })?;
     Ok(Box::new(bins_map.iter_mut()))

@@ -1,6 +1,6 @@
 use bambam::app::{
     oppvec::{self, oppvec_ops},
-    overlay::{self, OverlayOperation},
+    overlay::{self, OverlayOperation, OverlaySource},
 };
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
@@ -139,10 +139,10 @@ pub enum App {
         // activity_categories: String,
     },
     #[command(
-        name = "overlay",
+        name = "overlay-shapefile",
         about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
     )]
-    OutputOverlay {
+    OverlayShapefile {
         /// a CSV file containing a bambam output
         mep_matrix_filename: String,
         /// a file containing WKT geometries tagged with ids
@@ -152,12 +152,30 @@ pub enum App {
         /// overlay method to apply
         #[arg(long, default_value_t = OverlayOperation::Intersection)]
         how: OverlayOperation,
-        /// name of geometry column in the overlay file
-        #[arg(long, default_value_t = String::from("geometry"))]
-        geometry_column: String,
-        /// name of the id column in the overlay file
+        /// name of the id field in the shapefile
+        #[arg(long, default_value_t = String::from("GEOID"))]
+        id_field: String,
+    },
+    #[command(
+        name = "overlay-csv",
+        about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
+    )]
+    OverlayCsv {
+        /// a CSV file containing a bambam output
+        mep_matrix_filename: String,
+        /// a file containing WKT geometries tagged with ids
+        overlay_filename: String,
+        /// file path to write the result dataset
+        output_filename: String,
+        /// overlay method to apply
+        #[arg(long, default_value_t = OverlayOperation::Intersection)]
+        how: OverlayOperation,
+        /// name of the id field in the shapefile
         #[arg(long, default_value_t = String::from("GEOID"))]
         id_column: String,
+        /// name of the id field in the shapefile
+        #[arg(long, default_value_t = String::from("geometry"))]
+        geometry_column: String,
     },
 }
 
@@ -235,26 +253,39 @@ impl App {
                 let mut writeto = BufWriter::new(file);
                 for value in array {
                     let json_line = serde_json::to_string(value).map_err(|e| e.to_string())?;
-                    writeln!(writeto, "{}", json_line).map_err(|e| e.to_string())?;
+                    writeln!(writeto, "{json_line}").map_err(|e| e.to_string())?;
                 }
-                println!("Wrote newline-delimited JSON to {}", output_file);
+                println!("Wrote newline-delimited JSON to {output_file}");
                 Ok(())
             }
-            Self::OutputOverlay {
+            Self::OverlayShapefile {
                 mep_matrix_filename,
                 overlay_filename,
                 output_filename,
                 how,
-                geometry_column,
-                id_column,
-            } => overlay::run(
+                id_field,
+            } => {
+                let overlay_source = OverlaySource::Shapefile {
+                    file: overlay_filename.clone(),
+                    id_field: id_field.clone(),
+                };
+                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
+            }
+            Self::OverlayCsv {
                 mep_matrix_filename,
                 overlay_filename,
                 output_filename,
                 how,
-                geometry_column,
                 id_column,
-            ),
+                geometry_column,
+            } => {
+                let overlay_source = OverlaySource::Csv {
+                    file: overlay_filename.clone(),
+                    geometry_column: geometry_column.clone(),
+                    id_column: id_column.clone(),
+                };
+                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
+            }
             Self::OpportunitiesLongFormat {
                 vertices_compass_filename,
                 opportunities_filename,
@@ -377,7 +408,7 @@ mod tests {
         match result {
             Ok(_) => {}
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
             }
         }
     }

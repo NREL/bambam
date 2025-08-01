@@ -9,7 +9,7 @@ documentation = "pages.github.nrel.gov/BAM/bambam-osm"
 [dependencies]
 bamsoda-core = { workspace = true }
 bamsoda-acs = { workspace = true }
-bamsoda-app = { workspace = true }
+bamsoda = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }

@@ -65,8 +65,7 @@ impl SimplifiedWay {
             .map(|node_id| {
                 let node = nodes.get(node_id).ok_or_else(|| {
                     OsmError::GraphSimplificationError(format!(
-                        "expected node {} to exist in OsmNodes collection",
-                        node_id
+                        "expected node {node_id} to exist in OsmNodes collection"
                     ))
                 })?;
                 Ok(Coord::from((node.x, node.y)))

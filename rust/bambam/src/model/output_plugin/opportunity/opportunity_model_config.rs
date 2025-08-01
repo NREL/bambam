@@ -1,7 +1,5 @@
 use super::opportunity_source::OpportunitySource;
-use super::{
-    opportunity_model::OpportunityModel, opportunity_table_orientation::OpportunityTableOrientation,
-};
+use super::{opportunity_model::OpportunityModel, opportunity_orientation::OpportunityOrientation};
 use csv::{ReaderBuilder, StringRecord};
 use flate2::read::GzDecoder;
 use geo::{Centroid, Convert, Point};
@@ -28,7 +26,7 @@ pub enum OpportunityModelConfig {
     FileSource {
         opportunity_input_file: String,
         activity_column_names: Vec<String>,
-        table_orientation: OpportunityTableOrientation,
+        table_orientation: OpportunityOrientation,
     },
     /// This collection of opportunities comes from an API.
     ///
@@ -43,7 +41,7 @@ pub enum OpportunityModelConfig {
         vertex_input_file: String,
         opportunity_source: OpportunitySource,
         activity_column_names: Vec<String>,
-        table_orientation: OpportunityTableOrientation,
+        table_orientation: OpportunityOrientation,
     },
     #[serde(rename = "combined")]
     Combined {
@@ -63,8 +61,7 @@ impl OpportunityModelConfig {
                 // set up to read file
                 let f = File::open(opportunity_input_file).map_err(|e| {
                     OutputPluginError::BuildFailed(format!(
-                        "failed reading opportunities from {}: {}",
-                        opportunity_input_file, e
+                        "failed reading opportunities from {opportunity_input_file}: {e}"
                     ))
                 })?;
                 let r: Box<dyn std::io::Read> = if fs_utils::is_gzip(opportunity_input_file) {
@@ -80,8 +77,7 @@ impl OpportunityModelConfig {
                     .headers()
                     .map_err(|e| {
                         OutputPluginError::BuildFailed(format!(
-                            "failure reading headers from {}: {}",
-                            opportunity_input_file, e
+                            "failure reading headers from {opportunity_input_file}: {e}"
                         ))
                     })?
                     .iter()
@@ -92,8 +88,7 @@ impl OpportunityModelConfig {
                 for col in activity_column_names.iter() {
                     if !column_lookup.contains_key(col) {
                         return Err(OutputPluginError::BuildFailed(format!(
-                            "file {} is missing expected column {}",
-                            opportunity_input_file, col
+                            "file {opportunity_input_file} is missing expected column {col}"
                         )));
                     }
                 }
@@ -107,8 +102,7 @@ impl OpportunityModelConfig {
                 for row_result in rows_iter {
                     let row = row_result.map_err(|e| {
                         OutputPluginError::BuildFailed(format!(
-                            "failure reading row from {}: {}",
-                            opportunity_input_file, e
+                            "failure reading row from {opportunity_input_file}: {e}"
                         ))
                     })?;
                     let mut row_counts = vec![];
@@ -122,7 +116,7 @@ impl OpportunityModelConfig {
                 let result = OpportunityModel::Tabular {
                     activity_types: activity_column_names.to_owned(),
                     activity_counts,
-                    table_orientation: table_orientation.to_owned(),
+                    opportunity_orientation: table_orientation.to_owned(),
                 };
                 Ok(result)
             }
@@ -173,8 +167,7 @@ impl OpportunityModelConfig {
                 )
                 .map_err(|e| {
                     OutputPluginError::BuildFailed(format!(
-                        "failure reading vertices from {}: {}",
-                        vertex_input_file, e
+                        "failure reading vertices from {vertex_input_file}: {e}"
                     ))
                 })?;
 
@@ -242,7 +235,7 @@ impl OpportunityModelConfig {
                 let result = OpportunityModel::Tabular {
                     activity_types: activity_column_names.clone(),
                     activity_counts,
-                    table_orientation: *table_orientation,
+                    opportunity_orientation: *table_orientation,
                 };
                 Ok(result)
             }
@@ -265,20 +258,16 @@ fn get_u32_from_row(
     lookup: &HashMap<String, usize>,
 ) -> Result<u32, OutputPluginError> {
     let record_index = lookup.get(col).ok_or_else(|| {
-        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {}", col))
+        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {col}"))
     })?;
     let value = row.get(*record_index).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
-            "file column {} is missing from mapping but requested by the opportunity model",
-            col
+            "file column {col} is missing from mapping but requested by the opportunity model"
         ))
     })?;
 
     let number: u32 = value.parse().map_err(|e| {
-        OutputPluginError::OutputPluginFailed(format!(
-            "could not read {} as an integer: {}",
-            value, e
-        ))
+        OutputPluginError::OutputPluginFailed(format!("could not read {value} as an integer: {e}"))
     })?;
     Ok(number)
 }
@@ -291,19 +280,17 @@ fn get_f64_from_row(
     lookup: &HashMap<String, usize>,
 ) -> Result<f64, OutputPluginError> {
     let record_index = lookup.get(col).ok_or_else(|| {
-        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {}", col))
+        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {col}"))
     })?;
     let value = row.get(*record_index).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
-            "file column {} is missing from mapping but requested by the opportunity model",
-            col
+            "file column {col} is missing from mapping but requested by the opportunity model"
         ))
     })?;
 
     let number: f64 = value.parse().map_err(|e| {
         OutputPluginError::OutputPluginFailed(format!(
-            "could not read {} as an f64 (floating point value): {}",
-            value, e
+            "could not read {value} as an f64 (floating point value): {e}"
         ))
     })?;
     Ok(number)
@@ -326,20 +313,18 @@ where
     T: de::DeserializeOwned,
 {
     let record_index = lookup.get(col).ok_or_else(|| {
-        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {}", col))
+        OutputPluginError::OutputPluginFailed(format!("file is missing expected column {col}"))
     })?;
     let value = row.get(*record_index).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
-            "file column {} is missing from mapping but requested by the opportunity model",
-            col
+            "file column {col} is missing from mapping but requested by the opportunity model"
         ))
     })?;
     use de::IntoDeserializer;
     let result: Result<T, OutputPluginError> =
         T::deserialize(value.into_deserializer()).map_err(|e: de::value::Error| {
             OutputPluginError::OutputPluginFailed(format!(
-                "failed to deserialize column {} - {}",
-                col, e
+                "failed to deserialize column {col} - {e}"
             ))
         });
     result

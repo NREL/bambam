@@ -1,7 +1,7 @@
 use crate::model::output_plugin::opportunity::{
     opportunity_source::OpportunitySource, study_region::StudyRegion,
 };
-use bamsoda_app::app::lodes_tiger;
+use bamsoda::app::lodes_tiger;
 use bamsoda_core::model::identifier::{Geoid, GeoidType};
 use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
 use geo::Geometry;
@@ -28,11 +28,11 @@ pub fn collect_lodes_opportunities(
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .map_err(|e| format!("failure creating async rust tokio runtime: {}", e))?;
+        .map_err(|e| format!("failure creating async rust tokio runtime: {e}"))?;
     let future = lodes_tiger::run(geoids, data_granularity, segments, dataset);
     let res = runtime
         .block_on(future)
-        .map_err(|e| format!("failure downloading LODES data: {}", e))?;
+        .map_err(|e| format!("failure downloading LODES data: {e}"))?;
     if !res.join_errors.is_empty() || !res.tiger_errors.is_empty() {
         let msg = format!("failures downloading LODES data.\nTIGER ERRORS (top 5):\n  {}\nJOIN ERRORS (top 5):\n  {}",
             res.tiger_errors.iter().take(5).join("\n  "),
@@ -72,10 +72,7 @@ pub fn collect_lodes_opportunities(
 
             for mapped_act in mapped_acts.iter() {
                 let index = idx_lookup.get(mapped_act).ok_or_else(|| {
-                    format!(
-                        "activity type {} missing from expected activity types",
-                        mapped_act
-                    )
+                    format!("activity type {mapped_act} missing from expected activity types")
                 })?;
                 out_row[*index] += row.value.value;
             }

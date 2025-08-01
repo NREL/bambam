@@ -144,8 +144,7 @@ where
     let scale_factor = (max_radius + distance) / max_radius;
     if scale_factor < T::zero() {
         return Err(format!(
-            "distance {:#?} leads to wrapping over zero as max radius is {:#?}",
-            distance, max_radius
+            "distance {distance:#?} leads to wrapping over zero as max radius is {max_radius:#?}"
         ));
     }
     let scaled = hull.scale(scale_factor);

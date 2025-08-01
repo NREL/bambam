@@ -18,17 +18,15 @@ impl InputPlugin for PopulationInputPlugin {
     ) -> Result<(), InputPluginError> {
         let geom_wkt = input.get_config_string(&grid::GEOMETRY, &"").map_err(|e| {
             InputPluginError::InputPluginFailed(format!(
-                "failure reading `geometry` from grid row: {}",
-                e
+                "failure reading `geometry` from grid row: {e}"
             ))
         })?;
         let geometry: Geometry = Geometry::try_from_wkt_str(&geom_wkt).map_err(|e| {
             InputPluginError::InputPluginFailed(format!(
-                "failure reading `geometry` from grid row: {}",
-                e
+                "failure reading `geometry` from grid row: {e}"
             ))
         })?;
 
-        todo!()
+        todo!("not yet implemented, Population modeling is called from the Grid plugin")
     }
 }

@@ -1,6 +1,6 @@
 use crate::{model::input_plugin::grid, util::polygonal_rtree::PolygonalRTree};
+use bamsoda::app::acs_tiger::{self, AcsTigerResponse};
 use bamsoda_acs::model::{AcsApiQueryParams, AcsGeoidQuery, AcsType};
-use bamsoda_app::app::acs_tiger::{self, AcsTigerResponse};
 use bamsoda_core::model::identifier::{Geoid, GeoidType};
 use geo::Geometry;
 use itertools::Itertools;
@@ -76,12 +76,12 @@ impl PopulationSource {
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .map_err(|e| format!("failure creating async rust tokio runtime: {}", e))?;
+                    .map_err(|e| format!("failure creating async rust tokio runtime: {e}"))?;
 
                 let future = acs_tiger::run_batch(&queries);
                 let res = runtime
                     .block_on(future)
-                    .map_err(|e| format!("failure downloading ACS data: {}", e))?;
+                    .map_err(|e| format!("failure downloading ACS data: {e}"))?;
                 if !res.join_errors.is_empty() || !res.tiger_errors.is_empty() {
                     let msg = format!("failures downloading ACS data.\nTIGER ERRORS (top 5):\n  {}\nJOIN ERRORS (top 5):\n  {}",
                         res.tiger_errors.iter().take(5).join("\n  "),
@@ -136,7 +136,7 @@ fn process_multiple_acs_category_response(
         .total(*n_groups)
         .desc("proportioning population into grid")
         .build()
-        .map_err(|e| format!("error building progress bar: {}", e))?;
+        .map_err(|e| format!("error building progress bar: {e}"))?;
     let mut result = vec![];
     for (geometry, grouped) in &chunk_iter {
         let mut population_value = 0.0;

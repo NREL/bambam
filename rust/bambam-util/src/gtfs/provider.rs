@@ -28,7 +28,7 @@ impl GtfsProvider {
         .iter()
         .flatten()
         .join("_");
-        format!("{}.zip", name)
+        format!("{name}.zip")
     }
 }
 
@@ -37,6 +37,6 @@ impl Display for GtfsProvider {
         let url_opt = self.url.as_ref();
         let url = url_opt.cloned().unwrap_or_default();
         let name = self.filename();
-        write!(f, "\"{}\"{}", name, url)
+        write!(f, "\"{name}\"{url}")
     }
 }

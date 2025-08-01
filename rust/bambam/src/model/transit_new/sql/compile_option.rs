@@ -19,7 +19,7 @@ impl FromStr for CompileOption {
                 String::from(*key),
                 String::from(*value),
             )),
-            _ => Err(format!("compile option not a flag or key=value: {}", s)),
+            _ => Err(format!("compile option not a flag or key=value: {s}")),
         }
     }
 }
@@ -27,8 +27,8 @@ impl FromStr for CompileOption {
 impl Display for CompileOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompileOption::Flag(flag) => write!(f, "{}", flag),
-            CompileOption::KeyValue(k, v) => write!(f, "{}={}", k, v),
+            CompileOption::Flag(flag) => write!(f, "{flag}"),
+            CompileOption::KeyValue(k, v) => write!(f, "{k}={v}"),
         }
     }
 }

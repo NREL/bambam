@@ -13,7 +13,7 @@ impl FromStr for FilterOp {
         match s {
             "=" => Ok(Self::Equals),
             "~" => Ok(Self::NotEquals),
-            _ => Err(format!("unknown overpass query operation '{}'", s)),
+            _ => Err(format!("unknown overpass query operation '{s}'")),
         }
     }
 }
