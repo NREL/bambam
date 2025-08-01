@@ -33,8 +33,7 @@ mod filenames {
     pub const EDGES_COMPLETE: &str = "edges-complete.csv.gz";
     pub const EDGES_COMPASS: &str = "edges-compass.csv.gz";
     pub const GEOMETRIES_ENUMERATED: &str = "edges-geometries-enumerated.txt.gz";
-    pub const MAXSPEEDS: &str = "speed-maxspeed-avgfill-enumerated.txt.gz";
-    pub const SPEEDS: &str = "speed-speed_kph-avgfill-enumerated.txt.gz";
+    pub const MAXSPEEDS_AVGFILL: &str = "speed-maxspeed-avgfill-enumerated.txt.gz";
     pub const HIGHWAY_TAG: &str = "edges-highway-tag-enumerated.txt.gz";
 }
 
@@ -95,19 +94,31 @@ impl CompassWriter for OsmGraphVectorized {
 
         let mut maxspeed_writer = create_writer(
             output_directory,
-            filenames::MAXSPEEDS,
-            false,
-            QuoteStyle::Necessary,
-            overwrite,
-        );
-        let mut speeds_writer = create_writer(
-            output_directory,
-            filenames::SPEEDS,
+            filenames::MAXSPEEDS_AVGFILL,
             false,
             QuoteStyle::Necessary,
             overwrite,
         );
 
+        // find maxspeed values and build a fill value lookup table for missing maxspeed imputation
+        let maxspeed_cb = |r: &OsmWayDataSerializable| {
+            r.get_speed("maxspeed", true)
+                .and_then(|r_opt| {
+                    if let Some((s, su)) = r_opt {
+                        let mut s_convert = Cow::Owned(s);
+                        su.convert(&mut s_convert, &SpeedUnit::KPH)
+                            .map_err(|e| e.to_string())?;
+                        let output = s_convert.into_owned().as_f64();
+                        Ok(Some(output))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .map_err(OsmError::GraphConsolidationError)
+        };
+        let maxspeed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
+
+        // write all vertex data to disk
         let v_iter = tqdm!(
             self.nodes.iter().enumerate(),
             total = self.nodes.len(),
@@ -134,40 +145,7 @@ impl CompassWriter for OsmGraphVectorized {
         }
         eprintln!();
 
-        let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            r.get_speed("maxspeed", true)
-                .and_then(|r_opt| {
-                    if let Some((s, su)) = r_opt {
-                        let mut s_convert = Cow::Owned(s);
-                        su.convert(&mut s_convert, &SpeedUnit::KPH)
-                            .map_err(|e| e.to_string())?;
-                        let output = s_convert.into_owned().as_f64();
-                        Ok(Some(output))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .map_err(OsmError::GraphConsolidationError)
-        };
-        let maxspeed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
-        let speed_kph_cb = |r: &OsmWayDataSerializable| {
-            r.get_speed("speed_kph", true)
-                .and_then(|r_opt| {
-                    if let Some((s, su)) = r_opt {
-                        let mut s_convert = Cow::Owned(s);
-                        su.convert(&mut s_convert, &SpeedUnit::KPH)
-                            .map_err(|e| e.to_string())?;
-                        let output = s_convert.into_owned().as_f64();
-                        Ok(Some(output))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .map_err(OsmError::GraphConsolidationError)
-        };
-        let speed_kph_lookup =
-            FillValueLookup::new(&self.ways, "highway", "speed_kph", maxspeed_cb)?;
-
+        // write all edge data to disk
         let e_iter = tqdm!(
             self.ways.iter().enumerate(),
             total = self.ways.len(),
@@ -204,15 +182,9 @@ impl CompassWriter for OsmGraphVectorized {
             // SPEED
             if let Some(ref mut writer) = maxspeed_writer {
                 let speed = get_fill_value(row, &maxspeed_lookup)?;
-                writer
-                    .serialize(speed)
-                    .map_err(|e| OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS), e))?;
-            }
-            if let Some(ref mut writer) = speeds_writer {
-                let speed = get_fill_value(row, &speed_kph_lookup)?;
-                writer
-                    .serialize(speed)
-                    .map_err(|e| OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS), e))?;
+                writer.serialize(speed).map_err(|e| {
+                    OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS_AVGFILL), e)
+                })?;
             }
 
             // HIGHWAY
