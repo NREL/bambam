@@ -18,10 +18,14 @@ pub struct OsmWayData {
     pub bridge: Option<String>,
     pub est_width: Option<String>,
     pub highway: Option<String>,
+    pub sidewalk: Option<String>,
+    pub cycleway: Option<String>,
+    pub footway: Option<String>,
     pub junction: Option<String>,
     pub landuse: Option<String>,
     pub lanes: Option<String>,
     pub maxspeed: Option<String>,
+    pub speed_kph: Option<String>,
     pub name: Option<String>,
     pub oneway: Option<String>,
     pub _ref: Option<String>,
@@ -59,10 +63,14 @@ impl OsmWayData {
                 "bridge" => out.bridge = Some(String::from(v.trim())),
                 "est_width" => out.est_width = Some(String::from(v.trim())),
                 "highway" => out.highway = Some(String::from(v.trim())),
+                "sidewalk" => out.sidewalk = Some(String::from(v.trim())),
+                "cycleway" => out.cycleway = Some(String::from(v.trim())),
+                "footway" => out.footway = Some(String::from(v.trim())),
                 "junction" => out.junction = Some(String::from(v.trim())),
                 "landuse" => out.landuse = Some(String::from(v.trim())),
                 "lanes" => out.lanes = Some(String::from(v.trim())),
                 "maxspeed" => out.maxspeed = Some(String::from(v.trim())),
+                "speed_kph" => out.speed_kph = Some(String::from(v.trim())),
                 "name" => out.name = Some(String::from(v.trim())),
                 "oneway" => out.oneway = Some(String::from(v.trim())),
                 "ref" => out._ref = Some(String::from(v.trim())),
@@ -110,10 +118,14 @@ impl OsmWayData {
             "bridge" => Ok(self.bridge.clone()),
             "est_width" => Ok(self.est_width.clone()),
             "highway" => Ok(self.highway.clone()),
+            "sidewalk" => Ok(self.sidewalk.clone()),
+            "footway" => Ok(self.footway.clone()),
+            "cycleway" => Ok(self.cycleway.clone()),
             "junction" => Ok(self.junction.clone()),
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
             "maxspeed" => Ok(self.maxspeed.clone()),
+            "speed_kph" => Ok(self.speed_kph.clone()),
             "name" => Ok(self.name.clone()),
             "oneway" => Ok(self.oneway.clone()),
             "ref" => Ok(self._ref.clone()),
@@ -141,11 +153,12 @@ impl OsmWayData {
 
     /// follows the rules described in
     /// https://wiki.openstreetmap.org/wiki/Key:maxspeed#Values
-    pub fn get_maxspeed(
+    pub fn get_speed_value(
         &self,
+        key: &str,
         ignore_invalid_entries: bool,
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
-        match self.get_string_at_field("maxspeed") {
+        match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => deserialize_maxspeed(&s, ignore_invalid_entries),
             Err(e) => Err(e),
@@ -179,32 +192,6 @@ impl OsmWayData {
             (Err(e), _) => Err(e),
         }
     }
-
-    // /// if both the source and destination node contain elevation values, we can calculate the
-    // /// grade.
-    // /// it is common for OSM "ele" keys to be omitted as OSM is not intended as an elevation
-    // /// dataset. see <https://wiki.openstreetmap.org/wiki/Key:ele>.
-    // /// even if it is not omitted, it may be an invalid entry. parsing errors due to invalid
-    // /// OSM `ele` values is silenced by OsmNodeData::get_elevation and is treated the same as
-    // /// when the `ele` value is missing from either src or dst, which is to return a grade of zero.
-    // ///
-    // /// however this method can fail if this way's src and dst nodes are missing from the provided
-    // /// OsmNodes collection.
-    // pub fn get_grade(&self, nodes: &OsmNodes) -> Result<(Grade, GradeUnit), String> {
-    //     let (src_id, dst_id) = (self.src_node_id()?, self.dst_node_id()?);
-    //     let src = nodes
-    //         .get(&src_id)
-    //         .ok_or_else(|| format!("node id {} missing from OsmNodes collection", src_id))?;
-    //     let dst = nodes
-    //         .get(&dst_id)
-    //         .ok_or_else(|| format!("node id {} missing from OsmNodes collection", dst_id))?;
-    //     if let (Some(s_ele), Some(d_ele)) = (src.get_elevation(), dst.get_elevation()) {
-    //         let grade = Grade::new((d_ele - s_ele) / s_ele);
-    //         Ok((grade, GradeUnit::Decimal))
-    //     } else {
-    //         Ok((Grade::new(0.0), GradeUnit::Decimal))
-    //     }
-    // }
 
     /// osmnx.graph._is_path_one_way
     ///   the values OSM uses in its 'oneway' tag to denote True, and to denote
@@ -293,38 +280,10 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let mut nodes = ways.iter().flat_map(|w| w.nodes.clone()).collect_vec();
         nodes.dedup();
 
-        let maxspeeds: Vec<(Speed, SpeedUnit)> = ways
-            .iter()
-            .map(|w| w.get_maxspeed(true))
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| {
-                OsmError::GraphSimplificationError(format!(
-                    "failed aggregating maxspeed values for a simplified way: {e}"
-                ))
-            })?
-            .into_iter()
-            .flatten()
-            .collect_vec();
-        let maxspeed: Option<String> = maxspeeds
-            .iter()
-            .map(|(s, su)| {
-                let mut s_convert = Cow::Borrowed(s);
-                su.convert(&mut s_convert, &SpeedUnit::KPH).map_err(|e| {
-                    OsmError::GraphSimplificationError(format!(
-                        "failure converting way speed {}/{} into {}: {}",
-                        s,
-                        su,
-                        SpeedUnit::KPH,
-                        e
-                    ))
-                })?;
-                Ok(s_convert.into_owned())
-            })
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .max()
-            .map(|s| s.to_string());
+        // let maxspeed: Option<String> = aggregate_speed("maxspeed", ways)?;
+        // let speed_kph: Option<String> = aggregate_speed("speed_kph", ways)?;
 
+        // we always want to aggregate to a single OSM:Highway key for this way data
         let highway = ways
             .iter()
             .flat_map(|w| w.highway.clone().map(|h| Highway::from_str(&h)))
@@ -338,7 +297,6 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             .min_by_key(|h| h.hierarchy())
             .map(|h| h.to_string());
 
-        // todo: make this a 1-pass operation.
         // oneway is "true" for any aggregated link in our system
         let access = merge_fieldname(ways, "access", Self::VALUE_DELIMITER)?;
         let area = merge_fieldname(ways, "area", Self::VALUE_DELIMITER)?;
@@ -346,9 +304,13 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
         let est_width = merge_fieldname(ways, "est_width", Self::VALUE_DELIMITER)?;
         // let highway = merge_fieldname(ways, "highway", Self::VALUE_DELIMITER)?;
         let junction = merge_fieldname(ways, "junction", Self::VALUE_DELIMITER)?;
+        let sidewalk = merge_fieldname(ways, "sidewalk", Self::VALUE_DELIMITER)?;
+        let cycleway = merge_fieldname(ways, "cycleway", Self::VALUE_DELIMITER)?;
+        let footway = merge_fieldname(ways, "footway", Self::VALUE_DELIMITER)?;
         let landuse = merge_fieldname(ways, "landuse", Self::VALUE_DELIMITER)?;
         let lanes = merge_fieldname(ways, "lanes", Self::VALUE_DELIMITER)?;
-        // let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
+        let maxspeed = merge_fieldname(ways, "maxspeed", Self::VALUE_DELIMITER)?;
+        let speed_kph = merge_fieldname(ways, "speed_kph", Self::VALUE_DELIMITER)?;
         let name = merge_fieldname(ways, "name", Self::VALUE_DELIMITER)?;
         let oneway = Some(String::from("true"));
         let _ref = merge_fieldname(ways, "ref", Self::VALUE_DELIMITER)?;
@@ -364,10 +326,14 @@ impl TryFrom<&[&OsmWayData]> for OsmWayData {
             bridge,
             est_width,
             highway,
+            sidewalk,
+            cycleway,
+            footway,
             junction,
             landuse,
             lanes,
             maxspeed,
+            speed_kph,
             name,
             oneway,
             _ref,
