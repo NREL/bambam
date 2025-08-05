@@ -11,10 +11,10 @@ pub struct CliArgs {
     app: App,
 }
 
+use bambam::app::wci;
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
 use bambam::model::input_plugin::grid::grid_input_plugin;
 use bambam::model::input_plugin::grid::grid_input_plugin_builder;
-use bambam::util::wci;
 use bambam::model::input_plugin::grid::grid_type::GridType;
 use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
 use bamsoda_acs::model::AcsType;
@@ -34,6 +34,7 @@ pub enum App {
     WalkComfortIndexSet {
         /// file to write WCI values to, one per line
         wci_file: String,
+        /// input csv file with OSM data
         input_osm: String,
     },
     #[command(
@@ -187,7 +188,7 @@ impl App {
                 wci_file,
                 input_osm,
             } => {
-                wci::process_wci(&input_osm, &wci_file);
+                wci::process_wci(&input_osm, &wci_file).unwrap();
                 Ok(())
             }
             Self::PreProcessGrid {
