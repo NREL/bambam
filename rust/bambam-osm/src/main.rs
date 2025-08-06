@@ -6,9 +6,7 @@ use bambam_osm::{
     },
 };
 use clap::{Parser, Subcommand};
-use csv::QuoteStyle;
-use flate2::{write::GzEncoder, Compression};
-use std::{fs::File, path::Path};
+use std::{path::Path};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -93,26 +91,6 @@ fn main() {
     }
 }
 
-fn create_writer(
-    directory: &Path,
-    filename: &str,
-    has_headers: bool,
-    quote_style: QuoteStyle,
-    overwrite: bool,
-) -> Option<csv::Writer<GzEncoder<File>>> {
-    let filepath = directory.join(filename);
-    if filepath.exists() && !overwrite {
-        return None;
-    }
-    let file = File::create(filepath).unwrap();
-    let buffer = GzEncoder::new(file, Compression::default());
-    let writer = csv::WriterBuilder::new()
-        .has_headers(has_headers)
-        .quote_style(quote_style)
-        .from_writer(buffer);
-    Some(writer)
-}
-
 #[cfg(test)]
 mod tests {
     use bambam_osm::model::osm::graph::{osm_element_filter::ElementFilter, CompassWriter};
@@ -120,11 +98,32 @@ mod tests {
     use bambam_osm::model::osm::{import_ops, OsmSource};
     use csv::QuoteStyle;
     use itertools::Itertools;
-
+    use flate2::{write::GzEncoder, Compression};
+    use std::{fs::File};
     use routee_compass_core::model::unit::{Distance, DistanceUnit};
     use serde::{Deserialize, Serialize};
     use std::collections::HashSet;
     use std::path::Path;
+
+    fn create_writer(
+        directory: &Path,
+        filename: &str,
+        has_headers: bool,
+        quote_style: QuoteStyle,
+        overwrite: bool,
+    ) -> Option<csv::Writer<GzEncoder<File>>> {
+        let filepath = directory.join(filename);
+        if filepath.exists() && !overwrite {
+            return None;
+        }
+        let file = File::create(filepath).unwrap();
+        let buffer = GzEncoder::new(file, Compression::default());
+        let writer = csv::WriterBuilder::new()
+            .has_headers(has_headers)
+            .quote_style(quote_style)
+            .from_writer(buffer);
+        Some(writer)
+    }
 
     #[derive(Default, Debug, Clone, Serialize, Deserialize)]
     pub struct OsmWayDataOut {
@@ -303,7 +302,7 @@ mod tests {
             ]),
         };
         let (nodes, ways) = import_ops::read_pbf(pbf_file, ElementFilter::NoFilter, &None).unwrap();
-        let mut writer = super::create_writer(
+        let mut writer = create_writer(
             Path::new(""),
             "result.csv.gz",
             true,
