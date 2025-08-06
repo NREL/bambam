@@ -138,8 +138,8 @@ mod tests {
         if let (Ok(ways), Ok(nodes)) = (ways_result, nodes_result) {
             let lookup = nodes.iter().enumerate().collect::<HashMap<_, _>>();
             for way in ways.iter() {
-                if lookup.get(&way.src_vertex_id.0).is_none()
-                    || lookup.get(&way.dst_vertex_id.0).is_none()
+                if lookup.contains_key(&way.src_vertex_id.0)
+                    || lookup.contains_key(&way.dst_vertex_id.0)
                 {
                     connectivity_is_ok = false;
                 }
