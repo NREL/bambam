@@ -6,7 +6,7 @@ use bambam_osm::{
     },
 };
 use clap::{Parser, Subcommand};
-use std::{path::Path};
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -97,12 +97,12 @@ mod tests {
     use bambam_osm::model::osm::graph::{OsmWayData, OsmWayId};
     use bambam_osm::model::osm::{import_ops, OsmSource};
     use csv::QuoteStyle;
-    use itertools::Itertools;
     use flate2::{write::GzEncoder, Compression};
-    use std::{fs::File};
+    use itertools::Itertools;
     use routee_compass_core::model::unit::{Distance, DistanceUnit};
     use serde::{Deserialize, Serialize};
     use std::collections::HashSet;
+    use std::fs::File;
     use std::path::Path;
 
     fn create_writer(
