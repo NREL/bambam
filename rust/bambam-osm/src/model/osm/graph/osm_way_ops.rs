@@ -124,7 +124,10 @@ where
     s.serialize_str(&wkt)
 }
 
-pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error> where D: serde::Deserializer<'de> {
+pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
     struct LineStringVisitor;
 
     impl<'de> de::Visitor<'de> for LineStringVisitor {
@@ -133,16 +136,19 @@ pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
             formatter.write_str("an enquoted WKT LineString")
         }
-        
+
         fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-            where
-                E: de::Error, {
-            
-            let wkt: wkt::Wkt<f32> = v.parse().map_err(|e| serde::de::Error::custom(format!("failed to parse WKT string: {e}")))?;
-            let linestring: LineString<f32> = wkt.try_into().map_err(|e| serde::de::Error::custom(format!("failed to parse WKT string: {e}")))?;
+        where
+            E: de::Error,
+        {
+            let wkt: wkt::Wkt<f32> = v.parse().map_err(|e| {
+                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
+            })?;
+            let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
+                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
+            })?;
             Ok(linestring)
-        }   
-        
+        }
     }
 
     d.deserialize_string(LineStringVisitor {})
