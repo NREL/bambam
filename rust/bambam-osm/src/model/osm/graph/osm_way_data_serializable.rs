@@ -1,13 +1,12 @@
 use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
+    borrow::Cow, collections::{HashMap, HashSet}, str::FromStr
 };
 
 use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::{Vertex, VertexId},
-    unit::{Distance, Grade, Speed, SpeedUnit},
+    unit::{Convert, Distance, Grade, Speed, SpeedUnit},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use wkt::ToWkt;
@@ -38,8 +37,6 @@ pub struct OsmWayDataSerializable {
     pub lanes: Option<String>,
     pub maxspeed: Option<String>,
     pub maxspeed_raw: Option<String>,
-    pub speed_kph: Option<String>,
-    pub speed_kph_raw: Option<String>,
     pub name: Option<String>,
     pub oneway: Option<String>,
     pub _ref: Option<String>,
@@ -133,7 +130,6 @@ impl OsmWayDataSerializable {
             est_width: min(way.est_width.as_ref()),
             lanes: min(way.lanes.as_ref()),
             maxspeed: min(way.maxspeed.as_ref()),
-            speed_kph: min(way.speed_kph.as_ref()),
             width: min(way.width.as_ref()),
             // CATEGORICAL / RAW / REFERENCE
             _ref: unique(way._ref.as_ref()),
@@ -149,7 +145,6 @@ impl OsmWayDataSerializable {
             oneway: unique(way.oneway.as_ref()),
             sidewalk: unique(way.sidewalk.as_ref()),
             service: unique(way.service.as_ref()),
-            speed_kph_raw: replace_delimiter(way.speed_kph.as_ref()),
             tunnel: unique(way.tunnel.as_ref()),
             way_ids: join_way_ids(way.way_ids.as_ref()),
         };
@@ -170,7 +165,6 @@ impl OsmWayDataSerializable {
             "landuse" => Ok(self.landuse.clone()),
             "lanes" => Ok(self.lanes.clone()),
             "maxspeed" => Ok(self.maxspeed.clone()),
-            "speed_kph" => Ok(self.speed_kph.clone()),
             "name" => Ok(self.name.clone()),
             "oneway" => Ok(self.oneway.clone()),
             "ref" => Ok(self._ref.clone()),
@@ -190,7 +184,7 @@ impl OsmWayDataSerializable {
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
-            Ok(Some(s)) => deserialize_speed(&s, ignore_invalid_entries),
+            Ok(Some(s)) => deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries),
             Err(e) => Err(e),
         }
     }
@@ -370,9 +364,13 @@ fn top_highway(
 /// see https://wiki.openstreetmap.org/wiki/Key:maxspeed
 fn deserialize_speed(
     s: &str,
+    separator: Option<&str>,
     ignore_invalid_entries: bool,
 ) -> Result<Option<(Speed, SpeedUnit)>, String> {
-    let separated_entries = s.split([',', ';']).collect_vec();
+    let separated_entries = match separator {
+        Some(sep) => s.split(sep).collect_vec(),
+        None => vec![s],
+    };
     match separated_entries[..] {
         [] => Err(format!(
             "internal error: attempting to unpack empty maxspeed value '{s}'"
@@ -401,8 +399,12 @@ fn deserialize_speed(
                 }
                 [speed_str] => {
                     let speed_result = speed_str
-                        .parse::<f64>()
-                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
+                        .parse::<i64>()
+                        .map(|i| i as f64)
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}")).or_else(|e1| {
+                            speed_str.parse::<f64>()
+                                .map_err(|e2| format!("speed value {speed_str} not a valid number: {e1} {e2}"))
+                        });
 
                     let speed = match speed_result {
                         Ok(speed) => speed,
@@ -411,7 +413,7 @@ fn deserialize_speed(
                         }
                         Err(_) => return Ok(None),
                     };
-                    if speed == 0.0 {
+                    if speed == 0.0 || speed.is_nan() {
                         Ok(None)
                     } else {
                         Ok(Some((Speed::from(speed), SpeedUnit::KPH)))
@@ -429,7 +431,7 @@ fn deserialize_speed(
                         }
                         Err(_) => return Ok(None),
                     };
-                    if speed == 0.0 {
+                    if speed == 0.0 || speed.is_nan() {
                         return Ok(None);
                     }
                     let speed_unit = match unit_str {
@@ -455,12 +457,19 @@ fn deserialize_speed(
             let maxspeeds = separated_entries
                 .to_vec()
                 .iter()
-                .map(|e| deserialize_speed(e, ignore_invalid_entries))
+                .map(|e| deserialize_speed(e, separator, ignore_invalid_entries))
                 .collect::<Result<Vec<_>, _>>()?;
             let min = maxspeeds
                 .into_iter()
                 .min_by_key(|m| match m {
-                    Some((s, _)) => *s,
+                    Some((s, su)) => {
+                        let mut s_cow = Cow::Borrowed(s);
+                        match su.convert(&mut s_cow, &SpeedUnit::KPH) {
+                            Ok(()) => s_cow.into_owned(),
+                            Err(_) => Speed::from(999999.9),
+                        }
+
+                    },
                     None => Speed::from(999999.9),
                 })
                 .flatten();
@@ -525,7 +534,7 @@ mod tests {
     #[test]
     fn deserialize_speed_1() {
         //   - 45        (45 kph)
-        match super::deserialize_speed("45", false) {
+        match super::deserialize_speed("45", None, false) {
             Ok(Some((speed, speed_unit))) => {
                 assert_eq!(speed.as_f64(), 45.0);
                 assert_eq!(speed_unit, SpeedUnit::KPH);
@@ -537,7 +546,7 @@ mod tests {
     #[test]
     fn deserialize_speed_2() {
         //   - 45 mph    (72.4203 kph)
-        match super::deserialize_speed("45 mph", false) {
+        match super::deserialize_speed("45 mph", None, false) {
             Ok(Some((speed, speed_unit))) => {
                 assert_eq!(speed.as_f64(), 45.0);
                 assert_eq!(speed_unit, SpeedUnit::MPH);
@@ -549,9 +558,21 @@ mod tests {
     #[test]
     fn deserialize_speed_3() {
         //   - walk      (5 kph)
-        match super::deserialize_speed("5 kph", false) {
+        match super::deserialize_speed("5 kph", None, false) {
             Ok(Some((speed, speed_unit))) => {
                 assert_eq!(speed.as_f64(), 5.0);
+                assert_eq!(speed_unit, SpeedUnit::KPH);
+            }
+            Ok(None) => panic!("should parse valid speed"),
+            Err(e) => panic!("{e}"),
+        }
+    }
+    #[test]
+    fn deserialize_speed_sep_1() {
+        //   - a few speed values, where 3 kph is the minimum
+        match super::deserialize_speed("3.1415 kph;3;2 mph", Some(";"), false) {
+            Ok(Some((speed, speed_unit))) => {
+                assert_eq!(speed.as_f64(), 3.0); // using a pessimistic approach, picks the min speed in the group
                 assert_eq!(speed_unit, SpeedUnit::KPH);
             }
             Ok(None) => panic!("should parse valid speed"),
