@@ -100,11 +100,11 @@ mod tests {
         let pbf_file = "src/test/liechtenstein-latest.osm.pbf";
         let extent_file = "src/test/schaan_liechtenstein.txt";
         let config_file = "../../configuration/bambam-osm/test_osm_import.toml";
-        let conf = crate::App::Pbf { 
-            pbf_file: pbf_file.to_string(), 
-            extent_file: Some(extent_file.to_string()), 
-            configuration_file: Some(config_file.to_string()), 
-            output_directory: "tmp".to_string() 
+        let conf = crate::App::Pbf {
+            pbf_file: pbf_file.to_string(),
+            extent_file: Some(extent_file.to_string()),
+            configuration_file: Some(config_file.to_string()),
+            output_directory: "tmp".to_string(),
         };
 
         if let Err(e) = crate::run(&conf) {

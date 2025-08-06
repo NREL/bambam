@@ -142,7 +142,8 @@ impl CompassWriter for OsmGraphVectorized {
 
         // construct maxspeed fill value lookup
         let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            let r_opt = r.get_speed("maxspeed", true)
+            let r_opt = r
+                .get_speed("maxspeed", true)
                 .map_err(OsmError::InternalError)?;
             if let Some((s, su)) = r_opt {
                 let mut s_convert = Cow::Owned(s);
@@ -156,7 +157,7 @@ impl CompassWriter for OsmGraphVectorized {
         };
         let speed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
 
-        let e_iter = tqdm!( 
+        let e_iter = tqdm!(
             self.ways.iter().enumerate(),
             total = self.ways.len(),
             desc = "write edges dataset"

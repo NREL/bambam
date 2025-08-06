@@ -1,5 +1,7 @@
 use std::{
-    borrow::Cow, collections::{HashMap, HashSet}, str::FromStr
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    str::FromStr,
 };
 
 use geo::{Coord, Haversine, Length, LineString};
@@ -184,7 +186,9 @@ impl OsmWayDataSerializable {
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
-            Ok(Some(s)) => deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries),
+            Ok(Some(s)) => {
+                deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries)
+            }
             Err(e) => Err(e),
         }
     }
@@ -401,9 +405,11 @@ fn deserialize_speed(
                     let speed_result = speed_str
                         .parse::<i64>()
                         .map(|i| i as f64)
-                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}")).or_else(|e1| {
-                            speed_str.parse::<f64>()
-                                .map_err(|e2| format!("speed value {speed_str} not a valid number: {e1} {e2}"))
+                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"))
+                        .or_else(|e1| {
+                            speed_str.parse::<f64>().map_err(|e2| {
+                                format!("speed value {speed_str} not a valid number: {e1} {e2}")
+                            })
                         });
 
                     let speed = match speed_result {
@@ -468,8 +474,7 @@ fn deserialize_speed(
                             Ok(()) => s_cow.into_owned(),
                             Err(_) => Speed::from(999999.9),
                         }
-
-                    },
+                    }
                     None => Speed::from(999999.9),
                 })
                 .flatten();
