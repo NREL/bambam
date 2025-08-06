@@ -93,227 +93,24 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use bambam_osm::model::osm::graph::{osm_element_filter::ElementFilter, CompassWriter};
-    use bambam_osm::model::osm::graph::{OsmWayData, OsmWayId};
-    use bambam_osm::model::osm::{import_ops, OsmSource};
-    use csv::QuoteStyle;
-    use flate2::{write::GzEncoder, Compression};
-    use itertools::Itertools;
-    use routee_compass_core::model::unit::{Distance, DistanceUnit};
-    use serde::{Deserialize, Serialize};
-    use std::collections::HashSet;
-    use std::fs::File;
-    use std::path::Path;
-
-    fn create_writer(
-        directory: &Path,
-        filename: &str,
-        has_headers: bool,
-        quote_style: QuoteStyle,
-        overwrite: bool,
-    ) -> Option<csv::Writer<GzEncoder<File>>> {
-        let filepath = directory.join(filename);
-        if filepath.exists() && !overwrite {
-            return None;
-        }
-        let file = File::create(filepath).unwrap();
-        let buffer = GzEncoder::new(file, Compression::default());
-        let writer = csv::WriterBuilder::new()
-            .has_headers(has_headers)
-            .quote_style(quote_style)
-            .from_writer(buffer);
-        Some(writer)
-    }
-
-    #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-    pub struct OsmWayDataOut {
-        pub osmid: OsmWayId,
-        pub nodes: String,
-        pub access: Option<String>,
-        pub area: Option<String>,
-        pub bridge: Option<String>,
-        pub est_width: Option<String>,
-        pub highway: Option<String>,
-        pub sidewalk: Option<String>,
-        pub footway: Option<String>,
-        pub junction: Option<String>,
-        pub landuse: Option<String>,
-        pub lanes: Option<String>,
-        pub maxspeed: Option<String>,
-        pub name: Option<String>,
-        pub oneway: Option<String>,
-        pub _ref: Option<String>,
-        pub service: Option<String>,
-        pub tunnel: Option<String>,
-        pub width: Option<String>,
-    }
-
-    impl From<&OsmWayData> for OsmWayDataOut {
-        fn from(value: &OsmWayData) -> Self {
-            OsmWayDataOut {
-                osmid: value.osmid,
-                nodes: value.nodes.iter().join("-"),
-                access: value.access.clone(),
-                area: value.area.clone(),
-                bridge: value.bridge.clone(),
-                est_width: value.est_width.clone(),
-                highway: value.highway.clone(),
-                sidewalk: value.sidewalk.clone(),
-                footway: value.footway.clone(),
-                junction: value.junction.clone(),
-                landuse: value.landuse.clone(),
-                lanes: value.lanes.clone(),
-                maxspeed: value.maxspeed.clone(),
-                name: value.name.clone(),
-                oneway: value.oneway.clone(),
-                _ref: value._ref.clone(),
-                service: value.service.clone(),
-                tunnel: value.tunnel.clone(),
-                width: value.width.clone(),
-            }
-        }
-    }
-
-    // #[ignore = "e2e test runner for OSM import"]
     #[test]
     #[allow(unused)]
-    fn test_neighborhood_import() {
-        env_logger::init();
-        // let pbf_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        //     .join("src")
-        //     .join("resources")
-        //     .join("test_neighborhood.pbf");
-        // let pbf_file = pbf_filepath.as_path().to_str().unwrap();
-        // let pbf_config = OsmSource::Pbf {
-        //     pbf_filepath: String::from(pbf_file),
-        //     network_filter: Some(ElementFilter::OsmnxAllPublic),
-        //     extent_filter_filepath: None,
-        //     component_filter: None,
-        //     truncate_by_edge: true,
-        //     simplify: true,
-        //     consolidate: true,
-        //     consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
-        //     parallelize: false,
-        // };
-        let pbf_file = "/Users/rfitzger/data/mep/mep3/input/osm/colorado-latest.osm.pbf";
-        use bambam_osm::model::feature::highway::Highway as H;
-        let net_fltr = ElementFilter::HighwayTags {
-            tags: HashSet::from([
-                H::Footway,
-                H::Cycleway,
-                H::TertiaryLink,
-                H::TrunkLink,
-                H::Elevator,
-                H::Secondary,
-                H::Residential,
-                H::Motorway,
-                H::Trunk,
-                H::PrimaryLink,
-                H::Corridor,
-                H::Primary,
-                H::LivingStreet,
-                H::Service,
-                H::Steps,
-                H::Track,
-                H::Path,
-                H::Trailhead,
-                H::Pedestrian,
-                H::MotorwayLink,
-                H::Unclassified,
-                H::Road,
-                H::SecondaryLink,
-                H::Tertiary,
-            ]),
-        };
-        let pbf_config = OsmSource::Pbf {
-            pbf_filepath: String::from(pbf_file),
-            network_filter: Some(net_fltr),
-            extent_filter_filepath: Some(String::from(
-                "/Users/rfitzger/data/mep/mep3/input/extent/wkt_drawn_box_denver_city.txt",
-            )),
-            component_filter: None,
-            truncate_by_edge: true,
-            ignore_errors: true,
-            simplify: true,
-            consolidate: false,
-            consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
-            parallelize: false,
+    fn test_e2e_liechtenstein() {
+        // uses a small OSM dataset to test the end-to-end data processing
+        let pbf_file = "src/test/liechtenstein-latest.osm.pbf";
+        let extent_file = "src/test/schaan_liechtenstein.txt";
+        let config_file = "../../configuration/bambam-osm/test_osm_import.toml";
+        let conf = crate::App::Pbf { 
+            pbf_file: pbf_file.to_string(), 
+            extent_file: Some(extent_file.to_string()), 
+            configuration_file: Some(config_file.to_string()), 
+            output_directory: "tmp".to_string() 
         };
 
-        let graph = match pbf_config.import() {
-            Ok(g) => g,
-            Err(e) => panic!("graph import failed: {e}"),
-        };
-        match graph.write_compass(Path::new("out"), true) {
-            Ok(_) => eprintln!("finished."),
-            Err(e) => panic!("graph write failed: {e}"),
-        }
-    }
-
-    // #[ignore = "e2e test runner for OSM import"]
-    #[test]
-    #[allow(unused)]
-    fn passthrough() {
-        env_logger::init();
-        // let pbf_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        //     .join("src")
-        //     .join("resources")
-        //     .join("test_neighborhood.pbf");
-        // let pbf_file = pbf_filepath.as_path().to_str().unwrap();
-        // let pbf_config = OsmSource::Pbf {
-        //     pbf_filepath: String::from(pbf_file),
-        //     network_filter: Some(ElementFilter::OsmnxAllPublic),
-        //     extent_filter_filepath: None,
-        //     component_filter: None,
-        //     truncate_by_edge: true,
-        //     simplify: true,
-        //     consolidate: true,
-        //     consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
-        //     parallelize: false,
-        // };
-        let pbf_file = "/Users/rfitzger/data/mep/mep3/input/osm/arvada_geos_primrose.pbf";
-        use bambam_osm::model::feature::highway::Highway as H;
-        let net_fltr = ElementFilter::HighwayTags {
-            tags: HashSet::from([
-                H::Footway,
-                H::Cycleway,
-                H::TertiaryLink,
-                H::TrunkLink,
-                H::Elevator,
-                H::Secondary,
-                H::Residential,
-                H::Motorway,
-                H::Trunk,
-                H::PrimaryLink,
-                H::Corridor,
-                H::Primary,
-                H::LivingStreet,
-                H::Service,
-                H::Steps,
-                H::Track,
-                H::Path,
-                H::Trailhead,
-                H::Pedestrian,
-                H::MotorwayLink,
-                H::Unclassified,
-                H::Road,
-                H::SecondaryLink,
-                H::Tertiary,
-            ]),
-        };
-        let (nodes, ways) = import_ops::read_pbf(pbf_file, ElementFilter::NoFilter, &None).unwrap();
-        let mut writer = create_writer(
-            Path::new(""),
-            "result.csv.gz",
-            true,
-            QuoteStyle::Necessary,
-            true,
-        )
-        .unwrap();
-
-        for (way_id, way) in ways.iter() {
-            let row: OsmWayDataOut = way.into();
-            writer.serialize(row).unwrap();
+        if let Err(e) = crate::run(&conf) {
+            panic!("bambam-osm test failed: {}", e);
+        } else {
+            std::fs::remove_dir_all("tmp").expect("failed to remove tmp directory");
         }
     }
 }
