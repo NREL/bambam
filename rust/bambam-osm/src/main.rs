@@ -108,7 +108,7 @@ mod tests {
         };
 
         if let Err(e) = crate::run(&conf) {
-            panic!("bambam-osm test failed: {}", e);
+            panic!("bambam-osm test failed: {e}");
         } else {
             std::fs::remove_dir_all("tmp").expect("failed to remove tmp directory");
         }
