@@ -115,6 +115,24 @@ pub fn deserialize_speed(
     }
 }
 
+/// deserializes a CSV string, which should be enquoted, into a LineString<f32>.
+pub fn csv_string_to_linestring(v: &str) -> Result<LineString<f32>, String> {
+    // Remove surrounding double quotes if present
+    let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
+        &v[1..v.len() - 1]
+    } else {
+        v
+    };
+
+    let wkt: wkt::Wkt<f32> = cleaned_v
+        .parse()
+        .map_err(|e| format!("failed to parse WKT string: {e}"))?;
+    let linestring: LineString<f32> = wkt
+        .try_into()
+        .map_err(|e| format!("failed to parse WKT string: {e}"))?;
+    Ok(linestring)
+}
+
 /// uses a WKT geometry representation to serialize geo::LineString types
 pub fn serialize_linestring<S>(row: &LineString<f32>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -124,6 +142,7 @@ where
     s.serialize_str(&wkt)
 }
 
+/// writes geo::LineString types as a WKT
 pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -134,20 +153,14 @@ where
         type Value = LineString<f32>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("an enquoted WKT LineString")
+            formatter.write_str("an (optionally double-quoted) WKT LineString<f32>")
         }
 
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            let wkt: wkt::Wkt<f32> = v.parse().map_err(|e| {
-                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
-            })?;
-            let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
-                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
-            })?;
-            Ok(linestring)
+            csv_string_to_linestring(v).map_err(serde::de::Error::custom)
         }
     }
 
@@ -173,6 +186,8 @@ pub fn extract_between_nodes<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use crate::model::osm::graph::{osm_way_ops, OsmNodeId};
     use routee_compass_core::model::unit::{AsF64, SpeedUnit};
 
@@ -233,6 +248,53 @@ mod tests {
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[test]
+    fn deserialize_csv_linestring_01() {
+        let wkt = "\"LINESTRING (0 0, 1 1)\"";
+        let expected = geo::line_string![
+            geo::coord! { x: 0.0f32, y: 0.0f32},
+            geo::coord! { x: 1.0f32, y: 1.0f32},
+        ];
+        match super::csv_string_to_linestring(wkt) {
+            Ok(result) => assert_eq!(result, expected),
+            Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[test]
+    fn deserialize_csv_linestring_no_quotes() {
+        let wkt = "LINESTRING (0 0, 1 1)";
+        let expected = geo::line_string![
+            geo::coord! { x: 0.0f32, y: 0.0f32},
+            geo::coord! { x: 1.0f32, y: 1.0f32},
+        ];
+        match super::csv_string_to_linestring(wkt) {
+            Ok(result) => {}
+            Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[test]
+    fn linestring_from_csv_01() {
+        #[derive(serde::Deserialize, Debug)]
+        struct Row {
+            index: usize,
+            #[serde(deserialize_with = "super::deserialize_linestring")]
+            geometry: geo::LineString<f32>,
+        }
+        let path = Path::new("src/model/osm/graph/test/linestring_01.csv");
+        let mut row_reader =
+            csv::Reader::from_path(path).expect("test invariant: file should exist");
+        let rows = row_reader
+            .deserialize()
+            .collect::<Result<Vec<Row>, _>>()
+            .expect("deserialization failed");
+        match &rows[..] {
+            [row] => println!("{row:?}"),
+            _ => panic!("unexpected rows result {rows:?}"),
         }
     }
 }
