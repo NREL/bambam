@@ -162,6 +162,18 @@ where
         {
             csv_string_to_linestring(&v).map_err(serde::de::Error::custom)
         }
+
+        fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+            where
+                E: de::Error, {
+            csv_string_to_linestring(v).map_err(serde::de::Error::custom)
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error, {
+            csv_string_to_linestring(v).map_err(serde::de::Error::custom)
+        }
     }
 
     d.deserialize_string(LineStringVisitor {})
@@ -186,6 +198,8 @@ pub fn extract_between_nodes<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use crate::model::osm::graph::{osm_way_ops, OsmNodeId};
     use routee_compass_core::model::unit::{AsF64, SpeedUnit};
 
@@ -283,7 +297,7 @@ mod tests {
             #[serde(deserialize_with = "super::deserialize_linestring")]
             geometry: geo::LineString<f32>,
         }
-        let path = "src/model/osm/graph/test/linestring_01.csv";
+        let path = Path::new("src/model/osm/graph/test/linestring_01.csv");
         let mut row_reader =
             csv::Reader::from_path(path).expect("test invariant: file should exist");
         let rows = row_reader
