@@ -1,7 +1,9 @@
+use std::borrow::Cow;
+
 use crate::model::osm::graph::{OsmNodeId, OsmWayDataSerializable};
 use geo::LineString;
 use itertools::Itertools;
-use routee_compass_core::model::unit::{Speed, SpeedUnit};
+use routee_compass_core::model::unit::{Convert, Speed, SpeedUnit};
 use serde::Serializer;
 use wkt::ToWkt;
 
@@ -17,7 +19,7 @@ pub const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
 ///   - 45; 80    (takes the smaller of the two, so, 45 kph)
 ///
 /// see https://wiki.openstreetmap.org/wiki/Key:maxspeed
-fn deserialize_speed(
+pub fn deserialize_speed(
     s: &str,
     separator: Option<&str>,
     ignore_invalid_entries: bool,
@@ -48,7 +50,7 @@ fn deserialize_speed(
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
                     Ok(Some((
-                        Speed::from(OsmWayDataSerializable::DEFAULT_WALK_SPEED_KPH),
+                        Speed::from(DEFAULT_WALK_SPEED_KPH),
                         SpeedUnit::KPH,
                     )))
                 }

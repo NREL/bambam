@@ -178,7 +178,7 @@ impl CompassWriter for OsmGraphVectorized {
 
             // SPEED
             if let Some(ref mut writer) = maxspeed_writer {
-                let speed = get_fill_value(row, &maxspeed_lookup)?;
+                let speed = get_fill_value(row, &speed_lookup)?;
                 writer.serialize(speed).map_err(|e| {
                     OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS_AVGFILL), e)
                 })?;
