@@ -49,10 +49,7 @@ pub fn deserialize_speed(
                     // Austria + Germany's posted "walking speed". i found a reference that
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
-                    Ok(Some((
-                        Speed::from(DEFAULT_WALK_SPEED_KPH),
-                        SpeedUnit::KPH,
-                    )))
+                    Ok(Some((Speed::from(DEFAULT_WALK_SPEED_KPH), SpeedUnit::KPH)))
                 }
                 [speed_str] => {
                     let speed_result = speed_str
