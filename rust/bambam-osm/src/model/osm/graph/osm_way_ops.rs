@@ -276,7 +276,7 @@ mod tests {
                 assert_eq!(speed_unit, SpeedUnit::KPH);
             }
             Ok(None) => panic!("should parse valid speed"),
-            Err(e) => panic!("{e}")
+            Err(e) => panic!("{e}"),
         }
     }
 
