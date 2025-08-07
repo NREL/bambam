@@ -121,7 +121,7 @@ pub fn csv_string_to_linestring(v: &str) -> Result<LineString<f32>, String> {
     let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
         &v[1..v.len() - 1]
     } else {
-        &v
+        v
     };
 
     let wkt: wkt::Wkt<f32> = cleaned_v
