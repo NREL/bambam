@@ -95,7 +95,6 @@ fn main() {
 mod tests {
     use bambam_osm::model::osm::graph::{OsmNodeDataSerializable, OsmWayDataSerializable};
     use routee_compass_core::util::fs::read_utils;
-    use std::collections::HashMap;
 
     #[test]
     fn test_e2e_liechtenstein() {
@@ -122,7 +121,7 @@ mod tests {
         }
 
         // test graph connectivity
-        let mut connectivity_is_ok = true;
+        let mut disconnected: Vec<String> = vec![];
         let ways_result: Result<Box<[OsmWayDataSerializable]>, _> =
             read_utils::from_csv(&"src/test/tmp/edges-complete.csv.gz", true, None, None);
         let nodes_result: Result<Box<[OsmNodeDataSerializable]>, _> =
@@ -136,12 +135,18 @@ mod tests {
             )),
         };
         if let (Ok(ways), Ok(nodes)) = (ways_result, nodes_result) {
-            let lookup = nodes.iter().enumerate().collect::<HashMap<_, _>>();
             for way in ways.iter() {
-                if lookup.contains_key(&way.src_vertex_id.0)
-                    || lookup.contains_key(&way.dst_vertex_id.0)
-                {
-                    connectivity_is_ok = false;
+                let src_id = way.src_vertex_id.0;
+                let way_id = way.osmid.0;
+                let dst_id = way.dst_vertex_id.0;
+                let way_img = format!("({src_id})-[{way_id}]->({dst_id})");
+                let src = nodes.get(src_id);
+                let dst = nodes.get(dst_id);
+                match (src, dst) {
+                    (None, Some(_)) => disconnected.push(format!("src missing from {way_img}")),
+                    (Some(_), None) => disconnected.push(format!("dst missing from {way_img}")),
+                    (None, None) => disconnected.push(format!("src/dst missing from {way_img}")),
+                    (Some(_), Some(_)) => {},
                 }
             }
         }
@@ -152,8 +157,9 @@ mod tests {
         }
         // error if we couldn't read the output files or if the graph connectivity was invalid.
         match invariant_error_msg {
-            None if !connectivity_is_ok => {
-                panic!("files were written but some ways had invalid src/dst vertex ids")
+            None if !disconnected.is_empty() => {
+                disconnected.iter().take(5).for_each(|d| println!("{d}"));
+                panic!("files were written but some ways had invalid src/dst vertex ids (first 5 in log)")
             }
             Some(msg) => panic!("{msg}"),
             _ => {}
