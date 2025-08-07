@@ -115,6 +115,24 @@ pub fn deserialize_speed(
     }
 }
 
+/// deserializes a CSV string, which should be enquoted, into a LineString<f32>.
+pub fn csv_string_to_linestring(v: &str) -> Result<LineString<f32>, String> {
+    // Remove surrounding double quotes if present
+    let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
+        &v[1..v.len()-1]
+    } else {
+        &v
+    };
+    
+    let wkt: wkt::Wkt<f32> = cleaned_v.parse().map_err(|e| {
+        format!("failed to parse WKT string: {e}")
+    })?;
+    let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
+        format!("failed to parse WKT string: {e}")
+    })?;
+    Ok(linestring)
+}
+
 /// uses a WKT geometry representation to serialize geo::LineString types
 pub fn serialize_linestring<S>(row: &LineString<f32>, s: S) -> Result<S::Ok, S::Error>
 where
@@ -124,6 +142,7 @@ where
     s.serialize_str(&wkt)
 }
 
+/// writes geo::LineString types as a WKT
 pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -141,20 +160,7 @@ where
         where
             E: de::Error,
         {
-            // Remove surrounding double quotes if present
-            let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
-                &v[1..v.len()-1]
-            } else {
-                &v
-            };
-            
-            let wkt: wkt::Wkt<f32> = cleaned_v.parse().map_err(|e| {
-                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
-            })?;
-            let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
-                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
-            })?;
-            Ok(linestring)
+            csv_string_to_linestring(&v).map_err(serde::de::Error::custom)
         }
     }
 
@@ -239,6 +245,19 @@ mod tests {
                 assert_eq!(speed_unit, SpeedUnit::KPH);
             }
             Ok(None) => panic!("should parse valid speed"),
+            Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[test]
+    fn deserialize_csv_linestring() {
+        let wkt = "\"LINESTRING (0 0, 1 1)\"";
+        let expected = geo::line_string![
+            geo::coord! { x: 0.0f32, y: 0.0f32},
+            geo::coord! { x: 1.0f32, y: 1.0f32},
+        ];
+        match super::csv_string_to_linestring(wkt) {
+            Ok(result) => assert_eq!(result, expected),
             Err(e) => panic!("{e}"),
         }
     }
