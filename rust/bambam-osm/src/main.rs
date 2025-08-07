@@ -146,7 +146,7 @@ mod tests {
                     (None, Some(_)) => disconnected.push(format!("src missing from {way_img}")),
                     (Some(_), None) => disconnected.push(format!("dst missing from {way_img}")),
                     (None, None) => disconnected.push(format!("src/dst missing from {way_img}")),
-                    (Some(_), Some(_)) => {},
+                    (Some(_), Some(_)) => {}
                 }
             }
         }
