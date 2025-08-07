@@ -106,14 +106,6 @@ impl CompassWriter for OsmGraphVectorized {
             overwrite,
         );
 
-        // let vertex_lookup: HashMap<OsmNodeId, (usize, Vertex)> = self
-        //     .nodes
-        //     .iter()
-        //     .sorted_by_key(|(id, node)| **id)
-        //     .enumerate()
-        //     .map(|(idx, (id, node))| (*id, (idx, Vertex::new(idx, node.x, node.y))))
-        //     .collect::<HashMap<_, _>>();
-
         let v_iter = tqdm!(
             self.nodes.iter().enumerate(),
             total = self.nodes.len(),
