@@ -164,14 +164,16 @@ where
         }
 
         fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-            where
-                E: de::Error, {
+        where
+            E: de::Error,
+        {
             csv_string_to_linestring(v).map_err(serde::de::Error::custom)
         }
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error, {
+        where
+            E: de::Error,
+        {
             csv_string_to_linestring(v).map_err(serde::de::Error::custom)
         }
     }
