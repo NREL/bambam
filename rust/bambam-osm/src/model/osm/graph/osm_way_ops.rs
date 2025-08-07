@@ -2,7 +2,7 @@ use crate::model::osm::graph::{OsmNodeId, OsmWayDataSerializable};
 use geo::LineString;
 use itertools::Itertools;
 use routee_compass_core::model::unit::{Speed, SpeedUnit};
-use serde::Serializer;
+use serde::{de, Serializer};
 use wkt::ToWkt;
 
 pub const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
@@ -122,6 +122,36 @@ where
 {
     let wkt = row.to_wkt().to_string();
     s.serialize_str(&wkt)
+}
+
+pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct LineStringVisitor;
+
+    impl<'de> de::Visitor<'de> for LineStringVisitor {
+        type Value = LineString<f32>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an enquoted WKT LineString")
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let wkt: wkt::Wkt<f32> = v.parse().map_err(|e| {
+                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
+            })?;
+            let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
+                serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
+            })?;
+            Ok(linestring)
+        }
+    }
+
+    d.deserialize_string(LineStringVisitor {})
 }
 
 /// takes all node ids found between src an dst in a list of nodes.
