@@ -156,20 +156,6 @@ where
             formatter.write_str("an (optionally double-quoted) WKT LineString<f32>")
         }
 
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            csv_string_to_linestring(&v).map_err(serde::de::Error::custom)
-        }
-
-        fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            csv_string_to_linestring(v).map_err(serde::de::Error::custom)
-        }
-
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
