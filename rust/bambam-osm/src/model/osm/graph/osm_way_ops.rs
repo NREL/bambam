@@ -119,17 +119,17 @@ pub fn deserialize_speed(
 pub fn csv_string_to_linestring(v: &str) -> Result<LineString<f32>, String> {
     // Remove surrounding double quotes if present
     let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
-        &v[1..v.len()-1]
+        &v[1..v.len() - 1]
     } else {
         &v
     };
-    
-    let wkt: wkt::Wkt<f32> = cleaned_v.parse().map_err(|e| {
-        format!("failed to parse WKT string: {e}")
-    })?;
-    let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
-        format!("failed to parse WKT string: {e}")
-    })?;
+
+    let wkt: wkt::Wkt<f32> = cleaned_v
+        .parse()
+        .map_err(|e| format!("failed to parse WKT string: {e}"))?;
+    let linestring: LineString<f32> = wkt
+        .try_into()
+        .map_err(|e| format!("failed to parse WKT string: {e}"))?;
     Ok(linestring)
 }
 
