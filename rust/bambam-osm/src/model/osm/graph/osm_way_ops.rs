@@ -250,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_csv_linestring() {
+    fn deserialize_csv_linestring_01() {
         let wkt = "\"LINESTRING (0 0, 1 1)\"";
         let expected = geo::line_string![
             geo::coord! { x: 0.0f32, y: 0.0f32},
@@ -258,6 +258,19 @@ mod tests {
         ];
         match super::csv_string_to_linestring(wkt) {
             Ok(result) => assert_eq!(result, expected),
+            Err(e) => panic!("{e}"),
+        }
+    }
+
+     #[test]
+    fn deserialize_csv_linestring_no_quotes() {
+        let wkt = "LINESTRING (0 0, 1 1)";
+        let expected = geo::line_string![
+            geo::coord! { x: 0.0f32, y: 0.0f32},
+            geo::coord! { x: 1.0f32, y: 1.0f32},
+        ];
+        match super::csv_string_to_linestring(wkt) {
+            Ok(result) => {},
             Err(e) => panic!("{e}"),
         }
     }
