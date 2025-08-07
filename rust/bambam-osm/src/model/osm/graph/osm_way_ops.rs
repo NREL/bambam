@@ -171,14 +171,14 @@ where
         type Value = LineString<f32>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("an enquoted WKT LineString")
+            formatter.write_str("an (optionally double-quoted) WKT LineString<f32>")
         }
 
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            csv_string_to_linestring(&v).map_err(serde::de::Error::custom)
+            csv_string_to_linestring(v).map_err(serde::de::Error::custom)
         }
     }
 
@@ -204,6 +204,8 @@ pub fn extract_between_nodes<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use crate::model::osm::graph::{osm_way_ops, OsmNodeId};
     use routee_compass_core::model::unit::{AsF64, SpeedUnit};
 
@@ -303,6 +305,27 @@ mod tests {
         match super::csv_string_to_linestring(wkt) {
             Ok(result) => {}
             Err(e) => panic!("{e}"),
+        }
+    }
+
+    #[test]
+    fn linestring_from_csv_01() {
+        #[derive(serde::Deserialize, Debug)]
+        struct Row {
+            index: usize,
+            #[serde(deserialize_with = "super::deserialize_linestring")]
+            geometry: geo::LineString<f32>,
+        }
+        let path = Path::new("src/model/osm/graph/test/linestring_01.csv");
+        let mut row_reader =
+            csv::Reader::from_path(path).expect("test invariant: file should exist");
+        let rows = row_reader
+            .deserialize()
+            .collect::<Result<Vec<Row>, _>>()
+            .expect("deserialization failed");
+        match &rows[..] {
+            [row] => println!("{row:?}"),
+            _ => panic!("unexpected rows result {rows:?}"),
         }
     }
 }
