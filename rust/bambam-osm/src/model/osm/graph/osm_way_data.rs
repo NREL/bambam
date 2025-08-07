@@ -160,7 +160,11 @@ impl OsmWayData {
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
-            Ok(Some(s)) => osm_way_ops::deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries),
+            Ok(Some(s)) => osm_way_ops::deserialize_speed(
+                &s,
+                Some(Self::VALUE_DELIMITER),
+                ignore_invalid_entries,
+            ),
             Err(e) => Err(e),
         }
     }
