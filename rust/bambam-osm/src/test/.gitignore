@@ -1,3 +1,4 @@
 *.osm.pbf
 edges*
 vertices*
+speed*
