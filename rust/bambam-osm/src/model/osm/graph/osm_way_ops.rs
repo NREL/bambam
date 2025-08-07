@@ -141,7 +141,14 @@ where
         where
             E: de::Error,
         {
-            let wkt: wkt::Wkt<f32> = v.parse().map_err(|e| {
+            // Remove surrounding double quotes if present
+            let cleaned_v = if v.starts_with('"') && v.ends_with('"') && v.len() > 1 {
+                &v[1..v.len()-1]
+            } else {
+                &v
+            };
+            
+            let wkt: wkt::Wkt<f32> = cleaned_v.parse().map_err(|e| {
                 serde::de::Error::custom(format!("failed to parse WKT string: {e}"))
             })?;
             let linestring: LineString<f32> = wkt.try_into().map_err(|e| {
