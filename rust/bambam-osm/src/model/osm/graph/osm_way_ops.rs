@@ -285,14 +285,14 @@ mod tests {
         }
         let path = "src/model/osm/graph/test/linestring_01.csv";
         let mut row_reader =
-            csv::Reader::from_path(&path).expect("test invariant: file should exist");
+            csv::Reader::from_path(path).expect("test invariant: file should exist");
         let rows = row_reader
             .deserialize()
             .collect::<Result<Vec<Row>, _>>()
             .expect("deserialization failed");
         match &rows[..] {
-            [row] => println!("{:?}", row),
-            _ => panic!("unexpected rows result {:?}", rows),
+            [row] => println!("{row:?}"),
+            _ => panic!("unexpected rows result {rows:?}"),
         }
     }
 }
