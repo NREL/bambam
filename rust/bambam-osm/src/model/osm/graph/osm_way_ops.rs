@@ -153,7 +153,7 @@ where
         type Value = LineString<f32>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("an enquoted WKT LineString")
+            formatter.write_str("an (optionally double-quoted) WKT LineString<f32>")
         }
 
         fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
