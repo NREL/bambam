@@ -33,7 +33,7 @@ mod filenames {
     pub const EDGES_COMPLETE: &str = "edges-complete.csv.gz";
     pub const EDGES_COMPASS: &str = "edges-compass.csv.gz";
     pub const GEOMETRIES_ENUMERATED: &str = "edges-geometries-enumerated.txt.gz";
-    pub const POSTED_SPEEDS: &str = "edges-posted-speed-avgfill-enumerated.txt.gz";
+    pub const MAXSPEEDS_AVGFILL: &str = "speed-maxspeed-avgfill-enumerated.txt.gz";
     pub const HIGHWAY_TAG: &str = "edges-highway-tag-enumerated.txt.gz";
 }
 
@@ -91,16 +91,10 @@ impl CompassWriter for OsmGraphVectorized {
             QuoteStyle::Never,
             overwrite,
         );
-        // let mut grades_writer = create_writer(
-        //     output_directory,
-        //     filenames::GRADES,
-        //     false,
-        //     QuoteStyle::Necessary,
-        //     overwrite,
-        // );
-        let mut speeds_writer = create_writer(
+
+        let mut maxspeed_writer = create_writer(
             output_directory,
-            filenames::POSTED_SPEEDS,
+            filenames::MAXSPEEDS_AVGFILL,
             false,
             QuoteStyle::Necessary,
             overwrite,
@@ -183,10 +177,10 @@ impl CompassWriter for OsmGraphVectorized {
             }
 
             // SPEED
-            if let Some(ref mut writer) = speeds_writer {
-                let speed = get_fill_value(row, &speed_lookup)?;
+            if let Some(ref mut writer) = maxspeed_writer {
+                let speed = get_fill_value(row, &maxspeed_lookup)?;
                 writer.serialize(speed).map_err(|e| {
-                    OsmError::CsvWriteError(String::from(filenames::POSTED_SPEEDS), e)
+                    OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS_AVGFILL), e)
                 })?;
             }
 

@@ -1,9 +1,9 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    str::FromStr,
+use super::osm_way_ops::{self, serialize_linestring};
+use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmNodes, OsmSegment, OsmWayData, OsmWayId};
+use crate::model::{
+    feature::highway::{self, Highway},
+    osm::OsmError,
 };
-
 use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
@@ -11,14 +11,11 @@ use routee_compass_core::model::{
     unit::{Convert, Distance, Grade, Speed, SpeedUnit},
 };
 use serde::{Deserialize, Serialize, Serializer};
-use wkt::ToWkt;
-
-use crate::model::{
-    feature::highway::{self, Highway},
-    osm::OsmError,
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
 };
-
-use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmNodes, OsmSegment, OsmWayData, OsmWayId};
+use wkt::ToWkt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OsmWayDataSerializable {
@@ -54,7 +51,6 @@ pub struct OsmWayDataSerializable {
 }
 
 impl OsmWayDataSerializable {
-    const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
     /// a delimter for aggregated fields which does not collide with CSV delimiters
     pub const VALUE_DELIMITER: &'static str = ";";
 }
@@ -187,7 +183,7 @@ impl OsmWayDataSerializable {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => {
-                deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries)
+                osm_way_ops::deserialize_speed(&s, Some(Self::VALUE_DELIMITER), ignore_invalid_entries)
             }
             Err(e) => Err(e),
         }
@@ -307,7 +303,7 @@ pub fn create_linestring_for_od_path(
     way: &OsmWayData,
     graph: &OsmGraph,
 ) -> Result<LineString<f32>, OsmError> {
-    let coords = extract_between_nodes(src, dst, &way.nodes)
+    let coords = osm_way_ops::extract_between_nodes(src, dst, &way.nodes)
         .ok_or_else(|| {
             let nodes = way.nodes.iter().map(|n| format!("({n})")).join("->");
             OsmError::InternalError(format!(
@@ -356,141 +352,6 @@ fn top_highway(
     }
 }
 
-/// deals with the various ways that speed keys can appear. handles
-/// valid cases such as:
-///   - 45        (45 kph)
-///   - 45 mph    (72.4203 kph)
-///   - walk      (5 kph)
-///
-/// and invalid cases that are documented, such as:
-///   - 45; 80    (takes the smaller of the two, so, 45 kph)
-///
-/// see https://wiki.openstreetmap.org/wiki/Key:maxspeed
-fn deserialize_speed(
-    s: &str,
-    separator: Option<&str>,
-    ignore_invalid_entries: bool,
-) -> Result<Option<(Speed, SpeedUnit)>, String> {
-    let separated_entries = match separator {
-        Some(sep) => s.split(sep).collect_vec(),
-        None => vec![s],
-    };
-    match separated_entries[..] {
-        [] => Err(format!(
-            "internal error: attempting to unpack empty maxspeed value '{s}'"
-        )),
-        [entry] => {
-            match entry.split(" ").collect_vec()[..] {
-                // see https://wiki.openstreetmap.org/wiki/Key:maxspeed#Possible_tagging_mistakes
-                // for list of some values we should ignore that are known.
-                ["unposted"] => Ok(None),
-                ["unknown"] => Ok(None),
-                ["default"] => Ok(None),
-                ["variable"] => Ok(None),
-                ["national"] => Ok(None),
-                ["25mph"] => Ok(Some((Speed::from(25.0), SpeedUnit::MPH))),
-
-                // todo! handle all default speed limits
-                // see https://wiki.openstreetmap.org/wiki/Default_speed_limits
-                ["walk"] => {
-                    // Austria + Germany's posted "walking speed". i found a reference that
-                    // suggests this is 4-7kph:
-                    // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
-                    Ok(Some((
-                        Speed::from(OsmWayDataSerializable::DEFAULT_WALK_SPEED_KPH),
-                        SpeedUnit::KPH,
-                    )))
-                }
-                [speed_str] => {
-                    let speed_result = speed_str
-                        .parse::<i64>()
-                        .map(|i| i as f64)
-                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"))
-                        .or_else(|e1| {
-                            speed_str.parse::<f64>().map_err(|e2| {
-                                format!("speed value {speed_str} not a valid number: {e1} {e2}")
-                            })
-                        });
-
-                    let speed = match speed_result {
-                        Ok(speed) => speed,
-                        Err(e) if !ignore_invalid_entries => {
-                            return Err(e);
-                        }
-                        Err(_) => return Ok(None),
-                    };
-                    if speed == 0.0 || speed.is_nan() {
-                        Ok(None)
-                    } else {
-                        Ok(Some((Speed::from(speed), SpeedUnit::KPH)))
-                    }
-                }
-                [speed_str, unit_str] => {
-                    let speed_result = speed_str
-                        .parse::<f64>()
-                        .map_err(|e| format!("speed value {speed_str} not a valid number: {e}"));
-
-                    let speed = match speed_result {
-                        Ok(speed) => speed,
-                        Err(e) if !ignore_invalid_entries => {
-                            return Err(e);
-                        }
-                        Err(_) => return Ok(None),
-                    };
-                    if speed == 0.0 || speed.is_nan() {
-                        return Ok(None);
-                    }
-                    let speed_unit = match unit_str {
-                        "kph" => SpeedUnit::KPH,
-                        "mph" => SpeedUnit::MPH,
-                        _ if !ignore_invalid_entries => {
-                            return Err(format!(
-                                "unknown speed unit {unit_str} with value {speed}"
-                            ));
-                        }
-                        _ => {
-                            // some garbage or uncommon unit type like feet per minute, we can skip this entry.
-                            return Ok(None);
-                        }
-                    };
-                    let result = (Speed::from(speed), speed_unit);
-                    Ok(Some(result))
-                }
-                _ => Err(format!("unexpected maxspeed entry '{s}'")),
-            }
-        }
-        _ => {
-            let maxspeeds = separated_entries
-                .to_vec()
-                .iter()
-                .map(|e| deserialize_speed(e, separator, ignore_invalid_entries))
-                .collect::<Result<Vec<_>, _>>()?;
-            let min = maxspeeds
-                .into_iter()
-                .min_by_key(|m| match m {
-                    Some((s, su)) => {
-                        let mut s_cow = Cow::Borrowed(s);
-                        match su.convert(&mut s_cow, &SpeedUnit::KPH) {
-                            Ok(()) => s_cow.into_owned(),
-                            Err(_) => Speed::from(999999.9),
-                        }
-                    }
-                    None => Speed::from(999999.9),
-                })
-                .flatten();
-            Ok(min)
-        }
-    }
-}
-
-fn serialize_linestring<S>(row: &LineString<f32>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let wkt = row.to_wkt().to_string();
-    s.serialize_str(&wkt)
-}
-
 fn extract_between_nodes<'a>(
     src: &'a OsmNodeId,
     dst: &'a OsmNodeId,
@@ -503,85 +364,5 @@ fn extract_between_nodes<'a>(
         Some(&nodes[start..=start + end])
     } else {
         None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use routee_compass_core::model::unit::{AsF64, SpeedUnit};
-
-    use super::extract_between_nodes;
-    use crate::model::osm::graph::OsmNodeId;
-
-    #[test]
-    fn test_extract() {
-        let nodes = vec![
-            OsmNodeId(1),
-            OsmNodeId(2),
-            OsmNodeId(3),
-            OsmNodeId(4),
-            OsmNodeId(5),
-            OsmNodeId(6),
-        ];
-        let result = extract_between_nodes(&OsmNodeId(2), &OsmNodeId(4), &nodes);
-        println!("{result:?}");
-        let expected = [&OsmNodeId(2), &OsmNodeId(3), &OsmNodeId(4)];
-        match result {
-            Some([a, b, c]) => {
-                assert_eq!(a, &nodes[1]);
-                assert_eq!(b, &nodes[2]);
-                assert_eq!(c, &nodes[3]);
-            }
-            _ => panic!("not as expected"),
-        }
-    }
-
-    #[test]
-    fn deserialize_speed_1() {
-        //   - 45        (45 kph)
-        match super::deserialize_speed("45", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 45.0);
-                assert_eq!(speed_unit, SpeedUnit::KPH);
-            }
-            Ok(None) => panic!("should parse valid speed"),
-            Err(e) => panic!("{e}"),
-        }
-    }
-    #[test]
-    fn deserialize_speed_2() {
-        //   - 45 mph    (72.4203 kph)
-        match super::deserialize_speed("45 mph", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 45.0);
-                assert_eq!(speed_unit, SpeedUnit::MPH);
-            }
-            Ok(None) => panic!("should parse valid speed"),
-            Err(e) => panic!("{e}"),
-        }
-    }
-    #[test]
-    fn deserialize_speed_3() {
-        //   - walk      (5 kph)
-        match super::deserialize_speed("5 kph", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 5.0);
-                assert_eq!(speed_unit, SpeedUnit::KPH);
-            }
-            Ok(None) => panic!("should parse valid speed"),
-            Err(e) => panic!("{e}"),
-        }
-    }
-    #[test]
-    fn deserialize_speed_sep_1() {
-        //   - a few speed values, where 3 kph is the minimum
-        match super::deserialize_speed("3.1415 kph;3;2 mph", Some(";"), false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 3.0); // using a pessimistic approach, picks the min speed in the group
-                assert_eq!(speed_unit, SpeedUnit::KPH);
-            }
-            Ok(None) => panic!("should parse valid speed"),
-            Err(e) => panic!("{e}"),
-        }
     }
 }
