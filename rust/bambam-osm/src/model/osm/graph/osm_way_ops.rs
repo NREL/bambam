@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::model::osm::graph::{OsmNodeId, OsmWayDataSerializable};
 use geo::LineString;
 use itertools::Itertools;
-use routee_compass_core::model::unit::{Speed, SpeedUnit};
+use routee_compass_core::model::unit::{Convert, Speed, SpeedUnit};
 use serde::{de, Serializer};
 use wkt::ToWkt;
 
