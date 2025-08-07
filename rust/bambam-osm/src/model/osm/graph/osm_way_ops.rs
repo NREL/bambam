@@ -262,7 +262,7 @@ mod tests {
         }
     }
 
-     #[test]
+    #[test]
     fn deserialize_csv_linestring_no_quotes() {
         let wkt = "LINESTRING (0 0, 1 1)";
         let expected = geo::line_string![
@@ -270,25 +270,29 @@ mod tests {
             geo::coord! { x: 1.0f32, y: 1.0f32},
         ];
         match super::csv_string_to_linestring(wkt) {
-            Ok(result) => {},
+            Ok(result) => {}
             Err(e) => panic!("{e}"),
         }
     }
-    
+
     #[test]
     fn linestring_from_csv_01() {
         #[derive(serde::Deserialize, Debug)]
         struct Row {
             index: usize,
-            #[serde(deserialize_with="super::deserialize_linestring")]
+            #[serde(deserialize_with = "super::deserialize_linestring")]
             geometry: geo::LineString<f32>,
         }
         let path = "src/model/osm/graph/test/linestring_01.csv";
-        let mut row_reader = csv::Reader::from_path(&path).expect("test invariant: file should exist");
-        let rows = row_reader.deserialize().collect::<Result<Vec<Row>, _>>().expect("deserialization failed");
+        let mut row_reader =
+            csv::Reader::from_path(&path).expect("test invariant: file should exist");
+        let rows = row_reader
+            .deserialize()
+            .collect::<Result<Vec<Row>, _>>()
+            .expect("deserialization failed");
         match &rows[..] {
             [row] => println!("{:?}", row),
-            _ => panic!("unexpected rows result {:?}", rows)
+            _ => panic!("unexpected rows result {:?}", rows),
         }
     }
 }
