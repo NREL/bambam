@@ -97,7 +97,7 @@ impl ActivityFrequencies {
                         .into_iter()
                         .filter(|(node, _)| node.geometry.intersects(geometry))
                         .map(|(node, area)| {
-                            // actually look up the intensity value we are trying to find
+                            // look up and calculate the activity frequency
                             let freq =
                                 node.data.frequencies.get(activity_type).ok_or_else(|| {
                                     OutputPluginError::OutputPluginFailed(format!(
@@ -116,7 +116,8 @@ impl ActivityFrequencies {
                         ))),
                         [(value, _)] => Ok(value),
                         _ => {
-                            // weighted average of the intensity values by their proportional coverage of the isochrone
+                            // weighted average of the activity frequencies by
+                            // their proportional coverage of the isochrone
                             let numer = found_intensities.iter().map(|(v, w)| v * w).sum::<f64>();
                             let denom = found_intensities.iter().map(|(_, w)| w).sum::<f64>();
                             Ok(numer / denom)
