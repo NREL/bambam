@@ -13,18 +13,15 @@ use wkt::{ToWkt, TryFromWkt};
 
 use crate::model::output_plugin::mep_score::ActivityFrequenciesConfig;
 
-// FIXME: come back here and fix the problem
-// #[derive(Deserialize, Serialize)]
-// #[serde(rename_all = "snake_case")]
-// #[serde(tag = "type")]
+pub struct Frequencies {
+    frequencies: HashMap<String, f64>,
+    frequency_sum: f64,
+}
+
 pub enum ActivityFrequencies {
-    GlobalFrequencies {
-        frequencies: HashMap<String, f64>,
-        frequency_sum: f64,
-    },
+    GlobalFrequencies(Frequencies),
     ZonalFrequencies {
-        frequencies: PolygonalRTree<f32, HashMap<String, f64>>,
-        frequency_sum: f64,
+        frequencies: PolygonalRTree<f32, Frequencies>,
     },
 }
 
@@ -42,10 +39,10 @@ impl TryFrom<&ActivityFrequenciesConfig> for ActivityFrequencies {
                     .into();
                     Err(err.into())
                 } else {
-                    Ok(ActivityFrequencies::GlobalFrequencies {
+                    Ok(ActivityFrequencies::GlobalFrequencies(Frequencies {
                         frequencies: frequencies.clone(),
                         frequency_sum,
-                    })
+                    }))
                 }
             }
             ActivityFrequenciesConfig::ZonalFrequencies {
@@ -54,22 +51,14 @@ impl TryFrom<&ActivityFrequenciesConfig> for ActivityFrequencies {
                 let feature_collection =
                     read_geojson_feature_collection(activity_frequencies_input_file)?;
 
-                let frequencies_data: Vec<(Geometry<f32>, HashMap<String, f64>)> =
-                    feature_collection
-                        .into_iter()
-                        .map(feature_to_frequencies)
-                        .collect::<Result<_, CompassConfigurationError>>()?;
-
-                let frequency_sum = frequencies_data
-                    .iter()
-                    .fold(0.0, |acc, (_, v)| acc + v.values().sum::<f64>());
+                let frequencies_data: Vec<(Geometry<f32>, Frequencies)> = feature_collection
+                    .into_iter()
+                    .map(feature_to_frequencies)
+                    .collect::<Result<_, CompassComponentError>>()?;
 
                 let frequencies = PolygonalRTree::new(frequencies_data).map_err(|e| CompassConfigurationError::UserConfigurationError(format!("failure building spatial index from file {activity_frequencies_input_file} : {e}")))?;
 
-                Ok(Self::ZonalFrequencies {
-                    frequencies,
-                    frequency_sum,
-                })
+                Ok(Self::ZonalFrequencies { frequencies })
             }
         }
     }
@@ -82,10 +71,10 @@ impl ActivityFrequencies {
         location: Option<&geo::Geometry<f32>>,
     ) -> Result<f64, OutputPluginError> {
         match self {
-            ActivityFrequencies::GlobalFrequencies {
+            ActivityFrequencies::GlobalFrequencies(Frequencies {
                 frequencies,
                 frequency_sum,
-            } => {
+            }) => {
                 let freq = frequencies.get(activity_type).ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(
                         "global frequencies missing activity type {activity_type}"
@@ -94,10 +83,7 @@ impl ActivityFrequencies {
 
                 Ok(*freq / *frequency_sum)
             }
-            ActivityFrequencies::ZonalFrequencies {
-                frequencies,
-                frequency_sum,
-            } => {
+            ActivityFrequencies::ZonalFrequencies { frequencies } => {
                 if let Some(geometry) = location {
                     let intersecting_zones_by_area = frequencies
                         .intersection_with_overlap_area(geometry)
@@ -112,12 +98,14 @@ impl ActivityFrequencies {
                         .filter(|(node, _)| node.geometry.intersects(geometry))
                         .map(|(node, area)| {
                             // actually look up the intensity value we are trying to find
-                            let value = node.data.get(activity_type).ok_or_else(|| {
-                                OutputPluginError::OutputPluginFailed(format!(
-                                    "global frequencies missing activity type {activity_type}"
-                                ))
-                            })?;
-                            Ok((*value, area as f64))
+                            let freq =
+                                node.data.frequencies.get(activity_type).ok_or_else(|| {
+                                    OutputPluginError::OutputPluginFailed(format!(
+                                        "global frequencies missing activity type {activity_type}"
+                                    ))
+                                })?;
+                            let frequency_sum = node.data.frequency_sum;
+                            Ok((*freq / frequency_sum, area as f64))
                         })
                         .collect::<Result<Vec<_>, OutputPluginError>>()?;
 
@@ -126,12 +114,12 @@ impl ActivityFrequencies {
                             "no zonal frequencies match opportunity accessed at geometry: {}",
                             geometry.to_wkt()
                         ))),
-                        [(value, _)] => Ok(value / frequency_sum),
+                        [(value, _)] => Ok(value),
                         _ => {
                             // weighted average of the intensity values by their proportional coverage of the isochrone
                             let numer = found_intensities.iter().map(|(v, w)| v * w).sum::<f64>();
                             let denom = found_intensities.iter().map(|(_, w)| w).sum::<f64>();
-                            Ok(numer / denom / frequency_sum)
+                            Ok(numer / denom)
                         }
                     }
                 } else {
@@ -171,7 +159,7 @@ fn read_geojson_feature_collection(
 /// it into a spatial index of frequency values.
 fn feature_to_frequencies(
     feature: geojson::Feature,
-) -> Result<(Geometry<f32>, HashMap<String, f64>), CompassConfigurationError> {
+) -> Result<(Geometry<f32>, Frequencies), CompassComponentError> {
     let id = match feature.id {
         Some(geojson::feature::Id::String(s)) => s.to_string(),
         Some(geojson::feature::Id::Number(n)) => n.to_string(),
@@ -208,5 +196,20 @@ fn feature_to_frequencies(
         })
         .collect::<Result<HashMap<String, f64>, CompassConfigurationError>>()?;
 
-    Ok((geometry, frequencies))
+    let frequency_sum: f64 = frequencies.values().sum();
+    if frequency_sum == 0.0 {
+        let err: PluginError = OutputPluginError::BuildFailed(String::from(
+            "sum of activity frequencies cannot be zero",
+        ))
+        .into();
+        Err(err.into())
+    } else {
+        Ok((
+            geometry,
+            Frequencies {
+                frequencies,
+                frequency_sum,
+            },
+        ))
+    }
 }
