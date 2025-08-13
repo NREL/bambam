@@ -1,0 +1,42 @@
+node_distance_threshold = [15.0, "meters"]
+ignore_osm_parsing_errors = true
+truncate_by_edge = false
+simplify = false
+consolidate = false
+parallelize = true
+overwrite = true
+
+[component_filter]
+type = "keep_all"
+
+[element_filter]
+type = "osmnx_all_public"
+
+# [element_filter]
+# type = "highway_tags"
+# tags = [
+#     'footway',
+#     'cycleway',
+#     'tertiary_link',
+#     'trunk_link',
+#     'elevator',
+#     'secondary',
+#     'residential',
+#     'motorway',
+#     'trunk',
+#     'primary_link',
+#     'corridor',
+#     'primary',
+#     'living_street',
+#     'service',
+#     'steps',
+#     'track',
+#     'path',
+#     'trailhead',
+#     'pedestrian',
+#     'motorway_link',
+#     'unclassified',
+#     'road',
+#     'secondary_link',
+#     'tertiary',
+# ]
