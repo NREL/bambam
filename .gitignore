@@ -1,5 +1,6 @@
 Cargo.lock
 .DS_Store
-.vscode/
+.vscode
 target
 output
+cache
