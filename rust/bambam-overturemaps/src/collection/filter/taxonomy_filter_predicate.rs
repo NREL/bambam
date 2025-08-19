@@ -75,10 +75,8 @@ impl ArrowPredicate for TaxonomyRowPredicate {
                 if let Some(alternate_categories) =
                     alternate_col_value.as_any().downcast_ref::<StringArray>()
                 {
-                    for maybe_category in alternate_categories {
-                        if let Some(category) = maybe_category {
-                            possible_categories.push(category);
-                        }
+                    for category in alternate_categories.into_iter().flatten() {
+                        possible_categories.push(category);
                     }
                 }
 
