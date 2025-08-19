@@ -3,7 +3,9 @@ use crate::model::output_plugin::opportunity::{
 };
 use bamcensus::app::lodes_tiger;
 use bamcensus_core::model::identifier::{Geoid, GeoidType};
-use bamcensus_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
+use bamcensus_lehd::model::{
+    LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment,
+};
 use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

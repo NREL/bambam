@@ -124,7 +124,7 @@ pub enum App {
         // /// comma-delimited list of categories to keep
         // #[arg(long)]
         // activity_categories: String,
-    }
+    },
 }
 
 impl App {

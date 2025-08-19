@@ -6,7 +6,9 @@ use super::{
 use bambam_overturemaps::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
 use bamcensus::app::lodes_tiger;
 use bamcensus_core::model::identifier::GeoidType;
-use bamcensus_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
+use bamcensus_lehd::model::{
+    LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment,
+};
 use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

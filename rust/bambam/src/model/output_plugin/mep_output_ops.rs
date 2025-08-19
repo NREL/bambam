@@ -1,7 +1,4 @@
-use super::{
-    bambam_field,
-    isochrone::time_bin::TimeBin,
-};
+use super::{bambam_field, isochrone::time_bin::TimeBin};
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
