@@ -16,7 +16,10 @@ pub struct FillValueLookup {
 }
 
 impl FillValueLookup {
-    pub fn new<'a>(
+    /// creates a new FillValueLookup. the value will be collected using value_op
+    /// for each category found in class_label_field. all values in each category
+    /// will be aggregated using a weighted average, where the weight is the length of the way in meters.
+    pub fn new(
         ways: &[OsmWayDataSerializable],
         class_label_field: &str,
         value_field: &str,
@@ -35,7 +38,7 @@ impl FillValueLookup {
                 .map_err(OsmError::GraphConsolidationError)?;
             let value_opt = value_op(way)?;
             if let (Some(class_label), Some(value)) = (class_label_opt, value_opt) {
-                let _ = buckets
+                buckets
                     .entry(class_label)
                     .and_modify(|(vs, ds)| {
                         vs.push(value);

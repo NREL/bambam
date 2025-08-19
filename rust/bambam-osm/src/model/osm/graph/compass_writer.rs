@@ -100,25 +100,6 @@ impl CompassWriter for OsmGraphVectorized {
             overwrite,
         );
 
-        // find maxspeed values and build a fill value lookup table for missing maxspeed imputation
-        let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            r.get_speed("maxspeed", true)
-                .and_then(|r_opt| {
-                    if let Some((s, su)) = r_opt {
-                        let mut s_convert = Cow::Owned(s);
-                        su.convert(&mut s_convert, &SpeedUnit::KPH)
-                            .map_err(|e| e.to_string())?;
-                        let output = s_convert.into_owned().as_f64();
-                        Ok(Some(output))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .map_err(OsmError::GraphConsolidationError)
-        };
-        let maxspeed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
-
-        // write all vertex data to disk
         let v_iter = tqdm!(
             self.nodes.iter().enumerate(),
             total = self.nodes.len(),
@@ -145,7 +126,23 @@ impl CompassWriter for OsmGraphVectorized {
         }
         eprintln!();
 
-        // write all edge data to disk
+        // construct maxspeed fill value lookup
+        let maxspeed_cb = |r: &OsmWayDataSerializable| {
+            let r_opt = r
+                .get_speed("maxspeed", true)
+                .map_err(OsmError::InternalError)?;
+            if let Some((s, su)) = r_opt {
+                let mut s_convert = Cow::Owned(s);
+                su.convert(&mut s_convert, &SpeedUnit::KPH)
+                    .map_err(|e| OsmError::InternalError(e.to_string()))?;
+                let output = s_convert.into_owned().as_f64();
+                Ok(Some(output))
+            } else {
+                Ok(None)
+            }
+        };
+        let speed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
+
         let e_iter = tqdm!(
             self.ways.iter().enumerate(),
             total = self.ways.len(),
@@ -181,7 +178,7 @@ impl CompassWriter for OsmGraphVectorized {
 
             // SPEED
             if let Some(ref mut writer) = maxspeed_writer {
-                let speed = get_fill_value(row, &maxspeed_lookup)?;
+                let speed = get_fill_value(row, &speed_lookup)?;
                 writer.serialize(speed).map_err(|e| {
                     OsmError::CsvWriteError(String::from(filenames::MAXSPEEDS_AVGFILL), e)
                 })?;

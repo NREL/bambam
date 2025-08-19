@@ -93,84 +93,76 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use bambam_osm::model::osm::graph::{osm_element_filter::ElementFilter, CompassWriter};
-    use bambam_osm::model::osm::OsmSource;
-    use routee_compass_core::model::unit::{Distance, DistanceUnit};
-    use std::collections::HashSet;
-    use std::path::Path;
+    use bambam_osm::model::osm::graph::{OsmNodeDataSerializable, OsmWayDataSerializable};
+    use routee_compass_core::util::fs::read_utils;
 
-    #[ignore = "e2e test runner for OSM import"]
-    #[allow(unused)]
-    fn test_neighborhood_import() {
-        env_logger::init();
-        // let pbf_filepath = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        //     .join("src")
-        //     .join("resources")
-        //     .join("test_neighborhood.pbf");
-        // let pbf_file = pbf_filepath.as_path().to_str().unwrap();
-        // let pbf_config = OsmSource::Pbf {
-        //     pbf_filepath: String::from(pbf_file),
-        //     network_filter: Some(ElementFilter::OsmnxAllPublic),
-        //     extent_filter_filepath: None,
-        //     component_filter: None,
-        //     truncate_by_edge: true,
-        //     simplify: true,
-        //     consolidate: true,
-        //     consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
-        //     parallelize: false,
-        // };
-        let pbf_file = "/Users/rfitzger/data/mep/mep3/input/osm/colorado-latest.osm.pbf";
-        use bambam_osm::model::feature::highway::Highway as H;
-        let net_fltr = ElementFilter::HighwayTags {
-            tags: HashSet::from([
-                H::Footway,
-                H::Cycleway,
-                H::TertiaryLink,
-                H::TrunkLink,
-                H::Elevator,
-                H::Secondary,
-                H::Residential,
-                H::Motorway,
-                H::Trunk,
-                H::PrimaryLink,
-                H::Corridor,
-                H::Primary,
-                H::LivingStreet,
-                H::Service,
-                H::Steps,
-                H::Track,
-                H::Path,
-                H::Trailhead,
-                H::Pedestrian,
-                H::MotorwayLink,
-                H::Unclassified,
-                H::Road,
-                H::SecondaryLink,
-                H::Tertiary,
-            ]),
+    #[test]
+    fn test_e2e_liechtenstein() {
+        // uses a small OSM dataset to test the end-to-end data processing
+        let cleanup_tmp_dir = match std::env::var("CLEANUP_TMP_DIR") {
+            Ok(value) => value
+                .parse::<bool>()
+                .expect("CLEANUP_TMP_DIR must be 'true' or 'false'"),
+            Err(_) => true, // default
         };
-        let pbf_config = OsmSource::Pbf {
-            pbf_filepath: String::from(pbf_file),
-            network_filter: Some(net_fltr),
-            extent_filter_filepath: Some(String::from(
-                "/Users/rfitzger/data/mep/mep3/input/extent/wkt_drawn_box_denver_city.txt",
+        let temp_directory = "src/test/tmp";
+        let pbf_file = "src/test/liechtenstein-latest.osm.pbf";
+        let extent_file = "src/test/schaan_liechtenstein.txt";
+        let config_file = "../../configuration/bambam-osm/test_osm_import.toml";
+        let conf = crate::App::Pbf {
+            pbf_file: pbf_file.to_string(),
+            extent_file: Some(extent_file.to_string()),
+            configuration_file: Some(config_file.to_string()),
+            output_directory: temp_directory.to_string(),
+        };
+
+        if let Err(e) = crate::run(&conf) {
+            panic!("bambam-osm run failure during import: {e}");
+        }
+
+        // test graph connectivity
+        let mut disconnected: Vec<String> = vec![];
+        let ways_result: Result<Box<[OsmWayDataSerializable]>, _> =
+            read_utils::from_csv(&"src/test/tmp/edges-complete.csv.gz", true, None, None);
+        let nodes_result: Result<Box<[OsmNodeDataSerializable]>, _> =
+            read_utils::from_csv(&"src/test/tmp/vertices-complete.csv.gz", true, None, None);
+        let invariant_error_msg = match (&ways_result, &nodes_result) {
+            (Ok(_), Ok(_)) => None,
+            (Ok(_), Err(e)) => Some(format!("failed to read nodes file: {e}")),
+            (Err(e), Ok(_)) => Some(format!("failed to read ways file: {e}")),
+            (Err(e1), Err(e2)) => Some(format!(
+                "failed to read both nodes and ways files: {e1} {e2}"
             )),
-            component_filter: None,
-            truncate_by_edge: true,
-            ignore_errors: true,
-            simplify: false,
-            consolidate: false,
-            consolidation_threshold: (Distance::from(15.0), DistanceUnit::Meters),
-            parallelize: false,
         };
+        if let (Ok(ways), Ok(nodes)) = (ways_result, nodes_result) {
+            for way in ways.iter() {
+                let src_id = way.src_vertex_id.0;
+                let way_id = way.osmid.0;
+                let dst_id = way.dst_vertex_id.0;
+                let way_img = format!("({src_id})-[{way_id}]->({dst_id})");
+                let src = nodes.get(src_id);
+                let dst = nodes.get(dst_id);
+                match (src, dst) {
+                    (None, Some(_)) => disconnected.push(format!("src missing from {way_img}")),
+                    (Some(_), None) => disconnected.push(format!("dst missing from {way_img}")),
+                    (None, None) => disconnected.push(format!("src/dst missing from {way_img}")),
+                    (Some(_), Some(_)) => {}
+                }
+            }
+        }
 
-        let graph = match pbf_config.import() {
-            Ok(g) => g,
-            Err(e) => panic!("graph import failed: {e}"),
-        };
-        match graph.write_compass(Path::new("out"), true) {
-            Ok(_) => eprintln!("finished."),
-            Err(e) => panic!("graph write failed: {e}"),
+        // cleanup before exits, order is important.
+        if cleanup_tmp_dir {
+            std::fs::remove_dir_all(temp_directory).expect("failed to remove tmp directory");
+        }
+        // error if we couldn't read the output files or if the graph connectivity was invalid.
+        match invariant_error_msg {
+            None if !disconnected.is_empty() => {
+                disconnected.iter().take(5).for_each(|d| println!("{d}"));
+                panic!("files were written but some ways had invalid src/dst vertex ids (first 5 in log)")
+            }
+            Some(msg) => panic!("{msg}"),
+            _ => {}
         }
     }
 }

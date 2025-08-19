@@ -39,7 +39,7 @@ pub const BUFFER_500M: f32 = 500.0;
 /// reads a PBF file and stores the Ways and Nodes in lookup objects. filters out nodes
 /// and ways based on the filter and extent_opt arguments:
 /// - if provided, extent_opt will filter out nodes with points found outside of the extent
-/// - the provided [`NetworkFilter`] filters rows based on their [`Highway`] tag
+/// - the provided [`ElementFilter`] filters rows based on their [`Highway`] tag
 /// - ways that had their nodes removed are also removed
 pub fn read_pbf(
     filepath: &str,
@@ -86,8 +86,6 @@ pub fn read_pbf(
 
     let mut nodes_map: OsmNodes = HashMap::default();
     let mut ways_map: OsmWays = HashMap::default();
-    let mut nodes_visited: usize = 0;
-    let mut ways_visited: usize = 0;
     // pull in all Node and Way rows. along the way, track which NodeOsmids are
     // present in the ways that have been accepted by the filter function.
     reader
@@ -95,10 +93,9 @@ pub fn read_pbf(
             let valid_element = filter.accept(&e);
             match e {
                 Element::Node(node) if !valid_element => {
-                    nodes_visited += 1;
+                    // Skip invalid nodes
                 }
                 Element::Node(node) => {
-                    nodes_visited += 1;
                     if node.id() == 0 {
                         log::warn!(
                             "node missing OSMID at ({},{}) ignored",
@@ -120,10 +117,9 @@ pub fn read_pbf(
                     }
                 }
                 Element::DenseNode(dense) if !valid_element => {
-                    nodes_visited += 1;
+                    // Skip invalid dense nodes
                 }
                 Element::DenseNode(dense) => {
-                    nodes_visited += 1;
                     // from documentation on DenseNode:
                     // So, if you want to [pattern match on] `Node`, you also likely want to match [`DenseNode`].
                     let n = OsmNodeData::from(&dense);
@@ -139,10 +135,9 @@ pub fn read_pbf(
                     }
                 }
                 Element::Way(way) if !valid_element => {
-                    ways_visited += 1;
+                    // Skip invalid ways
                 }
                 Element::Way(way) => {
-                    ways_visited += 1;
                     let w = OsmWayData::new(&way);
                     if ways_map.contains_key(&w.osmid) {
                         log::warn!(
@@ -192,23 +187,11 @@ pub fn read_pbf(
             if disconnected_way {
                 disconnected_ways.push(way.osmid);
             } else {
+                // update our set of all nodes still connected to ways after filtering
                 for node_id in way.nodes.iter() {
-                    // while we could just "insert" only, this test avoids unnecessary cloning
-                    if !connected_nodes.contains(node_id) {
-                        connected_nodes.insert(*node_id);
-                    }
+                    connected_nodes.insert(*node_id);
                 }
             }
-            // let src_node_id = way.src_node_id()?;
-            // let dst_node_id = way.dst_node_id()?;
-            // let disconnected =
-            //     !nodes_map.contains_key(&src_node_id) || !nodes_map.contains_key(&dst_node_id);
-            // if disconnected {
-            //     disconnected_ways.push(way.osmid);
-            // } else {
-            //     connected_nodes.insert(src_node_id);
-            //     connected_nodes.insert(dst_node_id);
-            // }
         }
         eprintln!();
 
@@ -247,141 +230,16 @@ pub fn read_pbf(
         }
         eprintln!();
     }
-    // // we may have filtered nodes along the way, so here we must remove the ways that were attached to them
-    // let mut disconnected_ways = vec![];
-    // let mut connected_nodes: HashSet<OsmNodeId> = HashSet::new();
-    // let find_disconnected_ways_iter = tqdm!(
-    //     ways_map.values(),
-    //     desc = "find ways with missing nodes",
-    //     total = ways_map.len()
-    // );
-
-    // // remove this way if it contains any nodes which are not present in our nodes_map
-    // // as they may lie outside of the study region.
-    // for way in find_disconnected_ways_iter {
-    //     let disconnected_way = way.nodes.iter().any(|n_id| !nodes_map.contains_key(n_id));
-    //     if disconnected_way {
-    //         disconnected_ways.push(way.osmid);
-    //     } else {
-    //         for node_id in way.nodes.iter() {
-    //             // while we could just "insert" only, this test avoids unnecessary copies
-    //             if !connected_nodes.contains(node_id) {
-    //                 connected_nodes.insert(*node_id);
-    //             }
-    //         }
-    //     }
-    //     // let src_node_id = way.src_node_id()?;
-    //     // let dst_node_id = way.dst_node_id()?;
-    //     // let disconnected =
-    //     //     !nodes_map.contains_key(&src_node_id) || !nodes_map.contains_key(&dst_node_id);
-    //     // if disconnected {
-    //     //     disconnected_ways.push(way.osmid);
-    //     // } else {
-    //     //     connected_nodes.insert(src_node_id);
-    //     //     connected_nodes.insert(dst_node_id);
-    //     // }
-    // }
-    // eprintln!();
-
-    // let remove_disconnected_ways_iter = tqdm!(
-    //     disconnected_ways.iter(),
-    //     desc = "remove disconnected ways",
-    //     total = disconnected_ways.len()
-    // );
-    // for way_id in remove_disconnected_ways_iter {
-    //     ways_map.remove(way_id);
-    // }
-
-    // // finally, remove nodes that became detached after way filtering
-    // let mut disconnected_nodes = vec![];
-    // let find_disconnected_node_iter = tqdm!(
-    //     nodes_map.values(),
-    //     desc = "find disconnected nodes",
-    //     total = nodes_map.len()
-    // );
-    // for node in find_disconnected_node_iter {
-    //     let disconnected = !connected_nodes.contains(&node.osmid);
-    //     if disconnected {
-    //         disconnected_nodes.push(node.osmid);
-    //     }
-    // }
-    // eprintln!();
-    // let remove_disconnected_node_iter = tqdm!(
-    //     disconnected_nodes.iter(),
-    //     desc = "remove disconnected nodes",
-    //     total = disconnected_nodes.len()
-    // );
-    // for node_id in remove_disconnected_node_iter {
-    //     nodes_map.remove(node_id);
-    // }
-    // eprintln!();
 
     log::info!(
         "{} ways and {} nodes collected from OSM pbf resource.",
         ways_map.len(),
         nodes_map.len(),
-        // nodes_visited,
-        // ways_visited
     );
     Ok((nodes_map, ways_map))
 }
 
-// pub fn build_adjacencies(ways_map: &OsmWays) -> Result<AdjacencyList3, OsmError> {
-//     let mut adj: AdjacencyList3 = HashMap::new();
-
-//     let ways_iter = tqdm!(
-//         ways_map.values(),
-//         total = ways_map.len(),
-//         desc = "building adjacency list"
-//     );
-//     for way in ways_iter {
-//         // # extract/remove the ordered list of nodes from this path element so
-//         // # we don't add it as a superfluous attribute to the edge later
-//         let mut nodes = way.nodes.clone();
-
-//         // # reverse the order of nodes in the path if this path is both one-way
-//         // # and only allows travel in the opposite direction of nodes' order
-//         let oneway = way.is_one_way();
-//         let reverse = way.is_reverse();
-//         if oneway && reverse {
-//             nodes.reverse();
-//         }
-
-//         // # set the oneway attribute, but only if when not forcing all edges to
-//         // # oneway with the all_oneway setting. With the all_oneway setting, you
-//         // # want to preserve the original OSM oneway attribute for later clarity
-//         // --> SKIPPED since we don't support this
-
-//         // # zip path nodes to get (u, v) tuples like [(0,1), (1,2), (2,3)].
-//         // # add all the edge tuples and give them the path's tag:value attrs
-//         for (src_id, dst_id) in nodes.iter().tuple_windows() {
-//             // # G.add_edges_from(edges, **path)
-//             // insert forward-oriented segment
-//             let mut fwd_entries = adj
-//                 .entry((*src_id, AdjacencyDirection::Forward))
-//                 .or_insert(HashMap::new());
-
-//             if !oneway {
-//                 // # G.add_edges_from((v, u) for u, v in edges], **path)
-//                 // insert reverse-oriented segment
-//                 let mut rev_entries = adj
-//                     .entry((*dst_id, AdjacencyDirection::Reverse))
-//                     .or_insert(HashMap::new());
-//                 insert_op2(src_id, way, false, rev_entries)?;
-//             }
-//         }
-//     }
-//     eprintln!();
-
-//     log::info!(
-//         "adjacency list has {} nodes, {} segments",
-//         adj.len(),
-//         adj.values().map(|adj| adj.len()).sum::<usize>()
-//     );
-//     Ok(adj)
-// }
-
-pub fn build_adjacencies_2(ways_map: &OsmWays) -> Result<AdjacencyList, OsmError> {
+pub fn build_adjacencies(ways_map: &OsmWays) -> Result<AdjacencyList, OsmError> {
     let mut adj: AdjacencyList = HashMap::new();
 
     let ways_iter = tqdm!(
@@ -485,7 +343,6 @@ fn insert_op(
 fn insert_op2(
     target_id: &OsmNodeId,
     way: &OsmWayData,
-    is_oneway: bool,
     entry: &mut HashMap<OsmNodeId, OsmWayData>,
 ) -> Result<(), OsmError> {
     // determine if we should insert this new way, depending on whether there is an
@@ -496,7 +353,7 @@ fn insert_op2(
         entry.get(target_id).map(|w| w.get_highway()),
     ) {
         (Ok(None), _) => false,
-        (Ok(Some(highway)), None) => true,
+        (Ok(Some(_highway)), None) => true,
         (Ok(Some(new_highway)), Some(Ok(Some(old_highway)))) => new_highway < old_highway,
         (_, Some(Ok(None))) => {
             return Err(OsmError::InternalError(String::from(
@@ -512,16 +369,6 @@ fn insert_op2(
         }
         (Err(e), None) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
         (Err(e), Some(_)) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
-    };
-
-    let highway = match &way.highway {
-        Some(h) => {
-            let highway = h
-                .parse::<Highway>()
-                .map_err(|e| OsmError::InvalidOsmData(format!("unknown highway tag '{h}': {e}")))?;
-            Some(highway)
-        }
-        None => None,
     };
 
     if insert_way {
