@@ -1,9 +1,6 @@
 use super::{
     bambam_field,
     isochrone::time_bin::TimeBin,
-    mep_score::{
-        activity_frequencies::ActivityFrequencies, modal_intensity_model::ModalIntensityModel,
-    },
 };
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
@@ -116,27 +113,6 @@ pub fn accumulate_global_opps(
     }
     Ok(result)
 }
-
-// pub fn accumulate_global_mep_scores(
-//     opportunities: &HashMap<String, f64>,
-//     search_result: &SearchAppResult,
-//     mode: &String,
-//     time_bin: &TimeBin,
-//     modal_intensity_values: &ModalIntensityModel,
-//     activity_parameters: &ActivityFrequencies,
-// ) -> Result<HashMap<String, f64>, PluginError> {
-//     let intensity_vector =
-//         modal_intensity_values.get_intensity_vector(mode, Some(time_bin), None, search_result)?;
-//     let opps = opportunities.iter().map(|(k, v)| (k, Some(*v)));
-//     let meps = mep_score_ops::compute_mep_from_opportunities(
-//         None,
-//         Box::new(opps),
-//         activity_parameters,
-//         &intensity_vector,
-//         search_result,
-//     )?;
-//     Ok(meps)
-// }
 
 /// steps through each bin's output section for mutable updates
 pub fn iterate_bins<'a>(
