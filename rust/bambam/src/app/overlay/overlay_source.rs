@@ -1,9 +1,9 @@
-use flate2::read::GzDecoder;
 use bamcensus_core::model::identifier::Geoid;
+use flate2::read::GzDecoder;
 use geo::Geometry;
 use routee_compass_core::util::geo::PolygonalRTree;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::BufReader, collections::HashMap, path::Path};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 use wkt::TryFromWkt;
 
 /// source of overlay geometry dataset
