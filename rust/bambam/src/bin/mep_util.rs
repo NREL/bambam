@@ -28,14 +28,19 @@ use std::io::Write;
 #[derive(Subcommand)]
 pub enum App {
     #[command(
-        name = "walk comfort index",
+        name = "walk_comfort_index",
         about = "calculate the WCI of links, set to file"
     )]
     WalkComfortIndexSet {
         /// file to write WCI values to, one per line
+        #[arg(long)]
         wci_file: String,
-        /// input csv file with OSM data
-        input_osm: String,
+        /// input csv file with edges OSM data
+        #[arg(long)]
+        edges_osm: String,
+        /// input csv file with vertices OSM data
+        #[arg(long)]
+        vertices_osm: String,
     },
     #[command(
         name = "preprocess_grid",
@@ -186,9 +191,12 @@ impl App {
         match self {
             Self::WalkComfortIndexSet {
                 wci_file,
-                input_osm,
+                edges_osm,
+                vertices_osm,
             } => {
-                wci::process_wci(&input_osm, &wci_file).unwrap();
+                if let Err(error) = wci::process_wci(&edges_osm, &vertices_osm, &wci_file){
+                    eprintln!("error! {:?}", error);
+                }
                 Ok(())
             }
             Self::PreProcessGrid {

@@ -124,7 +124,7 @@ where
     s.serialize_str(&wkt)
 }
 
-pub fn deserialize_linestring<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
+pub fn deserialize_linestring2<'de, D>(d: D) -> Result<LineString<f32>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -134,10 +134,11 @@ where
         type Value = LineString<f32>;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("an enquoted WKT LineString")
+            println!("using osm_way_ops");
+            formatter.write_str("a WKT LineString")
         }
 
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        fn visit_str<E>(self, mut v: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
@@ -149,9 +150,16 @@ where
             })?;
             Ok(linestring)
         }
+
+        fn visit_string<E>(self, v:String) -> Result<Self::Value, E>
+        where 
+            E: de::Error,
+        {
+            self.visit_str(&v)
+        }
     }
 
-    d.deserialize_string(LineStringVisitor {})
+    d.deserialize_str(LineStringVisitor {})
 }
 
 /// takes all node ids found between src an dst in a list of nodes.
