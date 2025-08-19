@@ -139,7 +139,7 @@ impl OsmSource {
                 }
 
                 // finalize the graph via vectorization
-                let result = OsmGraphVectorized::new(graph)?;
+                let result = OsmGraphVectorized::new(graph, true)?;
 
                 log::info!(
                     "loaded PBF-sourced Compass graph with {} nodes, {} ways",

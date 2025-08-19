@@ -66,12 +66,13 @@ fn truncate_graph_by_edge(
     let remove_segments = {
         let shared_graph = Arc::new(&graph);
         shared_graph
-            .connected_ways_triplet_iterator(false)
+            .connected_multiedge_way_triplet_iterator(false)
             .par_bridge()
             .filter_map(|result| {
                 let triplets = match result {
                     Err(_) => return None,
-                    Ok(triplets) => triplets,
+                    Ok(None) => return None,
+                    Ok(Some(triplets)) => triplets,
                 };
                 triplets
                     .iter()
@@ -81,7 +82,7 @@ fn truncate_graph_by_edge(
 
                         let src_in_extent = inner_extent.contains(&src_node.get_point());
                         let dst_in_extent = inner_extent.contains(&dst_node.get_point());
-                        src_in_extent || dst_in_extent
+                        !(src_in_extent || dst_in_extent)
                     })
                     .map(|(src, _, dst)| (src.osmid, dst.osmid))
             })
@@ -116,9 +117,9 @@ fn truncate_graph_by_node(
                 let inner_extent = extent.clone();
                 let point = node.get_point();
                 if inner_extent.contains(&point) {
-                    Ok(Some(node.osmid))
+                    Ok(None) // we are returning points TO REMOVE here
                 } else {
-                    Ok(None)
+                    Ok(Some(node.osmid))
                 }
             })
             .collect::<Result<Vec<_>, _>>()?
