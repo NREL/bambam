@@ -6,5 +6,10 @@ use std::collections::HashMap;
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum ActivityFrequenciesConfig {
-    GlobalFrequencies { frequencies: HashMap<String, f64> },
+    GlobalFrequencies {
+        frequencies: HashMap<String, f64>,
+    },
+    ZonalFrequencies {
+        activity_frequencies_input_file: String,
+    },
 }
