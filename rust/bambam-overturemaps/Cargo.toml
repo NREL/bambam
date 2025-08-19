@@ -1,8 +1,6 @@
 [package]
 name = "bambam-overturemaps"
 version = "0.1.0"
-name = "bambam-overturemaps"
-version = "0.1.0"
 edition = "2021"
 readme = "README.md"
 
