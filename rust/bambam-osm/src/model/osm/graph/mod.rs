@@ -11,6 +11,7 @@ pub mod osm_segment;
 pub mod osm_way_data;
 mod osm_way_data_serializable;
 mod osm_way_id;
+pub mod osm_way_ops;
 mod vertex_serializable;
 
 use crate::model::osm::OsmError;

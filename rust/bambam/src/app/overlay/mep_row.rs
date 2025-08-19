@@ -17,12 +17,13 @@ pub struct MepRow {
     pub grid_id: String,
     pub lat: f64,
     pub lon: f64,
-    pub mep: f64,
-    pub mep_entertainment: f64,
-    pub mep_food: f64,
-    pub mep_healthcare: f64,
-    pub mep_jobs: f64,
-    pub mep_retail: f64,
-    pub mep_services: f64,
-    pub population: f64, // currently missing from rows
+    pub mode: String,
+    pub mep: Option<f64>,
+    pub mep_entertainment: Option<f64>,
+    pub mep_food: Option<f64>,
+    pub mep_healthcare: Option<f64>,
+    pub mep_jobs: Option<f64>,
+    pub mep_retail: Option<f64>,
+    pub mep_services: Option<f64>,
+    pub population: Option<f64>, // currently missing from rows
 }
