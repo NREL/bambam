@@ -1,9 +1,9 @@
 use crate::model::output_plugin::opportunity::{
     opportunity_source::OpportunitySource, study_region::StudyRegion,
 };
-use bamsoda::app::lodes_tiger;
-use bamsoda_core::model::identifier::{Geoid, GeoidType};
-use bamsoda_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
+use bamcensus::app::lodes_tiger;
+use bamcensus_core::model::identifier::{Geoid, GeoidType};
+use bamcensus_lehd::model::{LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment};
 use geo::Geometry;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};

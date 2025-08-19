@@ -1,20 +1,12 @@
 [package]
-name = "bambam-util"
+name = "bambam-gtfs"
 version = "0.1.0"
 edition = "2021"
 readme = "README.md"
-description = "Command Line Utilities for The Behavior and Advanced Mobility Big Access Model"
-documentation = "pages.github.nrel.gov/BAM/bambam-util"
+description = "GTFS Command Line Utilities for The Behavior and Advanced Mobility Big Access Model"
+documentation = "pages.github.nrel.gov/BAM/bambam-gtfs"
 
 [dependencies]
-# bamsoda-core = { workspace = true }
-# bamsoda-acs = { workspace = true }
-# bamsoda-lehd = { workspace = true }
-# bamsoda = { workspace = true }
-# routee-compass = { workspace = true }
-# routee-compass-core = { workspace = true }
-# routee-compass-powertrain = { workspace = true }
-# compass-tomtom = { workspace = true }
 
 log = "0.4.19"
 itertools = { version = "0.14.0" }

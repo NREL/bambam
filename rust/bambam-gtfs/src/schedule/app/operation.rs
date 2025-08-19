@@ -1,4 +1,4 @@
-use crate::gtfs::{GtfsProvider, GtfsSummary};
+use crate::schedule::{GtfsProvider, GtfsSummary};
 use clap::{Subcommand, ValueEnum};
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;

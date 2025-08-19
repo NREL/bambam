@@ -1,4 +1,4 @@
-use bamsoda_core::model::identifier::{Geoid, StateCode};
+use bamcensus_core::model::identifier::{Geoid, StateCode};
 use serde::{Deserialize, Serialize};
 
 /// Describes what study region bounds the activity dataset, as either

@@ -23,7 +23,7 @@ use super::traversal::time_delay::TripArrivalDelayBuilder;
 use super::traversal::time_delay::TripDepartureDelayBuilder;
 
 pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
-    let mut builder = compass_tomtom::builder::tomtom_builder();
+    let mut builder = routee_compass::app::compass::CompassAppBuilder::default();
 
     // MEP Traversal Models
     let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedSpeedBuilder {});

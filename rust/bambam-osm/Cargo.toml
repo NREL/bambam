@@ -7,13 +7,12 @@ description = "OpenStreetMaps integration for BAMBAM"
 documentation = "pages.github.nrel.gov/BAM/bambam-osm"
 
 [dependencies]
-bamsoda-core = { workspace = true }
-bamsoda-acs = { workspace = true }
-bamsoda = { workspace = true }
+bamcensus-core = { workspace = true }
+bamcensus-acs = { workspace = true }
+bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
-compass-tomtom = { workspace = true }
 
 num-traits = "0.2.19"
 osmpbf = "0.3.4"
