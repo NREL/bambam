@@ -1,4 +1,4 @@
-use super::osm_way_ops::{self, deserialize_linestring2, serialize_linestring};
+use super::osm_way_ops::{self, deserialize_linestring, serialize_linestring};
 use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmNodes, OsmSegment, OsmWayData, OsmWayId};
 use crate::model::{
     feature::highway::{self, Highway},
@@ -47,7 +47,7 @@ pub struct OsmWayDataSerializable {
     pub way_ids: Option<String>,
     #[serde(
         serialize_with = "serialize_linestring",
-        deserialize_with = "deserialize_linestring2"
+        deserialize_with = "deserialize_linestring"
     )]
     pub linestring: LineString<f32>,
     pub length_meters: f32,
