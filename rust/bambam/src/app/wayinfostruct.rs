@@ -2,14 +2,14 @@
 // Information in the struct is derived from OSM data and neighbors in the RTree
 // August 2025 EG
 
-use rstar::RTree;
-use serde::Deserialize;
 use super::osminfostruct::OSMInfo;
 use bambam_osm::model::{
     feature::highway::{self, Highway},
     osm::graph::OsmWayDataSerializable,
 };
 use geo::prelude::*;
+use rstar::RTree;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct WayInfo {
@@ -111,11 +111,7 @@ impl WayInfo {
             neighbors.push(neighbor);
         }
         let mut no_adj: bool = true;
-        if neighbors.len() == 0 {
-            no_adj = true;
-        } else {
-            no_adj = false;
-        }
+        no_adj = (neighbors.len() == 0);
 
         let cycle = match &geo_data.data.cycleway {
             Some(string) => {
@@ -136,27 +132,24 @@ impl WayInfo {
                     let mut neighbor_cycle_score = 0;
                     let origin = neighbor.geo.centroid();
                     if let Some(origin) = origin {
-                    let mut int_length = Euclidean::distance(
-                        &geo::Euclidean,
-                        origin,
-                        query_point,
-                    );
-                    total_lengths += int_length;
-                    if let Some(ref cycleway) = neighbor.data.cycleway {
-                        if cycleway == "lane" || cycleway == "designated" || cycleway == "track" {
-                            neighbor_cycle_score = 2;
-                        } else if cycleway == "crossing"
-                            || cycleway == "shared"
-                            || cycleway == "shared_lane"
-                        {
-                            neighbor_cycle_score = 0;
-                        } else {
-                            neighbor_cycle_score = -2;
+                        let mut int_length =
+                            Euclidean::distance(&geo::Euclidean, origin, query_point);
+                        total_lengths += int_length;
+                        if let Some(ref cycleway) = neighbor.data.cycleway {
+                            if cycleway == "lane" || cycleway == "designated" || cycleway == "track"
+                            {
+                                neighbor_cycle_score = 2;
+                            } else if cycleway == "crossing"
+                                || cycleway == "shared"
+                                || cycleway == "shared_lane"
+                            {
+                                neighbor_cycle_score = 0;
+                            } else {
+                                neighbor_cycle_score = -2;
+                            }
+                            cyclescores.push((neighbor_cycle_score, int_length));
                         }
-                        cyclescores.push((neighbor_cycle_score, int_length));
-                    }
-                    }
-                    else{
+                    } else {
                         continue;
                     }
                 }
@@ -187,11 +180,7 @@ impl WayInfo {
                 let mut total_lengths: f32 = 0.0;
                 for neighbor in rtree.locate_within_distance(query_pointf32, 15.24) {
                     if let Some(origin) = neighbor.geo.centroid() {
-                        let int_length = Euclidean::distance(
-                            &geo::Euclidean,
-                            origin,
-                            query_point,
-                        );
+                        let int_length = Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
                         if let Some(neighbor_speed_str) = &neighbor.data.maxspeed {
                             if let Ok(int_neighbor_speed) = neighbor_speed_str.parse::<i32>() {

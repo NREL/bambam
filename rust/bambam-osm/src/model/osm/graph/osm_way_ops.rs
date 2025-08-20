@@ -151,8 +151,8 @@ where
             Ok(linestring)
         }
 
-        fn visit_string<E>(self, v:String) -> Result<Self::Value, E>
-        where 
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
             E: de::Error,
         {
             self.visit_str(&v)

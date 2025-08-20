@@ -3,54 +3,38 @@
 // Utilizes self-designed wayinfostruct and osminfostruct for data handling
 // August 2025 EG
 
-use csv;
 use super::osminfostruct::OSMInfo;
 use super::wayinfostruct::WayInfo;
-use geo::prelude::*;
-use rayon::prelude::*;
-use rstar::{
-    primitives::Rectangle, 
-    PointDistance, 
-    RTree, 
-    RTreeObject, 
-    AABB
-};
-use serde::Deserialize;
+use bambam_osm::model::osm::graph::OsmNodeDataSerializable;
 use bambam_osm::model::{
     feature::highway::{self, Highway},
     osm::graph::OsmWayDataSerializable,
 };
+use csv;
+use geo::prelude::*;
 use geo::{
-    self, 
-    algorithm::centroid::Centroid, 
-    BoundingRect, 
-    Coord, 
-    Line, 
-    LineString, 
-    Point, 
-    Rect,
+    self, algorithm::centroid::Centroid, BoundingRect, Coord, Line, LineString, Point, Rect,
 };
-use routee_compass_core::{
-    model::network::VertexId,
-    util::geo::PolygonalRTree,
-};
+use rayon::prelude::*;
+use routee_compass_core::{model::network::VertexId, util::geo::PolygonalRTree};
+use rstar::{primitives::Rectangle, PointDistance, RTree, RTreeObject, AABB};
+use serde::Deserialize;
 use std::{
     error::Error,
     fs::File,
     io::{BufWriter, Write},
 };
-use bambam_osm::model::osm::graph::OsmNodeDataSerializable;
 
 const MAX_SCORE: i32 = 9;
 
 // Calculate the Walk Comfort Index (WCI) for a given way
-pub fn wci_calculate(way: WayInfo) -> i32 {
-    if way.walk_eligible == Some(false) { 
-        0
+pub fn wci_calculate(way: WayInfo) -> Option<i32> {
+    if way.walk_eligible == Some(false) {
+        None
     } else if way.dedicated_foot == Some(true)
         || (way.no_adjacent_roads == Some(true) && way.sidewalk_exists == Some(true))
     {
-        MAX_SCORE
+        Some(MAX_SCORE)
     } else {
         /// Speed: 0-25 mph: 2, 25-30 mph: 1, 30-40 mph: 0, 40-45 mph: -1, 45+ mph: -2
         fn speed_score(way: &WayInfo) -> i32 {
@@ -121,14 +105,20 @@ pub fn wci_calculate(way: WayInfo) -> i32 {
             + sidewalk_score(&way)
             + cycleway_score(&way)
             + signal_or_stop_score(&way);
-        final_score
+        Some(final_score)
     }
 }
 
 // Process the WCI score from the OSM data file
-pub fn process_wci(edges_file: &str, vertices_file: &str, output_file: &str) -> Result<(), Box<dyn Error>> {
+pub fn process_wci(
+    edges_file: &str,
+    vertices_file: &str,
+    output_file: &str,
+) -> Result<(), Box<dyn Error>> {
     let mut vertices_reader = csv::Reader::from_path(vertices_file)?;
-    let nodes: Vec<OsmNodeDataSerializable> = vertices_reader.deserialize().collect::<Result<Vec<_>, _>>()?;
+    let nodes: Vec<OsmNodeDataSerializable> = vertices_reader
+        .deserialize()
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut edges_reader = csv::Reader::from_path(edges_file)?;
     let mut centroids = vec![];
@@ -143,8 +133,16 @@ pub fn process_wci(edges_file: &str, vertices_file: &str, output_file: &str) -> 
                     Some(node) => node,
                     None => continue, // If source node is not found, skip this row
                 };
-                let has_stop = src_node.clone().highway.as_ref().map_or(false, |h| h.contains("stop"));
-                let has_traf_sig = src_node.clone().highway.as_ref().map_or(false, |h| h.contains("traffic_signals"));
+                let has_stop = src_node
+                    .clone()
+                    .highway
+                    .as_ref()
+                    .map_or(false, |h| h.contains("stop"));
+                let has_traf_sig = src_node
+                    .clone()
+                    .highway
+                    .as_ref()
+                    .map_or(false, |h| h.contains("traffic_signals"));
                 if let Some(centroid) = linestring.centroid() {
                     let centroid_geo: geo::Point<f32> = geo::Point::new(centroid.x(), centroid.y());
                     centroids.push(centroid_geo);
@@ -156,7 +154,7 @@ pub fn process_wci(edges_file: &str, vertices_file: &str, output_file: &str) -> 
                     };
                     rtree_data.push(rtree_entry);
                 }
-            },
+            }
             Err(err) => {
                 eprint!("Error reading row: {}", err);
             }
@@ -172,10 +170,10 @@ pub fn process_wci(edges_file: &str, vertices_file: &str, output_file: &str) -> 
             if let Some(way_info) = WayInfo::new(centroid, &rtree, &rtree_data[idx]) {
                 wci_calculate(way_info)
             } else {
-                0
+                None
             }
         })
-        .collect();
+        .filter_map(|x| x).collect();
     println!("wci_vec is {:?}", wci_vec);
 
     let file = File::create(output_file)?;
@@ -188,6 +186,3 @@ pub fn process_wci(edges_file: &str, vertices_file: &str, output_file: &str) -> 
 
     Ok(())
 }
-
-
-

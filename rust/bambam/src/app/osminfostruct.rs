@@ -2,9 +2,9 @@
 // August 2025 EG
 
 use bambam_osm::model::osm::graph::OsmWayDataSerializable;
-use geo::{LineString, Point, Euclidean};
 use geo::prelude::*;
-use rstar::{AABB, RTreeObject, PointDistance};
+use geo::{Euclidean, LineString, Point};
+use rstar::{PointDistance, RTreeObject, AABB};
 
 #[derive(Clone)]
 pub struct OSMInfo {
