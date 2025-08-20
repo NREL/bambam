@@ -108,7 +108,7 @@ mod tests {
         let temp_directory = "src/test/tmp";
         let pbf_file = "src/test/liechtenstein-latest.osm.pbf";
         let extent_file = "src/test/schaan_liechtenstein.txt";
-        let config_file = "../../configuration/bambam-osm/test_osm_import.toml";
+        let config_file = "src/test/test_osm_import.toml";
         let conf = crate::App::Pbf {
             pbf_file: pbf_file.to_string(),
             extent_file: Some(extent_file.to_string()),
