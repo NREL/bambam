@@ -27,6 +27,10 @@ jobs:
           rustup component add rustfmt
           cargo fmt --all --manifest-path rust/Cargo.toml -- --check
           
+      - name: Test Assets
+        run: |
+          ./setup.sh
+
       - name: Test
         run: |
           cargo test --workspace --verbose --manifest-path rust/Cargo.toml
