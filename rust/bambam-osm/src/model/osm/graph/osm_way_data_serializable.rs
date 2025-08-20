@@ -8,7 +8,7 @@ use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::{Vertex, VertexId},
-    unit::{Distance, Grade, Speed, SpeedUnit},
+    unit::{Convert, Distance, Grade, Speed, SpeedUnit},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
@@ -185,7 +185,11 @@ impl OsmWayDataSerializable {
     ) -> Result<Option<(Speed, SpeedUnit)>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
-            Ok(Some(s)) => osm_way_ops::deserialize_speed(&s, ignore_invalid_entries),
+            Ok(Some(s)) => osm_way_ops::deserialize_speed(
+                &s,
+                Some(Self::VALUE_DELIMITER),
+                ignore_invalid_entries,
+            ),
             Err(e) => Err(e),
         }
     }
@@ -350,5 +354,20 @@ fn top_highway(
                 })?;
             Ok(highway)
         }
+    }
+}
+
+fn extract_between_nodes<'a>(
+    src: &'a OsmNodeId,
+    dst: &'a OsmNodeId,
+    nodes: &'a [OsmNodeId],
+) -> Option<&'a [OsmNodeId]> {
+    let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
+    let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'
+
+    if start <= start + end {
+        Some(&nodes[start..=start + end])
+    } else {
+        None
     }
 }
