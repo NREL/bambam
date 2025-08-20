@@ -134,7 +134,9 @@ pub fn bfs_undirected(
 #[cfg(test)]
 mod tests {
     use crate::model::osm::graph::{
-        osm_segment::OsmSegment, AdjacencyDirection, AdjacencyList, AdjacencyList3, AdjacencyListDeprecated, OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId, OsmWaysByOd
+        osm_segment::OsmSegment, AdjacencyDirection, AdjacencyList, AdjacencyList3,
+        AdjacencyListDeprecated, OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId,
+        OsmWaysByOd,
     };
     use std::collections::HashMap;
 
@@ -183,7 +185,6 @@ mod tests {
         let mut nodes = create_nodes_in_circle(n_connected_nodes);
         let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
 
-        
         let n_iters = n_connected_nodes as i64;
         let mut way_id = 0;
         for i in 0..n_iters {
@@ -216,16 +217,18 @@ mod tests {
 
     // helper function that creates nodes with coordinates evenly spaced in a circle
     fn create_nodes_in_circle(n_connected_nodes: usize) -> HashMap<OsmNodeId, OsmNodeData> {
-        (0..n_connected_nodes).map(|n| {  
-            let node_id = OsmNodeId(n.try_into().unwrap());
-            let mut node = OsmNodeData::default();
-            node.osmid = node_id.clone();
-            let angle = 2.0 * std::f32::consts::PI * (n as f32) / (n_connected_nodes as f32);
-            let x = angle.cos();
-            let y = angle.sin();
-            node.x = x;
-            node.y = y;
-            (node_id, node)
-        }).collect()
+        (0..n_connected_nodes)
+            .map(|n| {
+                let node_id = OsmNodeId(n.try_into().unwrap());
+                let mut node = OsmNodeData::default();
+                node.osmid = node_id.clone();
+                let angle = 2.0 * std::f32::consts::PI * (n as f32) / (n_connected_nodes as f32);
+                let x = angle.cos();
+                let y = angle.sin();
+                node.x = x;
+                node.y = y;
+                (node_id, node)
+            })
+            .collect()
     }
 }
