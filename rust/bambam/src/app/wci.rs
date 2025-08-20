@@ -166,14 +166,11 @@ pub fn process_wci(
     let wci_vec: Vec<i32> = centroids
         .into_par_iter()
         .enumerate()
-        .map(|(idx, centroid)| {
-            if let Some(way_info) = WayInfo::new(centroid, &rtree, &rtree_data[idx]) {
-                wci_calculate(way_info)
-            } else {
-                None
-            }
+        .filter_map(|(idx, centroid)| {
+            WayInfo::new(centroid, &rtree, &rtree_data[idx])
+            .and_then(|w: WayInfo| wci_calculate(w))
         })
-        .filter_map(|x| x).collect();
+        .collect();
     println!("wci_vec is {:?}", wci_vec);
 
     let file = File::create(output_file)?;
