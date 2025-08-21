@@ -10,6 +10,7 @@ use bambam_osm::model::{
     feature::highway::{self, Highway},
     osm::graph::OsmWayDataSerializable,
 };
+//use bamsoda_core::model::identifier::fips::County;
 use csv;
 use geo::prelude::*;
 use geo::{
@@ -124,9 +125,12 @@ pub fn process_wci(
     let mut centroids = vec![];
     let mut rtree_data = vec![];
 
+    let mut count = 0;
     for row in edges_reader.deserialize() {
+        count += 1;
         match row {
             Ok(osm_data) => {
+                println!("Reading row: {}", count);
                 let r: OsmWayDataSerializable = osm_data;
                 let linestring = r.linestring.clone();
                 let src_node = match nodes.get(r.src_vertex_id.0) {
