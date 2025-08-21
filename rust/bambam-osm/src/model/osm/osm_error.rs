@@ -26,6 +26,8 @@ pub enum OsmError {
     GraphMissingWayId(OsmWayId),
     #[error("{0}")]
     GraphModificationError(String),
+    #[error("failure while serializing graph: {0}")]
+    GraphSerializationError(String),
     #[error("structure of OSM data is invalid: {0}")]
     InvalidOsmData(String),
     #[error("pbf does not contain any OSM 'node' elements")]

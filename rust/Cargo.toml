@@ -4,10 +4,10 @@ members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-overturemaps"]
 
 [workspace.dependencies]
 kdam = "0.6.2"
-bamcensus-core = { git = "https://github.com/nrel/bamcensus.git", branch = "main" }
-bamcensus-acs = { git = "https://github.com/nrel/bamcensus.git", branch = "main" }
-bamcensus = { git = "https://github.com/nrel/bamcensus.git", branch = "main" }
-bamcensus-lehd = { git = "https://github.com/nrel/bamcensus.git", branch = "main" }
+bamcensus-core = { version = "0.1.0" }
+bamcensus-acs = { version = "0.1.0" }
+bamcensus = { version = "0.1.0" }
+bamcensus-lehd = { version = "0.1.0" }
 routee-compass = { version = "0.11.3" }
 routee-compass-core = { version = "0.11.3" }
 routee-compass-powertrain = { version = "0.11.3" }
