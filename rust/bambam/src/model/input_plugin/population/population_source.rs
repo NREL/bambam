@@ -1,7 +1,7 @@
 use crate::{model::input_plugin::grid, util::polygonal_rtree::PolygonalRTree};
-use bamsoda::app::acs_tiger::{self, AcsTigerResponse};
-use bamsoda_acs::model::{AcsApiQueryParams, AcsGeoidQuery, AcsType};
-use bamsoda_core::model::identifier::{Geoid, GeoidType};
+use bamcensus::app::acs_tiger::{self, AcsTigerResponse};
+use bamcensus_acs::model::{AcsApiQueryParams, AcsGeoidQuery, AcsType};
+use bamcensus_core::model::identifier::{Geoid, GeoidType};
 use geo::Geometry;
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};

@@ -1,5 +1,5 @@
 use crate::util::polygonal_rtree::PolygonalRTree;
-use bamsoda_core::model::identifier::Geoid;
+use bamcensus_core::model::identifier::Geoid;
 use flate2::read::GzDecoder;
 use geo::Geometry;
 use std::io::Read;

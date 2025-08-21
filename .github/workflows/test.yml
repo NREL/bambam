@@ -17,12 +17,20 @@ jobs:
       - name: setup libssl for Ubuntu 24.04 runner
         run: |
           apt-get update && apt-get install -y librust-openssl-sys-dev
+
       - uses: actions/checkout@v4
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+
       - name: Formatting
         run: |
           rustup component add rustfmt
           cargo fmt --all --manifest-path rust/Cargo.toml -- --check
+          
+      - name: Test Assets
+        run: |
+          ./setup.sh
+
       - name: Test
         run: |
           cargo test --workspace --verbose --manifest-path rust/Cargo.toml

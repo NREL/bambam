@@ -1,4 +1,4 @@
-use bamsoda_core::model::identifier::Geoid;
+use bamcensus_core::model::identifier::Geoid;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Grouping {
