@@ -170,8 +170,7 @@ pub fn process_wci(
         .into_par_iter()
         .enumerate()
         .filter_map(|(idx, centroid)| {
-            WayInfo::new(centroid, &rtree, &rtree_data[idx])
-            .and_then(|w: WayInfo| wci_calculate(w))
+            WayInfo::new(centroid, &rtree, &rtree_data[idx]).and_then(|w: WayInfo| wci_calculate(w))
         })
         .collect();
     println!("wci_vec is {:?}", wci_vec);
