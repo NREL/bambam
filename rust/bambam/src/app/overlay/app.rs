@@ -3,7 +3,7 @@ use crate::{
     app::overlay::{Grouping, MepRow, OutRow, OverlaySource},
     util::polygonal_rtree::PolygonalRTree as PrtBambam,
 };
-use bamsoda_core::model::identifier::Geoid;
+use bamcensus_core::model::identifier::Geoid;
 use csv::StringRecord;
 use flate2::read::GzDecoder;
 use geo::Geometry;

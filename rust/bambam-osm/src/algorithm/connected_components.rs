@@ -135,15 +135,21 @@ pub fn bfs_undirected(
 mod tests {
     use crate::model::osm::graph::{
         osm_segment::OsmSegment, AdjacencyDirection, AdjacencyList, AdjacencyList3,
-        AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmWayData, OsmWayId, OsmWaysByOd,
+        AdjacencyListDeprecated, OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId,
+        OsmWaysByOd,
     };
     use std::collections::HashMap;
 
     #[test]
     fn test_bfs_circle_with_dot() {
         let source = OsmNodeId(0);
-        let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
         let n_connected_nodes: usize = 20;
+
+        let mut nodes = create_nodes_in_circle(n_connected_nodes);
+        // set up bogie, a lonely and unattached node
+        nodes.insert(OsmNodeId(999), OsmNodeData::default());
+
+        let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
         let n_iters = (n_connected_nodes - 1) as i64;
         for i in 0..n_iters {
             let reversed = i % 2 == 0;
@@ -165,10 +171,8 @@ mod tests {
             ways.insert(way.osmid, way);
         }
 
-        // set up bogie, a lonely and unattached node
-        let bogie = OsmNodeId(999);
-        let graph = OsmGraph::new(HashMap::new(), ways).unwrap();
-
+        // we expect two components, one for the circle, and one for the dot
+        let graph = OsmGraph::new(nodes, ways).unwrap();
         let undirected_graph = super::to_undirected(&graph);
         let result = super::bfs_undirected(&source, &undirected_graph).unwrap();
         assert_eq!(result.len(), n_connected_nodes);
@@ -177,8 +181,10 @@ mod tests {
     #[test]
     fn test_bfs_complete_graph_5() {
         let source = OsmNodeId(0);
-        let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
         let n_connected_nodes: usize = 5;
+        let mut nodes = create_nodes_in_circle(n_connected_nodes);
+        let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
+
         let n_iters = n_connected_nodes as i64;
         let mut way_id = 0;
         for i in 0..n_iters {
@@ -196,7 +202,7 @@ mod tests {
                 way_id += 1;
             }
         }
-        let graph = OsmGraph::new(HashMap::new(), ways).unwrap();
+        let graph = OsmGraph::new(nodes, ways).unwrap();
         let undirected_graph = super::to_undirected(&graph);
 
         eprintln!(
@@ -207,5 +213,22 @@ mod tests {
         let result = super::bfs_undirected(&source, &undirected_graph).unwrap();
         assert_eq!(result.len(), n_connected_nodes);
         eprintln!("{result:?}");
+    }
+
+    // helper function that creates nodes with coordinates evenly spaced in a circle
+    fn create_nodes_in_circle(n_connected_nodes: usize) -> HashMap<OsmNodeId, OsmNodeData> {
+        (0..n_connected_nodes)
+            .map(|n| {
+                let node_id = OsmNodeId(n.try_into().unwrap());
+                let mut node = OsmNodeData::default();
+                node.osmid = node_id.clone();
+                let angle = 2.0 * std::f32::consts::PI * (n as f32) / (n_connected_nodes as f32);
+                let x = angle.cos();
+                let y = angle.sin();
+                node.x = x;
+                node.y = y;
+                (node_id, node)
+            })
+            .collect()
     }
 }

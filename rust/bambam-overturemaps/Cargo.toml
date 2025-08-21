@@ -5,10 +5,10 @@ edition = "2021"
 readme = "README.md"
 
 [dependencies]
-bamsoda-core = { workspace = true }
-bamsoda-acs = { workspace = true }
-bamsoda-lehd = { workspace = true }
-bamsoda = { workspace = true }
+bamcensus-core = { workspace = true }
+bamcensus-acs = { workspace = true }
+bamcensus-lehd = { workspace = true }
+bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
