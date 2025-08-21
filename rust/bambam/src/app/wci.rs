@@ -10,7 +10,6 @@ use bambam_osm::model::{
     feature::highway::{self, Highway},
     osm::graph::OsmWayDataSerializable,
 };
-//use bamsoda_core::model::identifier::fips::County;
 use csv;
 use geo::prelude::*;
 use geo::{
