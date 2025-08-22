@@ -14,7 +14,6 @@ bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
-compass-tomtom = { workspace = true }
 bambam-overturemaps = { path = "../bambam-overturemaps" }
 
 log = "0.4.19"

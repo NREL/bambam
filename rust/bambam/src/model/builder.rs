@@ -4,7 +4,6 @@ use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin::GridG
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builder::GridGeometryInputPluginBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
-use crate::model::output_plugin::mep_score::mep_score_plugin_builder::MepScoreOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::opportunity_output_plugin_builder::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
@@ -24,7 +23,7 @@ use super::traversal::time_delay::TripArrivalDelayBuilder;
 use super::traversal::time_delay::TripDepartureDelayBuilder;
 
 pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
-    let mut builder = compass_tomtom::builder::tomtom_builder();
+    let mut builder = routee_compass::app::compass::CompassAppBuilder::default();
 
     // MEP Traversal Models
     let fixed_speed_model: Rc<dyn TraversalModelBuilder> = Rc::new(FixedSpeedBuilder {});
@@ -55,10 +54,6 @@ pub fn bambam_app_builder() -> Result<CompassAppBuilder, CompassAppError> {
     builder.add_output_plugin(
         String::from("opportunity"),
         Rc::new(OpportunityOutputPluginBuilder {}),
-    );
-    builder.add_output_plugin(
-        String::from("mep_score"),
-        Rc::new(MepScoreOutputPluginBuilder {}),
     );
     builder.add_output_plugin(
         String::from("finalize"),

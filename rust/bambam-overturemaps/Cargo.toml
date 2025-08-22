@@ -12,7 +12,6 @@ bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
-compass-tomtom = { workspace = true }
 
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4.19"

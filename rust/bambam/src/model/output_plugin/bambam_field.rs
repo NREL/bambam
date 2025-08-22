@@ -65,12 +65,8 @@ pub const OPPORTUNITY_TOTALS: &str = "opportunity_totals";
 pub const VEHICLE_STATE: &str = "vehicle_state";
 pub const OPP_FMT_AGGREGATE: &str = "aggregate";
 pub const OPP_FMT_DISAGGREGATE: &str = "disaggregate";
-pub const MEP: &str = "mep";
 pub const OPPORTUNITY_PLUGIN_RUNTIME: &str = "opportunity_runtime";
 pub const OPPORTUNITY_BIN_RUNTIME: &str = "bin_runtime";
-pub const MEP_SCORE_PLUGIN_RUNTIME: &str = "mep_runtime";
-pub const MEP_LOAD_OPPS_RUNTIME: &str = "mep_load_opps_runtime";
-pub const MEP_ROW_RUNTIME: &str = "mep_row_runtime";
 
 pub mod get {
     use routee_compass::plugin::output::OutputPluginError;
