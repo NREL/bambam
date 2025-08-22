@@ -50,3 +50,4 @@ gtfs-structures = "0.43.0"
 
 rayon = "1.10.0"
 tokio = "1.44.2"
+bambam-osm = { version = "0.1.0", path = "../bambam-osm" }

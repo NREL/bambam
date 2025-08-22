@@ -180,9 +180,16 @@ where
         {
             csv_string_to_linestring(v).map_err(serde::de::Error::custom)
         }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_str(&v)
+        }
     }
 
-    d.deserialize_string(LineStringVisitor {})
+    d.deserialize_str(LineStringVisitor {})
 }
 
 /// takes all node ids found between src an dst in a list of nodes.
