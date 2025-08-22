@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bambam", "bambam-osm", "bambam-util", "bambam-overturemaps"]
+members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-overturemaps"]
 
 [workspace.dependencies]
 kdam = "0.6.2"
@@ -11,4 +11,3 @@ bamcensus-lehd = { version = "0.1.0" }
 routee-compass = { version = "0.11.3" }
 routee-compass-core = { version = "0.11.3" }
 routee-compass-powertrain = { version = "0.11.3" }
-compass-tomtom = { git = "https://github.nrel.gov/MBAP/routee-compass-tomtom.git", branch = "release/v0.4.0" }

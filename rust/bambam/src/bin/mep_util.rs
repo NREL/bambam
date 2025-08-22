@@ -1,7 +1,4 @@
-use bambam::app::{
-    oppvec::{self, oppvec_ops},
-    overlay::{self, OverlayOperation, OverlaySource},
-};
+use bambam::app::oppvec::{self, oppvec_ops};
 use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -144,45 +141,6 @@ pub enum App {
         // #[arg(long)]
         // activity_categories: String,
     },
-    #[command(
-        name = "overlay-shapefile",
-        about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
-    )]
-    OverlayShapefile {
-        /// a CSV file containing a bambam output
-        mep_matrix_filename: String,
-        /// a file containing WKT geometries tagged with ids
-        overlay_filename: String,
-        /// file path to write the result dataset
-        output_filename: String,
-        /// overlay method to apply
-        #[arg(long, default_value_t = OverlayOperation::Intersection)]
-        how: OverlayOperation,
-        /// name of the id field in the shapefile
-        #[arg(long, default_value_t = String::from("GEOID"))]
-        id_field: String,
-    },
-    #[command(
-        name = "overlay-csv",
-        about = "aggregate a bambam output to some other geospatial dataset via some overlay operation"
-    )]
-    OverlayCsv {
-        /// a CSV file containing a bambam output
-        mep_matrix_filename: String,
-        /// a file containing WKT geometries tagged with ids
-        overlay_filename: String,
-        /// file path to write the result dataset
-        output_filename: String,
-        /// overlay method to apply
-        #[arg(long, default_value_t = OverlayOperation::Intersection)]
-        how: OverlayOperation,
-        /// name of the id field in the shapefile
-        #[arg(long, default_value_t = String::from("GEOID"))]
-        id_column: String,
-        /// name of the id field in the shapefile
-        #[arg(long, default_value_t = String::from("geometry"))]
-        geometry_column: String,
-    },
 }
 
 impl App {
@@ -267,34 +225,6 @@ impl App {
                 println!("Wrote newline-delimited JSON to {output_file}");
                 Ok(())
             }
-            Self::OverlayShapefile {
-                mep_matrix_filename,
-                overlay_filename,
-                output_filename,
-                how,
-                id_field,
-            } => {
-                let overlay_source = OverlaySource::Shapefile {
-                    file: overlay_filename.clone(),
-                    id_field: id_field.clone(),
-                };
-                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
-            }
-            Self::OverlayCsv {
-                mep_matrix_filename,
-                overlay_filename,
-                output_filename,
-                how,
-                id_column,
-                geometry_column,
-            } => {
-                let overlay_source = OverlaySource::Csv {
-                    file: overlay_filename.clone(),
-                    geometry_column: geometry_column.clone(),
-                    id_column: id_column.clone(),
-                };
-                overlay::run(mep_matrix_filename, output_filename, &overlay_source, how)
-            }
             Self::OpportunitiesLongFormat {
                 vertices_compass_filename,
                 opportunities_filename,
@@ -305,7 +235,6 @@ impl App {
                 category_column,
                 count_column,
                 column_mapping,
-                // activity_categories,
             } => {
                 let geometry_format = oppvec::GeometryFormat::new(
                     geometry_column.as_ref(),
@@ -360,16 +289,11 @@ impl App {
                     geometry_format,
                     column_mapping,
                 };
-                // let cats = activity_categories
-                //     .split(",")
-                //     .map(|c| c.to_owned())
-                //     .collect_vec();
                 oppvec::run(
                     vertices_compass_filename,
                     opportunities_filename,
                     output_filename,
                     &source_format,
-                    // &cats,
                 )
             }
         }
@@ -379,46 +303,4 @@ impl App {
 fn main() {
     let args = CliArgs::parse();
     args.app.run().unwrap();
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use bambam::app::oppvec;
-
-    #[allow(unused)]
-    #[ignore = "working test case"]
-    fn test_vec() {
-        let source_format = oppvec::SourceFormat::LongFormat {
-            geometry_format: oppvec::GeometryFormat::XYColumns {
-                x_column: String::from("longitude"),
-                y_column: String::from("latitude"),
-            },
-            category_column: String::from("activity_type"),
-            count_column: None,
-            category_mapping: HashMap::from([
-                (String::from("retail"), vec![String::from("retail")]),
-                (String::from("services"), vec![String::from("services")]),
-                (String::from("food"), vec![String::from("food")]),
-                (String::from("healthcare"), vec![String::from("healthcare")]),
-                (
-                    String::from("entertainment"),
-                    vec![String::from("entertainment")],
-                ),
-            ]),
-        };
-        let result = oppvec::run(
-            &String::from("/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"),
-            &String::from("/Users/rfitzger/data/mep/mep3/input/opportunities/costar/2018-04-costar-mep-long.csv"),
-            "",
-            &source_format,
-        );
-        match result {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("{e}");
-            }
-        }
-    }
 }
