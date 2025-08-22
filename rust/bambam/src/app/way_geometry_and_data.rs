@@ -1,4 +1,4 @@
-// OSMInfo struct is used to store needed information for OSM data for utilization in WCI calculations (wci.rs)
+// Way struct is used to store needed information for OSM data for utilization in WCI calculations (wci.rs)
 // August 2025 EG
 
 use bambam_osm::model::osm::graph::OsmWayDataSerializable;
@@ -7,14 +7,14 @@ use geo::{Euclidean, LineString, Point};
 use rstar::{PointDistance, RTreeObject, AABB};
 
 #[derive(Clone)]
-pub struct OSMInfo {
+pub struct WayGeometryData {
     pub geo: LineString<f32>,
     pub data: OsmWayDataSerializable,
     pub stop: bool,
     pub traf_sig: bool,
 }
 
-impl RTreeObject for OSMInfo {
+impl RTreeObject for WayGeometryData {
     type Envelope = AABB<[f32; 2]>;
     fn envelope(&self) -> Self::Envelope {
         match self.geo.bounding_rect() {
@@ -27,7 +27,7 @@ impl RTreeObject for OSMInfo {
     }
 }
 
-impl PointDistance for OSMInfo {
+impl PointDistance for WayGeometryData {
     fn distance_2(&self, point: &[f32; 2]) -> f32 {
         let query_point = geo::Point::new(point[0], point[1]);
         let midpoint = self.geo.centroid();

@@ -1,8 +1,8 @@
-// WayInfo struct is used to store information needed to calculate the Walking Comfort Index (wci.rs)
+// WayAttributesForWCI struct is used to store information needed to calculate the Walking Comfort Index (wci.rs)
 // Information in the struct is derived from OSM data and neighbors in the RTree
 // August 2025 EG
 
-use super::osminfostruct::OSMInfo;
+use super::way_geometry_and_data::WayGeometryData;
 use bambam_osm::model::{
     feature::highway::{self, Highway},
     osm::graph::OsmWayDataSerializable,
@@ -12,7 +12,7 @@ use rstar::RTree;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct WayInfo {
+pub struct WayAttributesForWCI {
     pub speed_imp: Option<i32>,
     pub sidewalk_exists: Option<bool>,
     pub cycleway_exists: Option<(String, i32)>,
@@ -23,12 +23,12 @@ pub struct WayInfo {
     pub walk_eligible: Option<bool>,
 }
 
-impl WayInfo {
+impl WayAttributesForWCI {
     pub fn new(
         centroid: geo::Point<f32>,
-        rtree: &RTree<OSMInfo>,
-        geo_data: &OSMInfo,
-    ) -> Option<WayInfo> {
+        rtree: &RTree<WayGeometryData>,
+        geo_data: &WayGeometryData,
+    ) -> Option<WayAttributesForWCI> {
         let query_pointf32 = [centroid.x(), centroid.y()];
         let query_point = geo::Point::new(centroid.x(), centroid.y());
 
@@ -86,7 +86,7 @@ impl WayInfo {
             walk_el = true;
         } else {
             // check for adjacent sidewalks
-            for neighbor in rtree.locate_within_distance(query_pointf32, 15.24) {
+            for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
                 if let Some(ref sidewalk) = neighbor.data.sidewalk {
                     if sidewalk != "no" && sidewalk != "none" {
                         walk_el = true;
@@ -107,7 +107,7 @@ impl WayInfo {
         }
 
         let mut neighbors = vec![];
-        for neighbor in rtree.locate_within_distance(query_pointf32, 15.24) {
+        for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
             neighbors.push(neighbor);
         }
         let mut no_adj: bool = true;
@@ -128,7 +128,7 @@ impl WayInfo {
                 let mut weighted_cycle = 0;
                 let mut total_lengths: f32 = 0.0;
                 let mut cyclescores = vec![];
-                for neighbor in rtree.locate_within_distance(query_pointf32, 15.24) {
+                for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
                     let mut neighbor_cycle_score = 0;
                     let origin = neighbor.geo.centroid();
                     if let Some(origin) = origin {
@@ -178,7 +178,7 @@ impl WayInfo {
                 // look at neighbors, weighted average
                 let mut speeds = vec![];
                 let mut total_lengths: f32 = 0.0;
-                for neighbor in rtree.locate_within_distance(query_pointf32, 15.24) {
+                for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
                     if let Some(origin) = neighbor.geo.centroid() {
                         let int_length = Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
@@ -202,7 +202,7 @@ impl WayInfo {
             }
         };
 
-        let way_info = WayInfo {
+        let way_info = WayAttributesForWCI {
             speed_imp: Some(speed),
             sidewalk_exists: Some(sidewalk),
             cycleway_exists: Some((cycle.0.to_string(), cycle.1)),
