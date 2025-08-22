@@ -3,8 +3,8 @@
 // Utilizes self-designed wayinfostruct and osminfostruct for data handling
 // August 2025 EG
 
-use super::way_geometry_and_data::WayGeometryData;
 use super::way_attributes_for_wci::WayAttributesForWCI;
+use super::way_geometry_and_data::WayGeometryData;
 use bambam_osm::model::osm::graph::OsmNodeDataSerializable;
 use bambam_osm::model::{
     feature::highway::{self, Highway},
@@ -173,7 +173,8 @@ pub fn process_wci(
         .into_par_iter()
         .enumerate()
         .filter_map(|(idx, centroid)| {
-            WayAttributesForWCI::new(centroid, &rtree, &rtree_data[idx]).and_then(|w: WayAttributesForWCI| wci_calculate(w))
+            WayAttributesForWCI::new(centroid, &rtree, &rtree_data[idx])
+                .and_then(|w: WayAttributesForWCI| wci_calculate(w))
         })
         .collect();
     println!("wci_vec is {:?}", wci_vec);
