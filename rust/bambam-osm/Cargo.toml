@@ -14,6 +14,7 @@ routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
 
+uom = { workspace = true }
 num-traits = "0.2.19"
 osmpbf = "0.3.4"
 osmio = "0.14.0"
