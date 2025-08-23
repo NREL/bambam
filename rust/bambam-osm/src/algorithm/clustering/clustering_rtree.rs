@@ -9,7 +9,6 @@ use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::unit::AsF64;
-use routee_compass_core::model::unit::Distance;
 use routee_compass_core::model::unit::DistanceUnit;
 use rstar::primitives::{GeomWithData, Rectangle};
 use rstar::{RTree, RTreeObject};
