@@ -33,16 +33,12 @@ impl WayAttributesForWCI {
         let query_point = geo::Point::new(centroid.x(), centroid.y());
 
         let mut sidewalk = match &geo_data.data.sidewalk {
-            Some(string) => {
-                !(string == "no" || string == "none")
-            }
+            Some(string) => !(string == "no" || string == "none"),
             _ => false,
         };
 
         let foot = match &geo_data.data.footway {
-            Some(string) => {
-                !(string == "no" || string == "none")
-            }
+            Some(string) => !(string == "no" || string == "none"),
             _ => false,
         };
 

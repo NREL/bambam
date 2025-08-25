@@ -247,7 +247,11 @@ mod tests {
             Ok(Some(speed)) => {
                 let result = speed.get::<uom::si::velocity::kilometer_per_hour>();
                 let diff_from_expected = 45.0 - result;
-                assert!(diff_from_expected < 0.001, "value {} should be within 0.001 of 45.0", result);
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 45.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
@@ -260,7 +264,11 @@ mod tests {
             Ok(Some(speed)) => {
                 let result = speed.get::<uom::si::velocity::mile_per_hour>();
                 let diff_from_expected = 45.0 - result;
-                assert!(diff_from_expected < 0.001, "value {} should be within 0.001 of 45.0", result);
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 45.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
@@ -273,7 +281,11 @@ mod tests {
             Ok(Some(speed)) => {
                 let result = speed.get::<uom::si::velocity::kilometer_per_hour>();
                 let diff_from_expected = 5.0 - result;
-                assert!(diff_from_expected < 0.001, "value {} should be within 0.001 of 5.0", result);
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 5.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
