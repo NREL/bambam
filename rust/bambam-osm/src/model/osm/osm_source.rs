@@ -28,7 +28,7 @@ pub enum OsmSource {
         ignore_errors: bool,
         simplify: bool,
         consolidate: bool,
-        consolidation_threshold: (Distance, DistanceUnit),
+        consolidation_threshold: uom::si::f64::Length,
         parallelize: bool,
     },
 }

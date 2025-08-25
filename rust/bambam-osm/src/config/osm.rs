@@ -2,7 +2,7 @@ use crate::{
     algorithm::truncation::ComponentFilter,
     model::{osm::graph::osm_element_filter::ElementFilter, OsmCliError},
 };
-use routee_compass_core::model::unit::{Distance, DistanceUnit};
+use routee_compass_core::model::unit::{DistanceUnit};
 use serde::{Deserialize, Serialize};
 
 /// defines behaviors for an OSM network import
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct OsmImportConfiguration {
     pub component_filter: ComponentFilter,
     pub element_filter: ElementFilter,
-    consolidation_threshold: Option<(Distance, DistanceUnit)>,
+    consolidation_threshold: Option<uom::si::f64::Length>,
     pub ignore_osm_parsing_errors: bool,
     pub truncate_by_edge: bool,
     pub simplify: bool,
@@ -24,7 +24,7 @@ impl Default for OsmImportConfiguration {
         Self {
             component_filter: Default::default(),
             element_filter: Default::default(),
-            consolidation_threshold: Some((Distance::from(15.0), DistanceUnit::Meters)),
+            consolidation_threshold: Some(Self::default_consolidation_threshold()),
             ignore_osm_parsing_errors: false,
             truncate_by_edge: true,
             simplify: true,
@@ -36,9 +36,14 @@ impl Default for OsmImportConfiguration {
 }
 
 impl OsmImportConfiguration {
-    pub fn get_consolidation_threshold(&self) -> (Distance, DistanceUnit) {
+
+    fn default_consolidation_threshold() -> uom::si::f64::Length {
+        uom::si::f64::Length::new::<uom::si::length::meter>(15.0)
+    }
+
+    pub fn get_consolidation_threshold(&self) -> uom::si::f64::Length {
         self.consolidation_threshold
-            .unwrap_or_else(|| (Distance::from(15.0), DistanceUnit::Meters))
+            .unwrap_or_else(|| Self::default_consolidation_threshold())
     }
 }
 

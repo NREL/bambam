@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use rayon::prelude::*;
 use routee_compass_core::model::{
     network::EdgeId,
-    unit::{Distance, DistanceUnit},
+    unit::DistanceUnit,
 };
 use serde::{Deserialize, Serialize};
 use std::{

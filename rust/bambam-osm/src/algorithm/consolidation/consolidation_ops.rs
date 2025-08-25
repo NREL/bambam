@@ -14,7 +14,7 @@ use kdam::{term, tqdm, Bar, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    unit::{AsF64, Distance, DistanceUnit, Grade, Speed, SpeedUnit},
+    unit::{AsF64, DistanceUnit, SpeedUnit},
 };
 use rstar::primitives::{GeomWithData, Rectangle};
 use rstar::{RTree, RTreeObject};
@@ -40,7 +40,7 @@ use wkt::ToWkt;
 ///                                 valid wrt the OpenStreetMaps documentation
 pub fn consolidate_graph(
     graph: &mut OsmGraph,
-    tolerance: (Distance, DistanceUnit),
+    tolerance: uom::si::f64::Length,
     ignore_osm_parsing_errors: bool,
 ) -> Result<(), OsmError> {
     // STEP 1
@@ -129,13 +129,12 @@ pub fn consolidate_graph(
 /// output geometries are in web mercator projection.
 pub fn buffer_nodes(
     graph: &OsmGraph,
-    radius: (Distance, DistanceUnit),
+    radius: uom::si::f64::Length,
 ) -> Result<Vec<(OsmNodeId, Polygon<f32>)>, OsmError> {
-    let (rad, rad_unit) = radius;
     let bar = Arc::new(Mutex::new(
         Bar::builder()
             .total(graph.n_connected_nodes())
-            .desc(format!("node buffering ({} {})", rad.as_f64(), rad_unit))
+            .desc(format!("node buffering ({} meters)", radius.get::<uom::si::length::meter>()))
             .build()
             .map_err(OsmError::InternalError)?,
     ));
@@ -172,12 +171,13 @@ pub fn buffer_nodes(
 fn get_fill_value(
     way: &OsmWayData,
     maxspeeds_fill_lookup: &FillValueLookup,
-) -> Result<Speed, OsmError> {
+) -> Result<uom::si::f64::Velocity, OsmError> {
     let highway_class = way
         .get_string_at_field("highway")
         .map_err(OsmError::GraphConsolidationError)?;
     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    Ok(Speed::from(avg_speed))
+    let result = uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed);
+    Ok(result)
 }
 
 /// with knowledge of which geometry indices contain spatially-similar nodes,
