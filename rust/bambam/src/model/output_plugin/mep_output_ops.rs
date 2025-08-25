@@ -4,16 +4,15 @@ use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
     model::{
-        network::VertexId,
-        state::{StateModel, StateModelError},
-        unit::{AsF64, Convert, Distance, DistanceUnit},
+        label::Label, network::VertexId, state::{StateModel, StateModelError}, unit::{AsF64, DistanceUnit}
     },
 };
+use uom::si::f64::Length;
 use std::{borrow::Cow, collections::HashMap};
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =
-    Box<dyn Iterator<Item = Result<(VertexId, &'a SearchTreeBranch), StateModelError>> + 'a>;
+    Box<dyn Iterator<Item = Result<(Label, &'a SearchTreeBranch), StateModelError>> + 'a>;
 
 /// collects search tree branches that can be reached _as destinations_
 /// within the given time bin.
@@ -25,14 +24,14 @@ pub fn collect_destinations<'a>(
     match search_result.trees.first() {
         None => Box::new(std::iter::empty()),
         Some(tree) => {
-            let tree_destinations = tree.iter().filter_map(move |(v_id, branch)| {
+            let tree_destinations = tree.iter().filter_map(move |(label, branch)| {
                 let result_state = &branch.edge_traversal.result_state;
                 let within_bin = match &time_bin {
                     Some(bin) => bin.state_time_within_bin(result_state, state_model),
                     None => Ok(true),
                 };
                 match within_bin {
-                    Ok(true) => Some(Ok((*v_id, branch))),
+                    Ok(true) => Some(Ok((label.clone(), branch))),
                     Ok(false) => None,
                     Err(e) => Some(Err(e)),
                 }
@@ -45,17 +44,14 @@ pub fn collect_destinations<'a>(
 
 pub fn points_along_linestring(
     linestring: &LineString<f32>,
-    stride: &Distance,
+    stride: &Length,
     distance_unit: &DistanceUnit,
 ) -> Result<Vec<Point<f32>>, String> {
-    let mut stride_internal = Cow::Borrowed(stride);
-    distance_unit
-        .convert(&mut stride_internal, &DistanceUnit::Meters)
-        .map_err(|e| e.to_string())?;
-    let stride_f32 = stride_internal.as_f64() as f32;
-    let line_length_meters = linestring.length(&Haversine);
+    
+    
+    let length: Length = Length::new::<uom::si::length::meter>(linestring.length(&Haversine) as f64);
 
-    if line_length_meters < stride_f32 {
+    if &length < stride {
         match (linestring.points().next(), linestring.points().next_back()) {
             (Some(first), Some(last)) => Ok(vec![first, last]),
             _ => Err(format!(
@@ -64,14 +60,15 @@ pub fn points_along_linestring(
         }
     } else {
         // determine number of steps
-        let n_strides = (line_length_meters / stride_f32).ceil();
-        let n_strides_rounded = n_strides as i64;
-        let n_points = n_strides_rounded + 1;
+        let n_strides = (length / *stride).value.ceil() as u64;
+        let n_points = n_strides + 1;
+
+        let length_meters = length.value;
 
         (0..=n_points)
             .map(|point_index| {
-                let distance_to_point = point_index as f32 * stride_f32;
-                let fraction = distance_to_point / line_length_meters;
+                let distance_to_point = stride.value * point_index as f64;
+                let fraction = (distance_to_point / length_meters) as f32;
                 let point = linestring
                     .point_at_ratio_from_start(&Haversine, fraction)
                     .ok_or_else(|| {
@@ -79,7 +76,7 @@ pub fn points_along_linestring(
                             "unable to interpolate {}m/{}% into linestring with distance {}: {}",
                             distance_to_point,
                             (fraction * 10000.0).trunc() / 100.0,
-                            line_length_meters,
+                            length_meters,
                             linestring.to_wkt()
                         )
                     })?;

@@ -5,8 +5,9 @@ use routee_compass_core::config::ConfigJsonExtensions;
 use routee_compass_core::model::{
     frontier::{FrontierModel, FrontierModelError, FrontierModelService},
     state::StateModel,
-    unit::{Time, TimeUnit},
+    unit::TimeUnit,
 };
+use uom::si::f64::Time;
 use std::sync::Arc;
 
 pub struct TimeLimitFrontierService {
@@ -28,7 +29,7 @@ impl FrontierModelService for TimeLimitFrontierService {
         _state_model: Arc<StateModel>,
     ) -> Result<Arc<dyn FrontierModel>, FrontierModelError> {
         log::debug!("begin FrontierModelService::build for TimeLimitFrontierService");
-        let time_limit = match query.get(super::TIME_LIMIT_FIELD) {
+        let conf = match query.get(super::TIME_LIMIT_FIELD) {
             None => Ok(self.time_limit.clone()),
             Some(time_limit_json) => {
                 let time_limit: TimeLimitConfig = serde_json::from_value(time_limit_json.clone())
@@ -41,6 +42,7 @@ impl FrontierModelService for TimeLimitFrontierService {
             }
         }?;
 
+        let time_limit = conf.time_limit()?;
         let model = TimeLimitFrontierModel { time_limit };
         Ok(Arc::new(model))
     }

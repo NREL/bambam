@@ -1,15 +1,16 @@
 use geo::{line_measures::Densifiable, Densify, Haversine, LineString, MultiPoint, Point};
-use routee_compass::plugin::output::OutputPluginError;
+use routee_compass::{app::compass::CompassComponentError, plugin::{output::OutputPluginError, PluginError}};
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
     model::{
-        map::MapModel,
-        network::{EdgeId, VertexId},
-        unit::{AsF64, Convert, Distance, DistanceUnit},
+        label::Label, map::MapModel, network::{EdgeId, VertexId}, unit::{AsF64, DistanceUnit}
     },
 };
 use serde::{Deserialize, Serialize};
+use uom::si::f64::Length;
 use std::{borrow::Cow, sync::Arc};
+
+use crate::model::output_plugin::isochrone::DestinationPointGeneratorConfig;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -18,29 +19,63 @@ pub enum DestinationPointGenerator {
     DestinationPoint,
     LinestringCoordinates,
     LinestringStride {
-        stride: Distance,
-        distance_unit: DistanceUnit,
+        stride: Length,
     },
     BufferedLinestring {
-        buffer_radius: Distance,
-        buffer_stride: Distance,
-        distance_unit: DistanceUnit,
+        buffer_radius: Length,
+        buffer_stride: Length,
     },
     BufferedDestinationPoint {
-        buffer_radius: Distance,
-        buffer_stride: Distance,
-        distance_unit: DistanceUnit,
+        buffer_radius: Length,
+        buffer_stride: Length,
     },
+}
+
+impl TryFrom<&DestinationPointGeneratorConfig> for DestinationPointGenerator {
+    type Error = PluginError;
+
+    fn try_from(value: &DestinationPointGeneratorConfig) -> Result<Self, Self::Error> {
+        use DestinationPointGeneratorConfig as Conf;
+        match value {
+            Conf::DestinationPoint => Ok(Self::DestinationPoint),
+            Conf::LinestringCoordinates => Ok(Self::LinestringCoordinates),
+            Conf::LinestringStride { stride, distance_unit } => {
+                if stride <= &0.0 {
+                    Err(OutputPluginError::BuildFailed(format!("linestring stride must be strictly positive, found {stride} {distance_unit}")).into())
+                } else {
+                    Ok(Self::LinestringStride { stride: distance_unit.to_uom(*stride) })
+                }
+            },
+            Conf::BufferedLinestring { buffer_radius, buffer_stride, distance_unit } => {
+                if buffer_radius <= &0.0 {
+                    Err(OutputPluginError::BuildFailed(format!("linestring buffer radius must be strictly positive, found {buffer_radius} {distance_unit}")).into())
+                } else if buffer_stride <= &0.0 {
+                    Err(OutputPluginError::BuildFailed(format!("linestring stride must be strictly positive, found {buffer_stride} {distance_unit}")).into())
+                } else {
+                    Ok(Self::BufferedLinestring { buffer_stride: distance_unit.to_uom(*buffer_stride), buffer_radius: distance_unit.to_uom(*buffer_radius) })
+                }
+            },
+            Conf::BufferedDestinationPoint { buffer_radius, buffer_stride, distance_unit } => {
+                if buffer_radius <= &0.0 {
+                    Err(OutputPluginError::BuildFailed(format!("destination point buffer radius must be strictly positive, found {buffer_radius} {distance_unit}")).into())
+                } else if buffer_stride <= &0.0 {
+                    Err(OutputPluginError::BuildFailed(format!("destination point stride must be strictly positive, found {buffer_stride} {distance_unit}")).into())
+                } else {
+                    Ok(Self::BufferedDestinationPoint { buffer_stride: distance_unit.to_uom(*buffer_stride), buffer_radius: distance_unit.to_uom(*buffer_radius) })
+                }
+            },
+        }
+    }
 }
 
 impl DestinationPointGenerator {
     pub fn generate_destination_points(
         &self,
-        destinations: &[(VertexId, &SearchTreeBranch)],
+        destinations: &[(Label, &SearchTreeBranch)],
         map_model: Arc<MapModel>,
     ) -> Result<MultiPoint<f32>, OutputPluginError> {
         let mut result: Vec<Point<f32>> = Vec::new();
-        for (_v_id, branch) in destinations.iter() {
+        for (_label, branch) in destinations.iter() {
             let edge_id = branch.edge_traversal.edge_id;
             let linestring = map_model.get(&edge_id).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
@@ -72,30 +107,20 @@ impl DestinationPointGenerator {
             DestinationPointGenerator::LinestringCoordinates => Ok(linestring.points().collect()),
             DestinationPointGenerator::LinestringStride {
                 stride,
-                distance_unit,
             } => {
-                let mut meters = Cow::Borrowed(stride);
-                distance_unit
-                    .convert(&mut meters, &DistanceUnit::Meters)
-                    .map_err(|e| {
-                        OutputPluginError::OutputPluginFailed(format!(
-                            "failure converting stride {stride} to meters: {e}"
-                        ))
-                    })?;
-                let dense_linestring = linestring.densify(&Haversine, meters.as_f64() as f32);
+                let meters = stride.get::<uom::si::length::meter>() as f32;
+                let dense_linestring = linestring.densify(&Haversine, meters);
                 Ok(dense_linestring.into_points())
             }
             DestinationPointGenerator::BufferedLinestring {
                 buffer_radius: _,
                 buffer_stride: _,
-                distance_unit: _,
             } => {
                 todo!("geo rust does not currently support geometry buffering")
             }
             DestinationPointGenerator::BufferedDestinationPoint {
                 buffer_radius: _,
                 buffer_stride: _,
-                distance_unit: _,
             } => todo!("geo rust does not currently support geometry buffering"),
         }
     }

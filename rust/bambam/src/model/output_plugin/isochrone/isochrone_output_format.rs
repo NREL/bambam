@@ -7,7 +7,7 @@ use serde_json::Value;
 use wkb;
 use wkt::{ToWkt, TryFromWkt, Wkt};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum IsochroneOutputFormat {
     Wkt,

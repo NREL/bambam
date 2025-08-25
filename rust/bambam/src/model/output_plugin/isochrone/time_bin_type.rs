@@ -2,7 +2,7 @@ use super::time_bin::TimeBin;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum TimeBinType {

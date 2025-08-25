@@ -1,12 +1,13 @@
-use std::borrow::Cow;
-
+use uom::si::f64::Time;
 use crate::model::bambam_state_ops;
 use routee_compass_core::model::{
     state::{StateModel, StateModelError, StateVariable},
-    unit::{AsF64, Convert, Time, TimeUnit},
+    unit::{AsF64, TimeUnit},
 };
 use serde::{Deserialize, Serialize};
 
+/// a configuration describing the time bounds for a "ring" of an isochrone.
+/// time values are in minutes.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct TimeBin {
     pub min_time: u64,
@@ -27,13 +28,13 @@ impl TimeBin {
     }
 
     /// grab the time bin's lower bound as a Time value in a specified time unit
-    pub fn min_time(&self, time_unit: &TimeUnit) -> Time {
-        to_time_value(self.min_time, time_unit)
+    pub fn min_time(&self) -> Time {
+        Time::new::<uom::si::time::minute>(self.min_time as f64)
     }
 
     /// grab the time bin's upper bound as a Time value in a specified time unit
-    pub fn max_time(&self, time_unit: &TimeUnit) -> Time {
-        to_time_value(self.max_time, time_unit)
+    pub fn max_time(&self) -> Time {
+        Time::new::<uom::si::time::minute>(self.max_time as f64)
     }
 
     pub fn state_time_within_bin(
@@ -41,15 +42,9 @@ impl TimeBin {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<bool, StateModelError> {
-        let time = bambam_state_ops::get_reachability_time_minutes(state, state_model)?;
-        let time_u64 = time.as_f64() as u64;
-        let within_bin = self.min_time <= time_u64 && time_u64 < self.max_time;
+        let time = bambam_state_ops::get_reachability_time(state, state_model)?;
+        let minutes = time.get::<uom::si::time::minute>() as u64;
+        let within_bin = self.min_time <= minutes && minutes < self.max_time;
         Ok(within_bin)
     }
-}
-
-fn to_time_value(time_bin_value: u64, time_unit: &TimeUnit) -> Time {
-    let mut time = Cow::Owned(Time::from(time_bin_value as f64));
-    TimeUnit::Minutes.convert(&mut time, time_unit);
-    time.into_owned()
 }
