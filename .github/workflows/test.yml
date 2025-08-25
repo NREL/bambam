@@ -12,11 +12,8 @@ env:
 jobs:
   test:
     name: cargo test
-    runs-on: bam-runners
+    runs-on: ubuntu-latest
     steps:
-      - name: setup libssl for Ubuntu 24.04 runner
-        run: |
-          apt-get update && apt-get install -y librust-openssl-sys-dev
 
       - uses: actions/checkout@v4
 
@@ -27,7 +24,7 @@ jobs:
           rustup component add rustfmt
           cargo fmt --all --manifest-path rust/Cargo.toml -- --check
           
-      - name: Test Assets
+      - name: Install test assets
         run: |
           ./setup.sh
 
