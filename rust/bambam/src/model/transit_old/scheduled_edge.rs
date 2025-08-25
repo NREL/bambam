@@ -4,12 +4,12 @@ use super::{
 use crate::model::transit_old::schedule_ops;
 use chrono::{DateTime, Utc};
 use gtfs_structures::{Gtfs, StopTime, Trip};
-
 use routee_compass_core::model::{
     network::VertexId,
-    unit::{Time, TimeUnit},
+    unit::TimeUnit,
 };
 use skiplist::OrderedSkipList;
+use uom::si::f64::Time;
 
 pub struct ScheduledEdge {
     // edge_id: EdgeId,
@@ -78,10 +78,9 @@ impl ScheduledEdge {
         &self,
         start_datetime: DateTime<Utc>,
         current_time: &Time,
-        time_unit: TimeUnit,
     ) -> Result<Option<&ScheduledHeadway>, ScheduleError> {
-        let current_datetime = schedule_ops::add_delta(start_datetime, *current_time, time_unit)?;
-        let comparator = ScheduledHeadway::dummy_comparator(current_datetime);
+        let current_datetime = schedule_ops::add_delta(start_datetime, *current_time)?;
+        let comparator = ScheduledHeadway::query(current_datetime);
         let headway = self
             .headways
             .lower_bound(std::ops::Bound::Included(&comparator));

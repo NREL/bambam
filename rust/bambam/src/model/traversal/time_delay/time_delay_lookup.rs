@@ -10,11 +10,12 @@ use routee_compass_core::{
     model::{
         network::Vertex,
         traversal::TraversalModelError,
-        unit::{Time, TimeUnit},
+        unit::TimeUnit,
     },
     util::fs::read_utils,
 };
 use rstar::{RTree, AABB};
+use uom::si::f64::Time;
 use std::path::Path;
 
 pub struct TimeDelayLookup {
@@ -25,9 +26,9 @@ pub struct TimeDelayLookup {
 impl TimeDelayLookup {
     /// helper function for finding delays from graph vertices. in the case of multiple overlapping
     /// delay polygons, the first is selected.
-    pub fn get_delay_for_vertex<'a>(&self, lookup_vertex: &Vertex) -> Option<(Time, TimeUnit)> {
+    pub fn get_delay_for_vertex<'a>(&self, lookup_vertex: &Vertex) -> Option<Time> {
         let g = geo::Geometry::Point(geo::Point(lookup_vertex.coordinate.0));
-        self.find_first_delay(&g).map(|(t, tu)| (t, *tu))
+        self.find_first_delay(&g)
     }
 
     /// gets a delay value from this lookup function and returns it in the base time unit.
@@ -42,17 +43,16 @@ impl TimeDelayLookup {
     ///
     /// * Zero or one time access delay. If addditional records intersect the incoming geometry,
     ///   only the first is returned.
-    pub fn find_first_delay(&self, geometry: &Geometry<f32>) -> Option<(Time, &TimeUnit)> {
+    pub fn find_first_delay(&self, geometry: &Geometry<f32>) -> Option<Time> {
         let envelope_option: Option<AABB<Point<f32>>> =
             geo_utils::get_centroid_as_envelope(geometry);
         let result = envelope_option.and_then(|envelope| {
-            let lookup_result = self
+            self
                 .lookup
                 .locate_in_envelope_intersecting(&envelope)
-                .next();
-            lookup_result
+                .next().map(|t| t.time)
         });
-        result.map(|t| (t.time, &self.config.time_unit))
+        result
     }
 
     /// gets a delay value from this lookup function and returns it in the base time unit.
@@ -67,7 +67,7 @@ impl TimeDelayLookup {
     ///
     /// * Zero or one time access delay. If addditional records intersect the incoming geometry,
     ///   only the first is returned.
-    pub fn find_all_delays(&self, geometry: &Geometry<f32>) -> Option<(Time, &TimeUnit)> {
+    pub fn find_all_delays(&self, geometry: &Geometry<f32>) -> Option<Time> {
         let envelope_option: Option<AABB<Point<f32>>> =
             geo_utils::get_centroid_as_envelope(geometry);
         let time = envelope_option.and_then(|envelope| {
@@ -78,7 +78,7 @@ impl TimeDelayLookup {
                 .collect();
             self.config.aggregation.apply(values)
         });
-        time.map(|t| (t, &self.config.time_unit))
+        time
     }
 }
 

@@ -2,25 +2,28 @@ use crate::model::traversal::fixed_speed::FixedSpeedConfig;
 use chrono::format::Fixed;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, OutputFeature, StateModel, StateVariable},
+    state::{InputFeature, StateFeature, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
-    unit::{Speed, SpeedUnit},
+    unit::SpeedUnit,
 };
 use serde::{Deserialize, Serialize};
+use uom::{si::f64::Velocity, ConstZero};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct FixedSpeedModel {
-    /// configuration of this model
     pub config: Arc<FixedSpeedConfig>,
+    /// speed value to write on each state vector
+    pub speed: Velocity,
     /// name of state feature where these speed values are assigned
     pub fieldname: String,
 }
 
 impl FixedSpeedModel {
     pub fn new(config: Arc<FixedSpeedConfig>) -> FixedSpeedModel {
+        let speed = config.speed_unit.to_uom(config.speed);
         let fieldname = format!("{}_speed", config.name);
-        FixedSpeedModel { config, fieldname }
+        FixedSpeedModel { config: config.clone(), speed, fieldname }
     }
 }
 
@@ -35,18 +38,19 @@ impl TraversalModelService for FixedSpeedModel {
 }
 
 impl TraversalModel for FixedSpeedModel {
-    fn input_features(&self) -> Vec<(String, InputFeature)> {
+    
+    fn name(&self) -> String {
+        format!("Fixed Speed Model ({})", self.config.name)
+    }
+    
+    fn input_features(&self) -> Vec<InputFeature> {
         vec![]
     }
 
-    fn output_features(&self) -> Vec<(String, OutputFeature)> {
+    fn output_features(&self) -> Vec<(String, StateFeature)> {
         vec![(
             self.fieldname.clone(),
-            OutputFeature::Speed {
-                speed_unit: self.config.speed_unit,
-                initial: Speed::ZERO,
-                accumulator: false,
-            },
+            StateFeature::Speed { accumulator:false, value: Velocity::ZERO, output_unit: Some(self.config.speed_unit) },
         )]
     }
 
@@ -59,8 +63,7 @@ impl TraversalModel for FixedSpeedModel {
         state_model.set_speed(
             state,
             &self.fieldname,
-            &self.config.speed,
-            &self.config.speed_unit,
+            &self.speed,
         )?;
         Ok(())
     }
@@ -74,9 +77,9 @@ impl TraversalModel for FixedSpeedModel {
         state_model.set_speed(
             state,
             &self.fieldname,
-            &self.config.speed,
-            &self.config.speed_unit,
+            &self.speed,
         )?;
         Ok(())
     }
+
 }

@@ -7,20 +7,20 @@ use crate::model::{
 use itertools::Itertools;
 use routee_compass_core::model::{
     state::{
-        CustomFeatureFormat, InputFeature, OutputFeature, StateModel, StateModelError,
+        CustomFeatureFormat, InputFeature, StateFeature, StateModel, StateModelError,
         StateVariable,
     },
     traversal::TraversalModelError,
-    unit::Time,
 };
 use serde::{Deserialize, Serialize};
+use uom::si::f64::Time;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 // #[serde(untagged, rename_all = "snake_case")]
 pub struct FeatureDependency {
     pub input_name: String,
     pub input_feature: InputFeature,
-    pub destination_features: Vec<(String, OutputFeature)>,
+    pub destination_features: Vec<(String, StateFeature)>,
 }
 // pub enum FeatureDependency {
 //     /// names an upstream feature that provides a time value
@@ -29,7 +29,7 @@ pub struct FeatureDependency {
 //         /// name of the feature that contains a time value we will copy
 //         time_feature: String,
 //         /// name of feature(s) that the time value is copied to
-//         destinations: Vec<OutputFeature>,
+//         destinations: Vec<StateFeature>,
 //     },
 //     /// names an upstream feature that provides speed which can be used to compute a time value
 //     /// which will be added to the existing values for [`fieldname::EDGE_TIME`] and [`fieldname::TRIP_TIME`]
@@ -37,7 +37,7 @@ pub struct FeatureDependency {
 //         /// name of the feature that contains a speed value that will be referenced
 //         speed_feature: String,
 //         /// name of feature(s) that a time value, derived from the speed and edge_distance features, will be copied to
-//         destinations: Vec<OutputFeature>,
+//         destinations: Vec<StateFeature>,
 //     },
 //     /// names an upstream feature that will be copied into another location.
 //     /// for example, in walk-mode trips with a penalty factor, this can be used to copy it over
@@ -46,7 +46,7 @@ pub struct FeatureDependency {
 //         /// upstream feature name to copy from
 //         source: String,
 //         /// name of feature(s) to copy the source feature to
-//         destinations: Vec<OutputFeature>,
+//         destinations: Vec<StateFeature>,
 //         // /// the custom feature unit type, should correspond to a [`routee_compass_core::model::state::CustomFeatureFormat`]
 //         // unit: DependencyUnitType,
 //     },
@@ -55,7 +55,7 @@ pub struct FeatureDependency {
 impl FeatureDependency {
     pub fn new(
         conf: &FeatureDependencyConfig,
-        output_features: &HashMap<String, OutputFeature>,
+        output_features: &HashMap<String, StateFeature>,
     ) -> Result<FeatureDependency, TraversalModelError> {
         let destination_features = conf.destination_features.iter().map(|k| {
             let v = output_features.get(k).ok_or_else(|| TraversalModelError::BuildError(format!("multimodal traversal dependency declared on feature '{k}' not listed in output_features collection")))?;
@@ -71,7 +71,19 @@ impl FeatureDependency {
     pub fn as_input_features(&self) -> Vec<(String, InputFeature)> {
         self.destination_features
             .iter()
-            .map(|(n, o)| (n.clone(), InputFeature::from(o)))
+            .map(|(n, o)| (n.clone(), {
+                // this should exist: InputFeature::from(o)
+                // waiting on https://github.com/NREL/routee-compass/issues/383
+                match o {
+                    StateFeature::Distance { value, accumulator, output_unit } => InputFeature::Distance { name: n.to_string(), unit: output_unit.clone() },
+                    StateFeature::Time { value, accumulator, output_unit } => InputFeature::Time { name: n.to_string(), unit: output_unit.clone() },
+                    StateFeature::Speed { value, accumulator, output_unit } => InputFeature::Speed { name: n.to_string(), unit: output_unit.clone() },
+                    StateFeature::Energy { value, accumulator, output_unit } => InputFeature::Energy { name: n.to_string(), unit: output_unit.clone() },
+                    StateFeature::Ratio { value, accumulator, output_unit } => InputFeature::Ratio { name: n.to_string(), unit: output_unit.clone() },
+                    StateFeature::Custom { value, accumulator, format: f } => InputFeature::Custom { name: n.to_string(), unit: format!("{}", f) },
+                }
+
+            }))
             .collect_vec()
     }
 
@@ -87,49 +99,40 @@ impl FeatureDependency {
         for (out_name, out_feature) in self.destination_features.iter() {
             match (&self.input_feature, out_feature) {
                 (
-                    InputFeature::Speed(speed_unit),
-                    OutputFeature::Time {
-                        time_unit,
-                        initial,
+                    InputFeature::Speed { unit, ..},
+                    StateFeature::Time {
                         accumulator,
+                        ..
                     },
                 ) => {
-                    let (distance, distance_unit) =
-                        state_model.get_distance(state, fieldname::EDGE_DISTANCE, None)?;
-                    let (speed, speed_unit) =
-                        state_model.get_speed(state, &self.input_name, None)?;
-                    let (time, time_unit) =
-                        Time::create((&distance, distance_unit), (&speed, speed_unit))?;
+                    let distance =
+                        state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
+                    let speed =
+                        state_model.get_speed(state, &self.input_name)?;
+                    let time: Time = distance / speed;
                     if *accumulator {
-                        state_model.add_time(state, out_name, &time, &time_unit)?;
+                        state_model.add_time(state, out_name, &time)?;
                     } else {
-                        state_model.set_time(state, out_name, &time, &time_unit)?;
+                        state_model.set_time(state, out_name, &time)?;
                     }
                 }
                 (
-                    InputFeature::Time(_),
-                    OutputFeature::Time {
-                        time_unit,
-                        initial,
+                    InputFeature::Time { .. },
+                    StateFeature::Time {
                         accumulator,
+                        ..
                     },
                 ) => {
-                    let (time, time_unit) =
-                        state_model.get_time(state, &self.input_name, Some(time_unit))?;
+                    let time= state_model.get_time(state, &self.input_name)?;
                     if *accumulator {
-                        state_model.add_time(state, out_name, &time, time_unit)?;
+                        state_model.add_time(state, out_name, &time)?;
                     } else {
-                        state_model.set_time(state, out_name, &time, time_unit)?;
+                        state_model.set_time(state, out_name, &time)?;
                     }
                 }
                 (
                     InputFeature::Custom { .. },
-                    OutputFeature::Custom {
-                        name,
-                        unit,
-                        format,
-                        accumulator,
-                    },
+                    StateFeature::Custom { format, .. },
                 ) => match format {
                     CustomFeatureFormat::FloatingPoint { .. } => {
                         let value = state_model.get_custom_f64(state, &self.input_name)?;

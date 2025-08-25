@@ -1,82 +1,45 @@
 use std::borrow::Cow;
 
-use routee_compass_core::model::unit::{AsF64, Convert, Time, TimeUnit, UnitError};
+use routee_compass_core::model::unit::{AsF64, TimeUnit, UnitError};
+use uom::{si::f64::Time, ConstZero};
 
 /// represents a single departure time for a static scheduled route.
 #[derive(Clone, Debug)]
 pub struct Departure {
-    time_seconds: u32,     // >> 24 hours
-    duration_seconds: u16, // ~ 18 hours
+    departure_time: Time,     // >> 24 hours
+    leg_duration: Time,
 }
 
 impl Departure {
     pub fn new(
-        departure_time: (&Time, &TimeUnit),
-        leg_duration: (&Time, &TimeUnit),
-    ) -> Result<Departure, String> {
-        let time_seconds = create_departure_time_internal(departure_time)?;
-        let duration_seconds = create_leg_duration_internal(leg_duration)?;
-        Ok(Departure {
-            time_seconds,
-            duration_seconds,
-        })
+        departure_time: Time,
+        leg_duration: Time
+    ) -> Departure {
+        Departure {
+            departure_time,
+            leg_duration
+        }
     }
-    /// OrderedSkipList.upper_bound() query value must be of type `Departure`.
+
+    /// creates a query into an OrderedSkipList<Departure>
     /// this creates a 'dummy' value with the matching departure time.
-    pub fn departure_list_query(departure_time: (&Time, &TimeUnit)) -> Result<Departure, String> {
-        let (time, time_unit) = departure_time;
-        let mut t_secs = Cow::Borrowed(time);
-        time_unit
-            .convert(&mut t_secs, &TimeUnit::Seconds)
-            .map_err(|e| e.to_string())?;
-        let secs = t_secs.as_f64() as u32;
-        let result = Departure {
-            time_seconds: secs,
-            duration_seconds: 0,
-        };
-        Ok(result)
+    /// OrderedSkipList.upper_bound() query value must be of type `Departure`.
+    pub fn query(departure_time: Time) -> Departure {
+        Departure {
+            departure_time,
+            leg_duration: Time::ZERO,
+        }
     }
 }
 
 impl PartialEq for Departure {
     fn eq(&self, other: &Self) -> bool {
-        self.time_seconds == other.time_seconds
+        self.departure_time == other.departure_time
     }
 }
 
 impl PartialOrd for Departure {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.time_seconds.partial_cmp(&other.time_seconds)
-    }
-}
-
-fn create_departure_time_internal(value: (&Time, &TimeUnit)) -> Result<u32, String> {
-    let secs = to_seconds_bounded(value, (None, &Time::from(86400.0)))?;
-    Ok(secs as u32)
-}
-
-fn create_leg_duration_internal(value: (&Time, &TimeUnit)) -> Result<u16, String> {
-    let secs = to_seconds_bounded(value, (None, &Time::from(65536.0)))?;
-    Ok(secs as u16)
-}
-
-fn to_seconds_bounded(
-    value: (&Time, &TimeUnit),
-    bounds: (Option<&Time>, &Time),
-) -> Result<f64, String> {
-    let (min_value, max) = bounds;
-    let min = min_value.unwrap_or(&Time::ZERO);
-    let (time, time_unit) = value;
-    let mut t_convert = Cow::Borrowed(time);
-    time_unit
-        .convert(&mut t_convert, &TimeUnit::Seconds)
-        .map_err(|e| e.to_string())?;
-    let t_secs = t_convert.as_ref();
-    if t_secs < min || max < t_secs {
-        Err(format!(
-            "invalid number of seconds {t_secs} is outside of range [{min},{max})"
-        ))
-    } else {
-        Ok(t_secs.as_f64())
+        self.departure_time.partial_cmp(&other.departure_time)
     }
 }

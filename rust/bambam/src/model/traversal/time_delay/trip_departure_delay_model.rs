@@ -3,10 +3,10 @@ use crate::model::fieldname;
 use super::TimeDelayLookup;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, OutputFeature, StateModel, StateVariable},
+    state::{InputFeature, StateFeature, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
-    unit::{Distance, Time},
 };
+use uom::{si::f64::{Length, Time}, ConstZero};
 use std::sync::Arc;
 
 /// assigns time delays for trips that have a delay from the start of their trip.
@@ -31,25 +31,29 @@ impl TraversalModelService for TripDepartureDelayModel {
 }
 
 impl TraversalModel for TripDepartureDelayModel {
-    fn input_features(&self) -> Vec<(String, InputFeature)> {
+    fn name(&self) -> String {
+        "Trip Departure Delay Traversal Model".to_string()
+    }
+
+    fn input_features(&self) -> Vec<InputFeature> {
         vec![]
     }
 
-    fn output_features(&self) -> Vec<(String, OutputFeature)> {
+    fn output_features(&self) -> Vec<(String, StateFeature)> {
         vec![
             (
                 fieldname::TRIP_TIME.to_string(),
-                OutputFeature::Time {
-                    time_unit: self.0.config.time_unit,
-                    initial: Time::ZERO,
+                StateFeature::Time {
+                    value: Time::ZERO,
+                    output_unit: Some(self.0.config.time_unit),
                     accumulator: false,
                 },
             ),
             (
                 fieldname::TRIP_ENROUTE_DELAY.to_string(),
-                OutputFeature::Time {
-                    time_unit: self.0.config.time_unit,
-                    initial: Time::ZERO,
+                StateFeature::Time {
+                    value: Time::ZERO,
+                    output_unit: Some(self.0.config.time_unit),
                     accumulator: false,
                 },
             ),
@@ -84,13 +88,13 @@ fn add_delay_time(
     state_model: &StateModel,
     lookup: Arc<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
-    let (distance, _) = state_model.get_distance(state, fieldname::TRIP_DISTANCE, None)?;
-    if distance == Distance::ZERO {
+    let distance = state_model.get_distance(state, fieldname::TRIP_DISTANCE)?;
+    if distance == Length::ZERO {
         return Ok(());
     }
-    if let Some((delay, delay_unit)) = lookup.get_delay_for_vertex(origin) {
-        state_model.set_time(state, fieldname::TRIP_ENROUTE_DELAY, &delay, &delay_unit)?;
-        state_model.add_time(state, fieldname::TRIP_TIME, &delay, &delay_unit)?;
+    if let Some(delay) = lookup.get_delay_for_vertex(origin) {
+        state_model.set_time(state, fieldname::TRIP_ENROUTE_DELAY, &delay)?;
+        state_model.add_time(state, fieldname::TRIP_TIME, &delay)?;
     }
     Ok(())
 }

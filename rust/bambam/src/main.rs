@@ -1,7 +1,7 @@
 use bambam::model::builder;
 use clap::Parser;
 use routee_compass::app::cli::{cli_args::CliArgs, run};
-use routee_compass::app::compass::CompassAppError;
+use routee_compass::app::compass::{CompassAppError, CompassBuilderInventory};
 
 fn main() {
     env_logger::init();
@@ -22,7 +22,7 @@ fn main() {
 fn run_bambam(args: CliArgs) -> Result<(), CompassAppError> {
     log::info!("starting app at {}", chrono::Local::now().to_rfc3339());
 
-    let builder = builder::bambam_app_builder()?;
+    let builder = CompassBuilderInventory::new()?;
 
     match run::command_line_runner(&args, Some(builder), None) {
         Ok(_) => {}
