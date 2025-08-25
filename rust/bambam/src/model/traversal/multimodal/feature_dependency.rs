@@ -58,7 +58,7 @@ impl FeatureDependency {
     ) -> Result<FeatureDependency, TraversalModelError> {
         let destination_features = conf.destination_features.iter().map(|k| {
             let v = output_features.get(k).ok_or_else(|| TraversalModelError::BuildError(format!("multimodal traversal dependency declared on feature '{k}' not listed in output_features collection")))?;
-            Ok((k.clone(), v.clone()))
+            Ok((k.clone(), *v))
         }).collect::<Result<Vec<_>, TraversalModelError>>()?;
         Ok(Self {
             input_name: conf.input_name.clone(),
@@ -81,7 +81,7 @@ impl FeatureDependency {
                             output_unit,
                         } => InputFeature::Distance {
                             name: n.to_string(),
-                            unit: output_unit.clone(),
+                            unit: *output_unit,
                         },
                         StateFeature::Time {
                             value,
@@ -89,7 +89,7 @@ impl FeatureDependency {
                             output_unit,
                         } => InputFeature::Time {
                             name: n.to_string(),
-                            unit: output_unit.clone(),
+                            unit: *output_unit,
                         },
                         StateFeature::Speed {
                             value,
@@ -97,7 +97,7 @@ impl FeatureDependency {
                             output_unit,
                         } => InputFeature::Speed {
                             name: n.to_string(),
-                            unit: output_unit.clone(),
+                            unit: *output_unit,
                         },
                         StateFeature::Energy {
                             value,
@@ -105,7 +105,7 @@ impl FeatureDependency {
                             output_unit,
                         } => InputFeature::Energy {
                             name: n.to_string(),
-                            unit: output_unit.clone(),
+                            unit: *output_unit,
                         },
                         StateFeature::Ratio {
                             value,
@@ -113,7 +113,7 @@ impl FeatureDependency {
                             output_unit,
                         } => InputFeature::Ratio {
                             name: n.to_string(),
-                            unit: output_unit.clone(),
+                            unit: *output_unit,
                         },
                         StateFeature::Custom {
                             value,

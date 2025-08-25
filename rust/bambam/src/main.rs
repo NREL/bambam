@@ -1,4 +1,3 @@
-use bambam::model::builder;
 use clap::Parser;
 use routee_compass::app::cli::{cli_args::CliArgs, run};
 use routee_compass::app::compass::{CompassAppError, CompassBuilderInventory};

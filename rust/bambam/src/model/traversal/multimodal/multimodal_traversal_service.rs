@@ -54,7 +54,7 @@ impl TraversalModelService for MultimodalTraversalService {
             .config
             .output_features
             .iter()
-            .map(|(n, f)| (n.clone(), f.clone()))
+            .map(|(n, f)| (n.clone(), *f))
             .collect_vec();
 
         let model = Arc::new(MultimodalTraversalModel::new(

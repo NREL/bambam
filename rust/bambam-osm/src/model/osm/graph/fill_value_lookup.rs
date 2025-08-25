@@ -32,7 +32,7 @@ impl FillValueLookup {
             total = ways.len()
         );
         for way in way_iter {
-            let length_meters = way.length_meters as f64;
+            let length_meters = way.length_meters;
             let class_label_opt = way
                 .get_string_at_field(class_label_field)
                 .map_err(OsmError::GraphConsolidationError)?;

@@ -152,7 +152,7 @@ impl App {
                 edges_osm,
                 vertices_osm,
             } => {
-                if let Err(error) = wci::process_wci(&edges_osm, &vertices_osm, &wci_file) {
+                if let Err(error) = wci::process_wci(edges_osm, vertices_osm, wci_file) {
                     eprintln!("error! {:?}", error);
                 }
                 Ok(())

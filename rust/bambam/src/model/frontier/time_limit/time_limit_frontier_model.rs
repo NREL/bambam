@@ -26,7 +26,7 @@ impl FrontierModel for TimeLimitFrontierModel {
         let time = state_model
             .get_time(state, fieldname::TRIP_TIME)
             .map_err(|e| FrontierModelError::BuildError(e.to_string()))?;
-        let is_valid = &time <= &self.time_limit;
+        let is_valid = time <= self.time_limit;
         Ok(is_valid)
     }
 

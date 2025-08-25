@@ -42,7 +42,7 @@ impl OsmImportConfiguration {
 
     pub fn get_consolidation_threshold(&self) -> uom::si::f64::Length {
         self.consolidation_threshold
-            .unwrap_or_else(|| Self::default_consolidation_threshold())
+            .unwrap_or_else(Self::default_consolidation_threshold)
     }
 }
 
