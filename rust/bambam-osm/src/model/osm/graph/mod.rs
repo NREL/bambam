@@ -35,10 +35,7 @@ pub use osm_way_data_serializable::OsmWayDataSerializable;
 pub use osm_way_id::OsmWayId;
 use osmpbf::{Element, ElementReader};
 use routee_compass_core::{
-    model::{
-        network::Vertex,
-        unit::{Distance, DistanceUnit},
-    },
+    model::{network::Vertex, unit::DistanceUnit},
     util::compact_ordered_hash_map::CompactOrderedHashMap,
 };
 use std::{

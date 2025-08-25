@@ -12,7 +12,7 @@ use crate::{
 use geo::{Convert, Geometry, MultiPolygon};
 use geo_buffer;
 use itertools::Itertools;
-use routee_compass_core::model::unit::{Distance, DistanceUnit};
+use routee_compass_core::model::unit::DistanceUnit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use wkt::{ToWkt, TryFromWkt};
