@@ -134,7 +134,10 @@ pub fn buffer_nodes(
     let bar = Arc::new(Mutex::new(
         Bar::builder()
             .total(graph.n_connected_nodes())
-            .desc(format!("node buffering ({} meters)", radius.get::<uom::si::length::meter>()))
+            .desc(format!(
+                "node buffering ({} meters)",
+                radius.get::<uom::si::length::meter>()
+            ))
             .build()
             .map_err(OsmError::InternalError)?,
     ));

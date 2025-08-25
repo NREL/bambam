@@ -7,8 +7,8 @@ use routee_compass_core::model::{
     unit::SpeedUnit,
 };
 use serde::{Deserialize, Serialize};
-use uom::{si::f64::Velocity, ConstZero};
 use std::sync::Arc;
+use uom::{si::f64::Velocity, ConstZero};
 
 #[derive(Clone, Debug)]
 pub struct FixedSpeedModel {
@@ -23,7 +23,11 @@ impl FixedSpeedModel {
     pub fn new(config: Arc<FixedSpeedConfig>) -> FixedSpeedModel {
         let speed = config.speed_unit.to_uom(config.speed);
         let fieldname = format!("{}_speed", config.name);
-        FixedSpeedModel { config: config.clone(), speed, fieldname }
+        FixedSpeedModel {
+            config: config.clone(),
+            speed,
+            fieldname,
+        }
     }
 }
 
@@ -38,11 +42,10 @@ impl TraversalModelService for FixedSpeedModel {
 }
 
 impl TraversalModel for FixedSpeedModel {
-    
     fn name(&self) -> String {
         format!("Fixed Speed Model ({})", self.config.name)
     }
-    
+
     fn input_features(&self) -> Vec<InputFeature> {
         vec![]
     }
@@ -50,7 +53,11 @@ impl TraversalModel for FixedSpeedModel {
     fn output_features(&self) -> Vec<(String, StateFeature)> {
         vec![(
             self.fieldname.clone(),
-            StateFeature::Speed { accumulator:false, value: Velocity::ZERO, output_unit: Some(self.config.speed_unit) },
+            StateFeature::Speed {
+                accumulator: false,
+                value: Velocity::ZERO,
+                output_unit: Some(self.config.speed_unit),
+            },
         )]
     }
 
@@ -60,11 +67,7 @@ impl TraversalModel for FixedSpeedModel {
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        state_model.set_speed(
-            state,
-            &self.fieldname,
-            &self.speed,
-        )?;
+        state_model.set_speed(state, &self.fieldname, &self.speed)?;
         Ok(())
     }
 
@@ -74,12 +77,7 @@ impl TraversalModel for FixedSpeedModel {
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        state_model.set_speed(
-            state,
-            &self.fieldname,
-            &self.speed,
-        )?;
+        state_model.set_speed(state, &self.fieldname, &self.speed)?;
         Ok(())
     }
-
 }

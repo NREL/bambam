@@ -1,4 +1,4 @@
-use routee_compass_core::model::{network::EdgeId};
+use routee_compass_core::model::network::EdgeId;
 use uom::si::f64::Time;
 
 pub struct GtfsImporter {}

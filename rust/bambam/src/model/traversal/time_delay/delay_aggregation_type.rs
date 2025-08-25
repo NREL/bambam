@@ -23,7 +23,9 @@ impl DelayAggregationType {
         let agg = match self {
             A::Sum => values.into_iter().sum(),
             A::Mean => {
-                let sum: Time = values.iter().fold(Time::ZERO, |acc: Time, val: &Time| acc + *val);
+                let sum: Time = values
+                    .iter()
+                    .fold(Time::ZERO, |acc: Time, val: &Time| acc + *val);
                 sum
             }
             A::Median => {

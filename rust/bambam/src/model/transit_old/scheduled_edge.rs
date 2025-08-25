@@ -4,10 +4,7 @@ use super::{
 use crate::model::transit_old::schedule_ops;
 use chrono::{DateTime, Utc};
 use gtfs_structures::{Gtfs, StopTime, Trip};
-use routee_compass_core::model::{
-    network::VertexId,
-    unit::TimeUnit,
-};
+use routee_compass_core::model::{network::VertexId, unit::TimeUnit};
 use skiplist::OrderedSkipList;
 use uom::si::f64::Time;
 

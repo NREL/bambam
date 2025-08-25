@@ -6,15 +6,13 @@ use crate::model::osm::{
     OsmError,
 };
 use geo::{
-    line_measures::LengthMeasurable, line_string, Convert, Coord, Haversine, Length, LineString, Point
+    line_measures::LengthMeasurable, line_string, Convert, Coord, Haversine, Length, LineString,
+    Point,
 };
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use routee_compass_core::model::{
-    network::EdgeId,
-    unit::{DistanceUnit},
-};
+use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -71,7 +69,7 @@ impl SimplifiedWay {
             })
             .collect::<Result<Vec<_>, OsmError>>()?;
         let geometry = LineString::new(linestring_coords);
-        
+
         let geometry_f64: LineString<f64> = geometry.convert(); // use f64 precision in haversine
         let length_f64 = Haversine.length(&geometry_f64);
         let length = uom::si::f64::Length::new::<uom::si::length::meter>(length_f64);

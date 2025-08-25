@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
-use routee_compass_core::model::unit::{TimeUnit};
-
+use routee_compass_core::model::unit::TimeUnit;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ScheduleError {

@@ -4,11 +4,14 @@ use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
     model::{
-        label::Label, network::VertexId, state::{StateModel, StateModelError}, unit::{AsF64, DistanceUnit}
+        label::Label,
+        network::VertexId,
+        state::{StateModel, StateModelError},
+        unit::{AsF64, DistanceUnit},
     },
 };
-use uom::si::f64::Length;
 use std::{borrow::Cow, collections::HashMap};
+use uom::si::f64::Length;
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =
@@ -47,9 +50,8 @@ pub fn points_along_linestring(
     stride: &Length,
     distance_unit: &DistanceUnit,
 ) -> Result<Vec<Point<f32>>, String> {
-    
-    
-    let length: Length = Length::new::<uom::si::length::meter>(linestring.length(&Haversine) as f64);
+    let length: Length =
+        Length::new::<uom::si::length::meter>(linestring.length(&Haversine) as f64);
 
     if &length < stride {
         match (linestring.points().next(), linestring.points().next_back()) {

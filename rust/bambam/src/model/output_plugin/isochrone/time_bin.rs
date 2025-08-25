@@ -1,10 +1,10 @@
-use uom::si::f64::Time;
 use crate::model::bambam_state_ops;
 use routee_compass_core::model::{
     state::{StateModel, StateModelError, StateVariable},
     unit::{AsF64, TimeUnit},
 };
 use serde::{Deserialize, Serialize};
+use uom::si::f64::Time;
 
 /// a configuration describing the time bounds for a "ring" of an isochrone.
 /// time values are in minutes.

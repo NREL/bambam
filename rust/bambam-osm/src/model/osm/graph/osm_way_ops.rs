@@ -6,9 +6,9 @@ use geo::LineString;
 use itertools::Itertools;
 use routee_compass_core::model::unit::SpeedUnit;
 use serde::{de, Serializer};
-use wkt::ToWkt;
 use uom::si::f64::Velocity;
 use uom::si::velocity;
+use wkt::ToWkt;
 
 pub const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
 
@@ -52,7 +52,9 @@ pub fn deserialize_speed(
                     // Austria + Germany's posted "walking speed". i found a reference that
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
-                    Ok(Some((Velocity::new::<velocity::kilometer_per_hour>(DEFAULT_WALK_SPEED_KPH))))
+                    Ok(Some(
+                        (Velocity::new::<velocity::kilometer_per_hour>(DEFAULT_WALK_SPEED_KPH)),
+                    ))
                 }
                 [speed_str] => {
                     let speed_result = speed_str
@@ -120,13 +122,11 @@ pub fn deserialize_speed(
                 .collect::<Result<Vec<_>, _>>()?;
             let min = maxspeeds
                 .into_iter()
-                .min_by(|a, b| {
-                    match (a, b) {
-                        (None, None) => Ordering::Equal,
-                        (None, Some(_)) => Ordering::Greater,
-                        (Some(_), None) => Ordering::Less,
-                        (Some(a), Some(b)) => a.partial_cmp(b).unwrap_or(Ordering::Greater)
-                    }
+                .min_by(|a, b| match (a, b) {
+                    (None, None) => Ordering::Equal,
+                    (None, Some(_)) => Ordering::Greater,
+                    (Some(_), None) => Ordering::Less,
+                    (Some(a), Some(b)) => a.partial_cmp(b).unwrap_or(Ordering::Greater),
                 })
                 .flatten();
             Ok(min)

@@ -19,9 +19,13 @@ impl OutputPluginBuilder for IsochroneOutputPluginBuilder {
         &self,
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn OutputPlugin>, CompassComponentError> {
-        let config: IsochroneOutputPluginConfig = serde_json::from_value(parameters.clone()).map_err(|e| PluginError::BuildFailed(format!("failure reading isochrone configuration: {e}")))?;
+        let config: IsochroneOutputPluginConfig = serde_json::from_value(parameters.clone())
+            .map_err(|e| {
+                PluginError::BuildFailed(format!("failure reading isochrone configuration: {e}"))
+            })?;
         let generator = DestinationPointGenerator::try_from(&config.destination_point_generator)?;
-        let bins = config.time_bin
+        let bins = config
+            .time_bin
             .create_bins()
             .map_err(|e| CompassComponentError::PluginError(PluginError::BuildFailed(e)))?;
 

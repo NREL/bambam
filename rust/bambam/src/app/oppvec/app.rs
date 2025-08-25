@@ -48,7 +48,7 @@ pub fn run(
         &vertices,
         Some(DistanceTolerance {
             distance: 200.0,
-            unit: DistanceUnit::Meters
+            unit: DistanceUnit::Meters,
         }),
     ));
 

@@ -19,11 +19,10 @@ impl ScheduleTraversalModel {
 }
 
 impl TraversalModel for ScheduleTraversalModel {
-
     fn name(&self) -> String {
         "Schedule Traversal Model".to_string()
     }
-    
+
     fn input_features(&self) -> Vec<InputFeature> {
         vec![]
     }

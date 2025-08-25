@@ -5,8 +5,8 @@ use routee_compass_core::model::{
     state::{InputFeature, StateFeature, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
 };
-use uom::{si::f64::Time, ConstZero};
 use std::sync::Arc;
+use uom::{si::f64::Time, ConstZero};
 
 /// assigns time delays for trips that have a delay from the start of their trip.
 /// for within-trip delays assigned to beginning travel in a mode, use a delay
@@ -30,7 +30,6 @@ impl TraversalModelService for TripArrivalDelayModel {
 }
 
 impl TraversalModel for TripArrivalDelayModel {
-    
     fn name(&self) -> String {
         "Trip Arrival Delay Traversal Model".to_string()
     }

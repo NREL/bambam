@@ -6,18 +6,15 @@ use uom::{si::f64::Time, ConstZero};
 /// represents a single departure time for a static scheduled route.
 #[derive(Clone, Debug)]
 pub struct Departure {
-    departure_time: Time,     // >> 24 hours
+    departure_time: Time, // >> 24 hours
     leg_duration: Time,
 }
 
 impl Departure {
-    pub fn new(
-        departure_time: Time,
-        leg_duration: Time
-    ) -> Departure {
+    pub fn new(departure_time: Time, leg_duration: Time) -> Departure {
         Departure {
             departure_time,
-            leg_duration
+            leg_duration,
         }
     }
 

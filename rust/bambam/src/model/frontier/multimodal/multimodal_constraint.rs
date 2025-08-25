@@ -1,6 +1,6 @@
-use routee_compass_core::model::unit::{TimeUnit};
-use uom::si::f64::Time;
+use routee_compass_core::model::unit::TimeUnit;
 use std::collections::HashMap;
+use uom::si::f64::Time;
 
 pub enum MultimodalConstraint {
     AllowedModes(Vec<String>),

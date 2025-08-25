@@ -217,11 +217,7 @@ impl OpportunityModel {
                 for model in models.iter() {
                     let vector_length = model.vector_length();
                     let matches = model
-                        .collect_destination_opportunities(
-                            origin_label,
-                            search_tree_branch,
-                            si,
-                        )?
+                        .collect_destination_opportunities(origin_label, search_tree_branch, si)?
                         .into_iter()
                         .collect::<HashMap<_, _>>();
 

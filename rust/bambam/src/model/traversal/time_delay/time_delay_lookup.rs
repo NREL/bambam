@@ -7,16 +7,12 @@ use geo::{Geometry, Point};
 use kdam::Bar;
 use routee_compass_core::{
     config::{CompassConfigurationError, ConfigJsonExtensions},
-    model::{
-        network::Vertex,
-        traversal::TraversalModelError,
-        unit::TimeUnit,
-    },
+    model::{network::Vertex, traversal::TraversalModelError, unit::TimeUnit},
     util::fs::read_utils,
 };
 use rstar::{RTree, AABB};
-use uom::si::f64::Time;
 use std::path::Path;
+use uom::si::f64::Time;
 
 pub struct TimeDelayLookup {
     pub lookup: RTree<TimeDelayRecord>,
@@ -47,10 +43,10 @@ impl TimeDelayLookup {
         let envelope_option: Option<AABB<Point<f32>>> =
             geo_utils::get_centroid_as_envelope(geometry);
         let result = envelope_option.and_then(|envelope| {
-            self
-                .lookup
+            self.lookup
                 .locate_in_envelope_intersecting(&envelope)
-                .next().map(|t| t.time)
+                .next()
+                .map(|t| t.time)
         });
         result
     }

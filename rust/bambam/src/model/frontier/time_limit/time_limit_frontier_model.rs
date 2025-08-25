@@ -5,18 +5,17 @@ use routee_compass_core::{
         frontier::{FrontierModel, FrontierModelError},
         network::{Edge, VertexId},
         state::{StateModel, StateVariable},
-        unit::{TimeUnit},
+        unit::TimeUnit,
     },
 };
-use uom::si::f64::Time;
 use std::{borrow::Cow, collections::HashMap};
+use uom::si::f64::Time;
 
 pub struct TimeLimitFrontierModel {
     pub time_limit: Time,
 }
 
 impl FrontierModel for TimeLimitFrontierModel {
-
     fn valid_frontier(
         &self,
         _edge: &Edge,
@@ -24,7 +23,8 @@ impl FrontierModel for TimeLimitFrontierModel {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<bool, FrontierModelError> {
-        let time = state_model.get_time(state,fieldname::TRIP_TIME)
+        let time = state_model
+            .get_time(state, fieldname::TRIP_TIME)
             .map_err(|e| FrontierModelError::BuildError(e.to_string()))?;
         let is_valid = &time <= &self.time_limit;
         Ok(is_valid)

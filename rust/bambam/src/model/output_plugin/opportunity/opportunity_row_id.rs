@@ -5,7 +5,9 @@ use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
     algorithm::search::{SearchInstance, SearchTreeBranch},
     model::{
-        label::Label, map::MapModel, network::{EdgeId, Graph, VertexId}
+        label::Label,
+        map::MapModel,
+        network::{EdgeId, Graph, VertexId},
     },
 };
 use rstar::{RTreeObject, AABB};

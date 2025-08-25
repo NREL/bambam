@@ -11,7 +11,10 @@ pub struct TimeLimitConfig {
 impl TimeLimitConfig {
     pub fn time_limit(&self) -> Result<Time, FrontierModelError> {
         if self.time <= 0.0 {
-            Err(FrontierModelError::BuildError(format!("frontier model time limit must be non-negative, found {}", self.time)))
+            Err(FrontierModelError::BuildError(format!(
+                "frontier model time limit must be non-negative, found {}",
+                self.time
+            )))
         } else {
             Ok(self.time_unit.to_uom(self.time))
         }

@@ -27,7 +27,6 @@ impl MultimodalTraversalModel {
 }
 
 impl TraversalModel for MultimodalTraversalModel {
-    
     fn name(&self) -> String {
         "Multimodal Traversal Model".to_string()
     }

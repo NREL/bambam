@@ -2,7 +2,7 @@ use crate::{
     algorithm::truncation::ComponentFilter,
     model::{osm::graph::osm_element_filter::ElementFilter, OsmCliError},
 };
-use routee_compass_core::model::unit::{DistanceUnit};
+use routee_compass_core::model::unit::DistanceUnit;
 use serde::{Deserialize, Serialize};
 
 /// defines behaviors for an OSM network import
@@ -36,7 +36,6 @@ impl Default for OsmImportConfiguration {
 }
 
 impl OsmImportConfiguration {
-
     fn default_consolidation_threshold() -> uom::si::f64::Length {
         uom::si::f64::Length::new::<uom::si::length::meter>(15.0)
     }

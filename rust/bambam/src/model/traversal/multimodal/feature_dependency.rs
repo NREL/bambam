@@ -7,8 +7,7 @@ use crate::model::{
 use itertools::Itertools;
 use routee_compass_core::model::{
     state::{
-        CustomFeatureFormat, InputFeature, StateFeature, StateModel, StateModelError,
-        StateVariable,
+        CustomFeatureFormat, InputFeature, StateFeature, StateModel, StateModelError, StateVariable,
     },
     traversal::TraversalModelError,
 };
@@ -71,19 +70,62 @@ impl FeatureDependency {
     pub fn as_input_features(&self) -> Vec<(String, InputFeature)> {
         self.destination_features
             .iter()
-            .map(|(n, o)| (n.clone(), {
-                // this should exist: InputFeature::from(o)
-                // waiting on https://github.com/NREL/routee-compass/issues/383
-                match o {
-                    StateFeature::Distance { value, accumulator, output_unit } => InputFeature::Distance { name: n.to_string(), unit: output_unit.clone() },
-                    StateFeature::Time { value, accumulator, output_unit } => InputFeature::Time { name: n.to_string(), unit: output_unit.clone() },
-                    StateFeature::Speed { value, accumulator, output_unit } => InputFeature::Speed { name: n.to_string(), unit: output_unit.clone() },
-                    StateFeature::Energy { value, accumulator, output_unit } => InputFeature::Energy { name: n.to_string(), unit: output_unit.clone() },
-                    StateFeature::Ratio { value, accumulator, output_unit } => InputFeature::Ratio { name: n.to_string(), unit: output_unit.clone() },
-                    StateFeature::Custom { value, accumulator, format: f } => InputFeature::Custom { name: n.to_string(), unit: format!("{}", f) },
-                }
-
-            }))
+            .map(|(n, o)| {
+                (n.clone(), {
+                    // this should exist: InputFeature::from(o)
+                    // waiting on https://github.com/NREL/routee-compass/issues/383
+                    match o {
+                        StateFeature::Distance {
+                            value,
+                            accumulator,
+                            output_unit,
+                        } => InputFeature::Distance {
+                            name: n.to_string(),
+                            unit: output_unit.clone(),
+                        },
+                        StateFeature::Time {
+                            value,
+                            accumulator,
+                            output_unit,
+                        } => InputFeature::Time {
+                            name: n.to_string(),
+                            unit: output_unit.clone(),
+                        },
+                        StateFeature::Speed {
+                            value,
+                            accumulator,
+                            output_unit,
+                        } => InputFeature::Speed {
+                            name: n.to_string(),
+                            unit: output_unit.clone(),
+                        },
+                        StateFeature::Energy {
+                            value,
+                            accumulator,
+                            output_unit,
+                        } => InputFeature::Energy {
+                            name: n.to_string(),
+                            unit: output_unit.clone(),
+                        },
+                        StateFeature::Ratio {
+                            value,
+                            accumulator,
+                            output_unit,
+                        } => InputFeature::Ratio {
+                            name: n.to_string(),
+                            unit: output_unit.clone(),
+                        },
+                        StateFeature::Custom {
+                            value,
+                            accumulator,
+                            format: f,
+                        } => InputFeature::Custom {
+                            name: n.to_string(),
+                            unit: format!("{}", f),
+                        },
+                    }
+                })
+            })
             .collect_vec()
     }
 
@@ -98,17 +140,9 @@ impl FeatureDependency {
     ) -> Result<(), StateModelError> {
         for (out_name, out_feature) in self.destination_features.iter() {
             match (&self.input_feature, out_feature) {
-                (
-                    InputFeature::Speed { unit, ..},
-                    StateFeature::Time {
-                        accumulator,
-                        ..
-                    },
-                ) => {
-                    let distance =
-                        state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
-                    let speed =
-                        state_model.get_speed(state, &self.input_name)?;
+                (InputFeature::Speed { unit, .. }, StateFeature::Time { accumulator, .. }) => {
+                    let distance = state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
+                    let speed = state_model.get_speed(state, &self.input_name)?;
                     let time: Time = distance / speed;
                     if *accumulator {
                         state_model.add_time(state, out_name, &time)?;
@@ -116,41 +150,34 @@ impl FeatureDependency {
                         state_model.set_time(state, out_name, &time)?;
                     }
                 }
-                (
-                    InputFeature::Time { .. },
-                    StateFeature::Time {
-                        accumulator,
-                        ..
-                    },
-                ) => {
-                    let time= state_model.get_time(state, &self.input_name)?;
+                (InputFeature::Time { .. }, StateFeature::Time { accumulator, .. }) => {
+                    let time = state_model.get_time(state, &self.input_name)?;
                     if *accumulator {
                         state_model.add_time(state, out_name, &time)?;
                     } else {
                         state_model.set_time(state, out_name, &time)?;
                     }
                 }
-                (
-                    InputFeature::Custom { .. },
-                    StateFeature::Custom { format, .. },
-                ) => match format {
-                    CustomFeatureFormat::FloatingPoint { .. } => {
-                        let value = state_model.get_custom_f64(state, &self.input_name)?;
-                        state_model.set_custom_f64(state, out_name, &value)?;
+                (InputFeature::Custom { .. }, StateFeature::Custom { format, .. }) => {
+                    match format {
+                        CustomFeatureFormat::FloatingPoint { .. } => {
+                            let value = state_model.get_custom_f64(state, &self.input_name)?;
+                            state_model.set_custom_f64(state, out_name, &value)?;
+                        }
+                        CustomFeatureFormat::SignedInteger { .. } => {
+                            let value = state_model.get_custom_i64(state, &self.input_name)?;
+                            state_model.set_custom_i64(state, out_name, &value)?;
+                        }
+                        CustomFeatureFormat::UnsignedInteger { .. } => {
+                            let value = state_model.get_custom_u64(state, &self.input_name)?;
+                            state_model.set_custom_u64(state, out_name, &value)?;
+                        }
+                        CustomFeatureFormat::Boolean { .. } => {
+                            let value = state_model.get_custom_bool(state, &self.input_name)?;
+                            state_model.set_custom_bool(state, out_name, &value)?;
+                        }
                     }
-                    CustomFeatureFormat::SignedInteger { .. } => {
-                        let value = state_model.get_custom_i64(state, &self.input_name)?;
-                        state_model.set_custom_i64(state, out_name, &value)?;
-                    }
-                    CustomFeatureFormat::UnsignedInteger { .. } => {
-                        let value = state_model.get_custom_u64(state, &self.input_name)?;
-                        state_model.set_custom_u64(state, out_name, &value)?;
-                    }
-                    CustomFeatureFormat::Boolean { .. } => {
-                        let value = state_model.get_custom_bool(state, &self.input_name)?;
-                        state_model.set_custom_bool(state, out_name, &value)?;
-                    }
-                },
+                }
                 _ => {
                     return Err(StateModelError::RuntimeError(format!(
                         "invalid FeatureDependency mapping from '{}'->'{}' not supported",

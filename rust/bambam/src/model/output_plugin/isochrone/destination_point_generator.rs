@@ -1,14 +1,20 @@
 use geo::{line_measures::Densifiable, Densify, Haversine, LineString, MultiPoint, Point};
-use routee_compass::{app::compass::CompassComponentError, plugin::{output::OutputPluginError, PluginError}};
+use routee_compass::{
+    app::compass::CompassComponentError,
+    plugin::{output::OutputPluginError, PluginError},
+};
 use routee_compass_core::{
     algorithm::search::SearchTreeBranch,
     model::{
-        label::Label, map::MapModel, network::{EdgeId, VertexId}, unit::{AsF64, DistanceUnit}
+        label::Label,
+        map::MapModel,
+        network::{EdgeId, VertexId},
+        unit::{AsF64, DistanceUnit},
     },
 };
 use serde::{Deserialize, Serialize};
-use uom::si::f64::Length;
 use std::{borrow::Cow, sync::Arc};
+use uom::si::f64::Length;
 
 use crate::model::output_plugin::isochrone::DestinationPointGeneratorConfig;
 
@@ -39,31 +45,50 @@ impl TryFrom<&DestinationPointGeneratorConfig> for DestinationPointGenerator {
         match value {
             Conf::DestinationPoint => Ok(Self::DestinationPoint),
             Conf::LinestringCoordinates => Ok(Self::LinestringCoordinates),
-            Conf::LinestringStride { stride, distance_unit } => {
+            Conf::LinestringStride {
+                stride,
+                distance_unit,
+            } => {
                 if stride <= &0.0 {
                     Err(OutputPluginError::BuildFailed(format!("linestring stride must be strictly positive, found {stride} {distance_unit}")).into())
                 } else {
-                    Ok(Self::LinestringStride { stride: distance_unit.to_uom(*stride) })
+                    Ok(Self::LinestringStride {
+                        stride: distance_unit.to_uom(*stride),
+                    })
                 }
-            },
-            Conf::BufferedLinestring { buffer_radius, buffer_stride, distance_unit } => {
+            }
+            Conf::BufferedLinestring {
+                buffer_radius,
+                buffer_stride,
+                distance_unit,
+            } => {
                 if buffer_radius <= &0.0 {
                     Err(OutputPluginError::BuildFailed(format!("linestring buffer radius must be strictly positive, found {buffer_radius} {distance_unit}")).into())
                 } else if buffer_stride <= &0.0 {
                     Err(OutputPluginError::BuildFailed(format!("linestring stride must be strictly positive, found {buffer_stride} {distance_unit}")).into())
                 } else {
-                    Ok(Self::BufferedLinestring { buffer_stride: distance_unit.to_uom(*buffer_stride), buffer_radius: distance_unit.to_uom(*buffer_radius) })
+                    Ok(Self::BufferedLinestring {
+                        buffer_stride: distance_unit.to_uom(*buffer_stride),
+                        buffer_radius: distance_unit.to_uom(*buffer_radius),
+                    })
                 }
-            },
-            Conf::BufferedDestinationPoint { buffer_radius, buffer_stride, distance_unit } => {
+            }
+            Conf::BufferedDestinationPoint {
+                buffer_radius,
+                buffer_stride,
+                distance_unit,
+            } => {
                 if buffer_radius <= &0.0 {
                     Err(OutputPluginError::BuildFailed(format!("destination point buffer radius must be strictly positive, found {buffer_radius} {distance_unit}")).into())
                 } else if buffer_stride <= &0.0 {
                     Err(OutputPluginError::BuildFailed(format!("destination point stride must be strictly positive, found {buffer_stride} {distance_unit}")).into())
                 } else {
-                    Ok(Self::BufferedDestinationPoint { buffer_stride: distance_unit.to_uom(*buffer_stride), buffer_radius: distance_unit.to_uom(*buffer_radius) })
+                    Ok(Self::BufferedDestinationPoint {
+                        buffer_stride: distance_unit.to_uom(*buffer_stride),
+                        buffer_radius: distance_unit.to_uom(*buffer_radius),
+                    })
                 }
-            },
+            }
         }
     }
 }
@@ -105,9 +130,7 @@ impl DestinationPointGenerator {
                 Ok(vec![last_point])
             }
             DestinationPointGenerator::LinestringCoordinates => Ok(linestring.points().collect()),
-            DestinationPointGenerator::LinestringStride {
-                stride,
-            } => {
+            DestinationPointGenerator::LinestringStride { stride } => {
                 let meters = stride.get::<uom::si::length::meter>() as f32;
                 let dense_linestring = linestring.densify(&Haversine, meters);
                 Ok(dense_linestring.into_points())

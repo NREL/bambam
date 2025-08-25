@@ -7,8 +7,8 @@ use routee_compass_core::model::{
     state::StateModel,
     unit::TimeUnit,
 };
-use uom::si::f64::Time;
 use std::sync::Arc;
+use uom::si::f64::Time;
 
 pub struct TimeLimitFrontierService {
     time_limit: TimeLimitConfig,

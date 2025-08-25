@@ -128,13 +128,11 @@ impl CompassWriter for OsmGraphVectorized {
 
         // construct maxspeed fill value lookup
         let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            r
-                .get_speed("maxspeed", true)
+            r.get_speed("maxspeed", true)
                 .map_err(OsmError::InternalError)
                 .map(|maxspeed_opt| {
-                    maxspeed_opt.map(|maxspeed| {
-                        maxspeed.get::<uom::si::velocity::kilometer_per_hour>()
-                    })
+                    maxspeed_opt
+                        .map(|maxspeed| maxspeed.get::<uom::si::velocity::kilometer_per_hour>())
                 })
         };
         let speed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
@@ -224,5 +222,7 @@ fn get_fill_value(
         .get_string_at_field("highway")
         .map_err(OsmError::GraphConsolidationError)?;
     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    Ok(uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed))
+    Ok(uom::si::f64::Velocity::new::<
+        uom::si::velocity::kilometer_per_hour,
+    >(avg_speed))
 }

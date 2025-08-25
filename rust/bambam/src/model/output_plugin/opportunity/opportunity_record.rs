@@ -10,8 +10,8 @@ use routee_compass_core::model::{
     unit::TimeUnit,
 };
 use serde::{Deserialize, Serialize};
-use uom::si::f64::Time;
 use std::sync::Arc;
+use uom::si::f64::Time;
 
 /// properties of accessing some activity type from a grid cell origin location. comes in two flavors:
 ///
@@ -49,10 +49,7 @@ impl OpportunityRecord {
         }
     }
 
-    pub fn get_time(
-        &self,
-        state_model: Arc<StateModel>,
-    ) -> Result<Time, OutputPluginError> {
+    pub fn get_time(&self, state_model: Arc<StateModel>) -> Result<Time, OutputPluginError> {
         match self {
             Self::Disaggregate { state, .. } => {
                 // time comes from the trip travel time taken to reach this point

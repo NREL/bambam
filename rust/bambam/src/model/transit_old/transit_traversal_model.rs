@@ -50,7 +50,6 @@ impl<'a> TransitTraversalModel<'a> {
 }
 
 impl TraversalModel for TransitTraversalModel<'_> {
-
     fn name(&self) -> String {
         "Transit Traversal Model".to_string()
     }

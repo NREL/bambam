@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uom::{si::f64::Time, ConstZero};
 use std::cmp::Ordering;
+use uom::{si::f64::Time, ConstZero};
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct ScheduledHeadway {

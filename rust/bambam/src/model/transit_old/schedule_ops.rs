@@ -8,10 +8,7 @@ use super::schedule_error::ScheduleError;
 
 /// adds time to a datetime. performs operation at the seconds resolution, so any sub-second
 /// increments will be rounded off.
-pub fn add_delta(
-    datetime: DateTime<Utc>,
-    time: Time,
-) -> Result<DateTime<Utc>, ScheduleError> {
+pub fn add_delta(datetime: DateTime<Utc>, time: Time) -> Result<DateTime<Utc>, ScheduleError> {
     let time_sec = time.get::<uom::si::time::second>() as i64;
     let duration = Duration::seconds(time_sec);
 
@@ -23,7 +20,7 @@ pub fn add_delta(
 #[cfg(test)]
 mod test {
     use chrono::{TimeZone, Timelike, Utc};
-    use routee_compass_core::model::unit::{TimeUnit};
+    use routee_compass_core::model::unit::TimeUnit;
     use uom::si::f64::Time;
 
     use super::add_delta;

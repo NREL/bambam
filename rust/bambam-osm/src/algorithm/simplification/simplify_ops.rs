@@ -13,10 +13,7 @@ use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
 use rayon::prelude::*;
-use routee_compass_core::model::{
-    network::EdgeId,
-    unit::DistanceUnit,
-};
+use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
