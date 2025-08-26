@@ -2,7 +2,7 @@ use crate::model::traversal::fixed_speed::FixedSpeedConfig;
 use chrono::format::Fixed;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, StateFeature, StateModel, StateVariable},
+    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
     unit::SpeedUnit,
 };
@@ -50,12 +50,12 @@ impl TraversalModel for FixedSpeedModel {
         vec![]
     }
 
-    fn output_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
             self.fieldname.clone(),
-            StateFeature::Speed {
+            StateVariableConfig::Speed {
                 accumulator: false,
-                value: Velocity::ZERO,
+                initial: Velocity::ZERO,
                 output_unit: Some(self.config.speed_unit),
             },
         )]

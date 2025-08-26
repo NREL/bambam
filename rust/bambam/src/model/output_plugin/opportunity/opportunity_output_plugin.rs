@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use super::opportunity_format::OpportunityFormat;
 use super::opportunity_model::OpportunityModel;
 use super::opportunity_model_config::OpportunityModelConfig;
+use crate::model::output_plugin::opportunity::OpportunityPluginConfig;
 use crate::model::output_plugin::{bambam_field as field, mep_output_ops};
 use itertools::Itertools;
 use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
@@ -77,12 +78,11 @@ impl OutputPlugin for OpportunityOutputPlugin {
     }
 }
 
-impl OpportunityOutputPlugin {
-    pub fn new(
-        config: &OpportunityModelConfig,
-        opportunity_format: OpportunityFormat,
-    ) -> Result<OpportunityOutputPlugin, OutputPluginError> {
-        let model = config.build()?;
+impl TryFrom<&OpportunityPluginConfig> for OpportunityOutputPlugin {
+    type Error = OutputPluginError;
+
+    fn try_from(value: &OpportunityPluginConfig) -> Result<Self, Self::Error> {
+        let model = value.model.build()?;
         let totals = model.opportunity_totals().map_err(|e| {
             OutputPluginError::BuildFailed(format!("failed to collect opportunity totals: {e}"))
         })?;
@@ -96,7 +96,7 @@ impl OpportunityOutputPlugin {
         let plugin = OpportunityOutputPlugin {
             model,
             totals,
-            opportunity_format,
+            opportunity_format: value.collect_format.clone(),
         };
         Ok(plugin)
     }

@@ -5,7 +5,7 @@ use routee_compass_core::model::{
     access::{AccessModel, AccessModelError},
     map::MapModel,
     network::{Edge, EdgeId, Graph, Vertex, VertexId},
-    state::{InputFeature, StateFeature, StateModel, StateVariable},
+    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use rstar::RTree;
@@ -63,7 +63,7 @@ impl TraversalModel for TransitTraversalModel<'_> {
     /// - has a transit trip id
     /// - dist/time
     /// -
-    fn output_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         let g = self.archives.first().unwrap();
         // let s = g.get_stop("x").unwrap();
         // let t = g.get_trip("x").unwrap();
@@ -122,7 +122,7 @@ impl TraversalModel for TransitTraversalModel<'_> {
 }
 
 impl AccessModel for TransitTraversalModel<'_> {
-    fn state_features(&self) -> Vec<(String, StateFeature)> {
+    fn state_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![
             transit_state_feature::transit_network_id(),
             transit_state_feature::trip_id_enumeration(),

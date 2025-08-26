@@ -18,7 +18,7 @@ use wkt::ToWkt;
 /// Configuration object for building an [`OpportunityModel`] called by it's
 /// [`routee_compass::plugin::output::OutputPluginBuilder`]. See [`OpportunityModel`]
 /// for algorithm implementation details.
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
 pub enum OpportunityModelConfig {
     /// this collection of opportunities comes from a file source.

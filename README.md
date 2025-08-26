@@ -54,7 +54,7 @@ $ cp configuration/denver_test.toml denver_co/denver_test.toml
 To run bambam, use the `bambam` command and provide the imported network:
 
 ```
-$ ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file test.json
+$ ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file query/denver_extent.json
 ```
 
 # Roadmap

@@ -1,3 +1,5 @@
+use crate::model::output_plugin::opportunity::OpportunityPluginConfig;
+
 use super::{
     opportunity_format::OpportunityFormat, opportunity_model_config::OpportunityModelConfig,
     opportunity_output_plugin::OpportunityOutputPlugin,
@@ -21,21 +23,12 @@ impl OutputPluginBuilder for OpportunityOutputPluginBuilder {
         &self,
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn OutputPlugin>, CompassComponentError> {
-        let config_json = parameters.get("model").ok_or_else(|| {
-            CompassConfigurationError::ExpectedFieldForComponent(
-                String::from("model"),
-                String::from("opportunity"),
-            )
-        })?;
-
-        let config: OpportunityModelConfig = serde_json::from_value(config_json.to_owned())
-            .map_err(CompassConfigurationError::SerdeDeserializationError)?;
-        let output_format: OpportunityFormat = parameters.get_config_serde(
-            &String::from("collect_format"),
-            &String::from("opportunities"),
-        )?;
+        let config: OpportunityPluginConfig = serde_json::from_value(parameters.clone())
+            .map_err(|e| PluginError::BuildFailed(format!("failed to read opportunity plugin configuration: {e}")))?;
+        
         let plugin =
-            OpportunityOutputPlugin::new(&config, output_format).map_err(PluginError::from)?;
+            OpportunityOutputPlugin::try_from(&config).map_err(PluginError::from)?;
+            
         Ok(Arc::new(plugin))
     }
 }

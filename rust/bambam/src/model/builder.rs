@@ -3,7 +3,7 @@ use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin::GridG
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builder::GridGeometryInputPluginBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
-use crate::model::output_plugin::opportunity::opportunity_output_plugin_builder::OpportunityOutputPluginBuilder;
+use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use inventory;

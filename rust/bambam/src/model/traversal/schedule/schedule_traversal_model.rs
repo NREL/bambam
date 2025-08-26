@@ -3,7 +3,7 @@ use crate::model::fieldname;
 use chrono::{DateTime, Utc};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomFeatureFormat, InputFeature, StateFeature, StateVariable},
+    state::{CustomVariableConfig, InputFeature, StateVariableConfig, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::sync::Arc;
@@ -27,13 +27,12 @@ impl TraversalModel for ScheduleTraversalModel {
         vec![]
     }
 
-    fn output_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
             String::from(fieldname::ROUTE_ID),
-            StateFeature::Custom {
-                // name: String::from("RouteId"),
-                value: Self::EMPTY_ROUTE_ID as f64,
-                format: CustomFeatureFormat::SignedInteger {
+            StateVariableConfig::Custom {
+                custom_type: String::from("RouteId"),
+                value: CustomVariableConfig::SignedInteger {
                     initial: Self::EMPTY_ROUTE_ID,
                 },
                 accumulator: false,

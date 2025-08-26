@@ -3,7 +3,7 @@ use crate::model::fieldname;
 use super::TimeDelayLookup;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, StateFeature, StateModel, StateVariable},
+    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
 };
 use std::sync::Arc;
@@ -42,20 +42,20 @@ impl TraversalModel for TripDepartureDelayModel {
         vec![]
     }
 
-    fn output_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![
             (
                 fieldname::TRIP_TIME.to_string(),
-                StateFeature::Time {
-                    value: Time::ZERO,
+                StateVariableConfig::Time {
+                    initial: Time::ZERO,
                     output_unit: Some(self.0.config.time_unit),
                     accumulator: false,
                 },
             ),
             (
                 fieldname::TRIP_ENROUTE_DELAY.to_string(),
-                StateFeature::Time {
-                    value: Time::ZERO,
+                StateVariableConfig::Time {
+                    initial: Time::ZERO,
                     output_unit: Some(self.0.config.time_unit),
                     accumulator: false,
                 },

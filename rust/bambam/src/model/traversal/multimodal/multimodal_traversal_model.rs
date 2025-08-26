@@ -4,20 +4,20 @@ use super::FeatureDependency;
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomFeatureFormat, InputFeature, StateFeature, StateModel, StateVariable},
+    state::{CustomVariableConfig, InputFeature, StateVariableConfig, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::collections::HashMap;
 
 pub struct MultimodalTraversalModel {
     pub feature_dependencies: Vec<FeatureDependency>,
-    pub output_features: Vec<(String, StateFeature)>,
+    pub output_features: Vec<(String, StateVariableConfig)>,
 }
 
 impl MultimodalTraversalModel {
     pub fn new(
         feature_dependencies: Vec<FeatureDependency>,
-        output_features: Vec<(String, StateFeature)>,
+        output_features: Vec<(String, StateVariableConfig)>,
     ) -> MultimodalTraversalModel {
         MultimodalTraversalModel {
             feature_dependencies,
@@ -38,7 +38,7 @@ impl TraversalModel for MultimodalTraversalModel {
             .collect_vec()
     }
 
-    fn output_features(&self) -> Vec<(String, StateFeature)> {
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         self.output_features.clone()
     }
 

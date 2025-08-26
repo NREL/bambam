@@ -1,7 +1,7 @@
 use crate::model::{fieldname, traversal::fixed_speed::FixedSpeedModel};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, StateFeature, StateModel, StateVariable},
+    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
     unit::SpeedUnit,
 };
