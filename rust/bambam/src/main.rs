@@ -4,7 +4,6 @@ use routee_compass::app::compass::CompassAppError;
 
 // Import the library to ensure inventory registrations in lib.rs are included
 #[allow(unused_imports)]
-use bambam;
 
 fn main() {
     env_logger::init();

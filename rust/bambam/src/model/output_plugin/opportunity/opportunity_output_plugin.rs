@@ -96,7 +96,7 @@ impl TryFrom<&OpportunityPluginConfig> for OpportunityOutputPlugin {
         let plugin = OpportunityOutputPlugin {
             model,
             totals,
-            opportunity_format: value.collect_format.clone(),
+            opportunity_format: value.collect_format,
         };
         Ok(plugin)
     }
