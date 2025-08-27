@@ -1,4 +1,4 @@
-#![allow(unused)]
 pub mod algorithm;
 pub mod config;
 pub mod model;
+pub mod app;

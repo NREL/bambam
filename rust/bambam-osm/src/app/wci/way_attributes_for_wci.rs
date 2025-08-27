@@ -1,12 +1,9 @@
-// WayAttributesForWCI struct is used to store information needed to calculate the Walking Comfort Index (wci.rs)
-// Information in the struct is derived from OSM data and neighbors in the RTree
-// August 2025 EG
+//! WayAttributesForWCI struct is used to store information needed to calculate the Walking Comfort Index (wci.rs)
+//! Information in the struct is derived from OSM data and neighbors in the RTree
+//! August 2025 EG
 
-use super::way_geometry_and_data::WayGeometryData;
-use bambam_osm::model::{
-    feature::highway::{self, Highway},
-    osm::graph::OsmWayDataSerializable,
-};
+use super::WayGeometryData;
+use crate::model::feature::highway::Highway;
 use geo::prelude::*;
 use rstar::RTree;
 use serde::Deserialize;
@@ -142,11 +139,11 @@ impl WayAttributesForWCI {
                     }
                 }
                 let mut result_cycle: f32 = 0.0;
-                for (neighbor_cyclescore, mut length) in &cyclescores {
+                for (neighbor_cyclescore, length) in &cyclescores {
                     let weight = length / total_lengths;
                     result_cycle += (*neighbor_cyclescore as f32) * weight;
                 }
-                if (!cyclescores.is_empty() && total_lengths != 0.0) {
+                if !cyclescores.is_empty() && total_lengths != 0.0 {
                     ("from_neighbors", result_cycle as i32)
                 } else {
                     ("no_cycleway", -2)
@@ -202,5 +199,87 @@ impl WayAttributesForWCI {
         };
 
         Some(way_info)
+    }
+
+    /// Calculate the Walk Comfort Index (WCI) for a given way
+    pub fn wci_calculate(self) -> Option<i32> {
+        if self.walk_eligible == Some(false) {
+            None
+        } else if self.dedicated_foot == Some(true)
+            || (self.no_adjacent_roads == Some(true) && self.sidewalk_exists == Some(true))
+        {
+            Some(super::MAX_WCI_SCORE)
+        } else {
+            // Speed: 0-25 mph: 2, 25-30 mph: 1, 30-40 mph: 0, 40-45 mph: -1, 45+ mph: -2
+            fn speed_score(way: &WayAttributesForWCI) -> i32 {
+                match way.speed_imp {
+                    Some(speed) => {
+                        let mph = (speed as f64 / 1.61).round();
+                        if mph <= 25.0 {
+                            2
+                        } else if mph > 25.0 && mph <= 30.0 {
+                            1
+                        } else if mph > 30.0 && mph <= 40.0 {
+                            0
+                        } else if mph > 40.0 && mph <= 45.0 {
+                            -1
+                        } else {
+                            -2
+                        }
+                    }
+                    None => -2,
+                }
+            }
+
+            // Sidewalk: +2 if present, -2 if not
+            fn sidewalk_score(way: &WayAttributesForWCI) -> i32 {
+                match way.sidewalk_exists {
+                    Some(value) => {
+                        if value {
+                            2
+                        } else {
+                            -2
+                        }
+                    }
+                    None => -2,
+                }
+            }
+
+            // Cycleway: +2 if dedicated, 0 if some, -2 if none, or weighted from neihgbors
+            fn cycleway_score(way: &WayAttributesForWCI) -> i32 {
+                match way.cycleway_exists.as_ref() {
+                    Some(cycle_score) => {
+                        if cycle_score.0 == "dedicated" {
+                            2
+                        } else if cycle_score.0 == "some_cycleway" {
+                            0
+                        } else if cycle_score.0 == "from_neighbors" {
+                            cycle_score.1 //check this works
+                        } else {
+                            -2
+                        }
+                    }
+                    None => -2,
+                }
+            }
+
+            // Traffic Signals: +2 if traffic signals exists, 1 if stops exist, 0 if neither
+            fn signal_or_stop_score(way: &WayAttributesForWCI) -> i32 {
+                if way.traffic_signals_exists == Some(true) {
+                    2
+                } else if way.stops_exists == Some(true) {
+                    1
+                } else {
+                    0
+                }
+            }
+
+            // Final Score: Speed + Sidewalk + Signal + Stop + Cycle
+            let final_score = speed_score(&self)
+                + sidewalk_score(&self)
+                + cycleway_score(&self)
+                + signal_or_stop_score(&self);
+            Some(final_score)
+        }
     }
 }

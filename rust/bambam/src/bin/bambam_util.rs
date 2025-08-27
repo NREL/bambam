@@ -8,7 +8,7 @@ pub struct CliArgs {
     app: App,
 }
 
-use bambam::app::wci;
+use bambam_osm::app::wci;
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
 use bambam::model::input_plugin::grid::grid_input_plugin;
 use bambam::model::input_plugin::grid::grid_input_plugin_builder;
