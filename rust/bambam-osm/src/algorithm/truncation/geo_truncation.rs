@@ -1,14 +1,11 @@
-use crate::algorithm::connected_components;
-use crate::model::osm::graph::AdjacencyDirection;
 use crate::model::osm::{
-    graph::{OsmGraph, OsmNodeId},
+    graph::OsmGraph,
     OsmError,
 };
-use geo::{point, Contains, Geometry};
+use geo::{Contains, Geometry};
 use itertools::Itertools;
-use kdam::tqdm;
 use rayon::prelude::*;
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 /// removes nodes that are outside of the provided extent
 pub fn truncate_graph_polygon(

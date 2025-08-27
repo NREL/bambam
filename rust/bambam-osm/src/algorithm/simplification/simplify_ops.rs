@@ -1,22 +1,14 @@
-use crate::{
-    algorithm::simplification::SimplifiedWay,
-    model::osm::{
+use crate::model::osm::{
         graph::{
-            osm_segment::OsmSegment, osm_way_data::OsmWayData, AdjacencyDirection, AdjacencyList,
-            AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmNodes, OsmWayId, OsmWays, Path3,
+            osm_way_data::OsmWayData, AdjacencyDirection, OsmGraph, OsmNodeId, Path3,
         },
         OsmError,
-    },
-};
-use geo::{line_string, Coord, Haversine, Length, LineString, Point};
+    };
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use rayon::prelude::*;
-use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::{Arc, Mutex},
 };
 

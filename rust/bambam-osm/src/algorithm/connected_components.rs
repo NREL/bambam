@@ -1,16 +1,12 @@
 use crate::model::osm::{
     graph::{
-        AdjacencyDirection, AdjacencyList, AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmNodes,
+        OsmGraph, OsmNodeId,
     },
     OsmError,
 };
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    io::Write,
-    time::Duration,
-};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 const PROGRESS_BAR_MIN_SIZE: usize = 1000;
 pub type UndirectedAdjacencyList = HashMap<OsmNodeId, HashSet<OsmNodeId>>;

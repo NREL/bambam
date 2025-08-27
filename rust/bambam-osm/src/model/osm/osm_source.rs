@@ -5,17 +5,13 @@ use crate::{
         truncation::{self, ComponentFilter},
     },
     model::osm::{
-        graph::{OsmGraph, OsmGraphVectorized, OsmNodeId},
+        graph::{OsmGraph, OsmGraphVectorized},
         import_ops,
     },
 };
-use geo::{Convert, Geometry, MultiPolygon};
-use geo_buffer;
-use itertools::Itertools;
-use routee_compass_core::model::unit::DistanceUnit;
+use geo::Geometry;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use wkt::{ToWkt, TryFromWkt};
+use wkt::TryFromWkt;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum OsmSource {

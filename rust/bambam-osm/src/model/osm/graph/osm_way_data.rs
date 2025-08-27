@@ -3,14 +3,10 @@ use crate::model::{
     feature::highway::Highway,
     osm::{graph::osm_way_ops, OsmError},
 };
-use geo::{Coord, Haversine, Length, LineString};
+use geo::{Coord, LineString};
 use itertools::Itertools;
-use routee_compass_core::model::{
-    network::VertexId,
-    unit::{AsF64, SpeedUnit},
-};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct OsmWayData {

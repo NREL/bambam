@@ -3,7 +3,7 @@
 
 use crate::model::osm::graph::OsmWayDataSerializable;
 use geo::prelude::*;
-use geo::{Euclidean, LineString, Point};
+use geo::{Euclidean, LineString};
 use rstar::{PointDistance, RTreeObject, AABB};
 
 #[derive(Clone)]

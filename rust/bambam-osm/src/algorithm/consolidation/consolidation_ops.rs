@@ -4,27 +4,19 @@ use crate::model::osm::graph::AdjacencyDirection;
 use crate::model::osm::graph::OsmNodeData;
 use crate::model::osm::graph::OsmWayData;
 use crate::model::osm::graph::{fill_value_lookup::FillValueLookup, OsmGraph, OsmNodeId};
-use crate::model::osm::graph::{AdjacencyListDeprecated, OsmWayId};
+use crate::model::osm::graph::OsmWayId;
 use crate::model::osm::OsmError;
 use clustering::ClusteredIntersections;
-use geo::{BooleanOps, BoundingRect, Intersects, Polygon, RemoveRepeatedPoints};
-use geo::{Coord, Geometry, Haversine, Length, LineString, MultiPolygon};
+use geo::Polygon;
+use geo::{Coord, Geometry};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    unit::{AsF64, DistanceUnit, SpeedUnit},
-};
-use rstar::primitives::{GeomWithData, Rectangle};
-use rstar::{RTree, RTreeObject};
+use rstar::RTree;
 use std::collections::HashSet;
-use std::collections::LinkedList;
-use std::collections::{BinaryHeap, HashMap};
-use std::fs::File;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use wkt::ToWkt;
 
 /// implements osmnx.simplification.consolidate_intersections with dead_ends=False, rebuild_graph=True,
 /// reconnect_edges=True for the given distance tolerance.

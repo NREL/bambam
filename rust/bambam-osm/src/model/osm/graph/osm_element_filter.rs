@@ -1,9 +1,9 @@
 use crate::model::{
     feature::highway::Highway,
-    osm::overpass::{FilterQuery, OverpassQuery},
+    osm::overpass::FilterQuery,
 };
 use osmpbf::{Element, Way};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, str::FromStr};
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]

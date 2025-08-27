@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 
 use geo::line_measures::LengthMeasurable;
 use geo::{
@@ -7,7 +6,6 @@ use geo::{
 };
 use itertools::Itertools;
 use num_traits::FromPrimitive;
-use routee_compass_core::model::unit;
 use routee_compass_core::model::unit::AsF64;
 
 pub trait Buffer<F: CoordFloat + FromPrimitive> {

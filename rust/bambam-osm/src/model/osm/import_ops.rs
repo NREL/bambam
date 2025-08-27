@@ -1,12 +1,12 @@
 use super::{
     graph::{
-        osm_element_filter::ElementFilter, osm_segment::OsmSegment, AdjacencyList3,
-        AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmNodes, OsmWayId, OsmWays,
+        osm_element_filter::ElementFilter, osm_segment::OsmSegment,
+        AdjacencyListDeprecated, OsmNodeId, OsmNodes, OsmWays,
     },
     OsmError,
 };
 use crate::{
-    algorithm::{buffer, connected_components},
+    algorithm::buffer,
     model::{
         feature::highway::Highway,
         osm::graph::{
@@ -15,21 +15,16 @@ use crate::{
     },
 };
 use geo::{
-    line_string, point, Contains, Convert, Coord, CoordsIter, Geometry, Haversine, Intersects,
-    Length, Line, MultiPolygon,
+    Contains, Geometry, Intersects,
 };
-use geo::{Centroid, KNearestConcaveHull, Point, Scale};
-use itertools::{Either, Itertools};
+use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use osmpbf::{Element, ElementReader};
 use rayon::prelude::*;
-use routee_compass_core::util::compact_ordered_hash_map::CompactOrderedHashMap;
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
-    sync::Arc,
 };
-use wkt::ToWkt;
 
 /// an estimate of this is fine, it's used to buffer the extent of the study area
 /// by a smidge so we don't prematurely truncate edges when reading the network source.
@@ -270,7 +265,7 @@ pub fn build_adjacencies(ways_map: &OsmWays) -> Result<AdjacencyList, OsmError> 
         for (src_id, dst_id) in nodes.iter().tuple_windows() {
             // # G.add_edges_from(edges, **path)
             // insert forward-oriented segment
-            let mut fwd_segs = adj
+            let fwd_segs = adj
                 .entry((*src_id, AdjacencyDirection::Forward))
                 .or_default();
             insert_op(dst_id, way, oneway, fwd_segs)?;
@@ -278,7 +273,7 @@ pub fn build_adjacencies(ways_map: &OsmWays) -> Result<AdjacencyList, OsmError> 
             if !oneway {
                 // # G.add_edges_from((v, u) for u, v in edges], **path)
                 // insert reverse-oriented segment
-                let mut rev_segs = adj
+                let rev_segs = adj
                     .entry((*dst_id, AdjacencyDirection::Reverse))
                     .or_default();
                 insert_op(src_id, way, false, rev_segs)?;

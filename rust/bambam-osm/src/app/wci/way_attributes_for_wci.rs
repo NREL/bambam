@@ -96,7 +96,7 @@ impl WayAttributesForWCI {
             neighbors.push(neighbor);
         }
         let mut no_adj: bool = true;
-        no_adj = (neighbors.is_empty());
+        no_adj = neighbors.is_empty();
 
         let cycle = match &geo_data.data.cycleway {
             Some(string) => {
@@ -110,14 +110,14 @@ impl WayAttributesForWCI {
             }
             _ => {
                 // neighbor weighting
-                let mut weighted_cycle = 0;
+                let weighted_cycle = 0;
                 let mut total_lengths: f32 = 0.0;
                 let mut cyclescores = vec![];
                 for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
                     let mut neighbor_cycle_score = 0;
                     let origin = neighbor.geo.centroid();
                     if let Some(origin) = origin {
-                        let mut int_length =
+                        let int_length =
                             Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
                         if let Some(ref cycleway) = neighbor.data.cycleway {

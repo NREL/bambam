@@ -1,7 +1,4 @@
-use super::{
-    osm_graph::OsmGraph, osm_way_data::OsmWayData,
-    osm_way_data_serializable::OsmWayDataSerializable,
-};
+use super::osm_way_data_serializable::OsmWayDataSerializable;
 use crate::model::osm::OsmError;
 use kdam::tqdm;
 use std::collections::HashMap;

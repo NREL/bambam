@@ -1,25 +1,21 @@
-use std::{borrow::Cow, collections::HashMap, fs::File, path::Path};
+use std::{fs::File, path::Path};
 
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use itertools::Itertools;
 use kdam::tqdm;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    unit::{AsF64, SpeedUnit},
-};
+use routee_compass_core::model::network::Edge;
 use wkt::ToWkt;
 
 use crate::model::osm::{
     graph::{
-        fill_value_lookup::FillValueLookup, osm_node_data_serializable::OsmNodeDataSerializable,
+        fill_value_lookup::FillValueLookup,
         osm_way_data_serializable::OsmWayDataSerializable, vertex_serializable::VertexSerializable,
-        OsmNodeId, OsmWayData,
     },
     OsmError,
 };
 
-use super::{osm_graph::OsmGraph, OsmGraphVectorized};
+use super::OsmGraphVectorized;
 
 pub trait CompassWriter {
     /// vectorizes data into CSV and TXT files in a shared directory

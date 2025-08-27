@@ -1,7 +1,6 @@
-use std::num::ParseIntError;
 
 use crate::model::osm::OsmError;
-use geo::{Centroid, Contains, Coord, Geometry, Intersects, MultiPoint, Point};
+use geo::{Centroid, Coord, Geometry, Intersects, MultiPoint, Point};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 

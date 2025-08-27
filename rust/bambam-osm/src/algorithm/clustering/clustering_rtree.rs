@@ -1,21 +1,12 @@
 use super::ClusteredGeometry;
-use crate::algorithm::bfs_undirected;
-use crate::model::osm::graph::OsmGraph;
 use crate::model::osm::graph::OsmNodeId;
-use crate::model::osm::OsmError;
-use geo::{BooleanOps, BoundingRect, Geometry, Intersects, Polygon, RemoveRepeatedPoints};
-use geo::{Coord, MultiPolygon};
+use geo::{BoundingRect, Intersects, Polygon};
+use geo::Coord;
 use itertools::Itertools;
-use kdam::{tqdm, Bar, BarExt};
+use kdam::tqdm;
 use rayon::prelude::*;
-use routee_compass_core::model::unit::AsF64;
-use routee_compass_core::model::unit::DistanceUnit;
 use rstar::primitives::{GeomWithData, Rectangle};
 use rstar::{RTree, RTreeObject};
-use std::collections::HashSet;
-use std::collections::{BinaryHeap, HashMap};
-use std::sync::Arc;
-use std::sync::Mutex;
 use wkt::ToWkt;
 
 pub type ClusterLabel = usize;

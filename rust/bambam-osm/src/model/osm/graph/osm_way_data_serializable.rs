@@ -1,16 +1,13 @@
 use super::osm_way_ops::{self, deserialize_linestring, serialize_linestring};
-use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmNodes, OsmSegment, OsmWayData, OsmWayId};
+use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId};
 use crate::model::{
-    feature::highway::{self, Highway},
+    feature::highway::Highway,
     osm::OsmError,
 };
 use geo::{Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
-use routee_compass_core::model::{
-    network::{Vertex, VertexId},
-    unit::SpeedUnit,
-};
-use serde::{Deserialize, Serialize, Serializer};
+use routee_compass_core::model::network::{Vertex, VertexId};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,

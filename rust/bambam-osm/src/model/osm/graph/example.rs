@@ -1,5 +1,5 @@
 use crate::model::osm::graph::OsmWayId;
-use geo::{Geometry, LineString};
+use geo::Geometry;
 use routee_compass_core::model::network::VertexId;
 
 pub struct MinimalWay {

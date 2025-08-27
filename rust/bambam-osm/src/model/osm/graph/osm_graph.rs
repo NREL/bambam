@@ -1,18 +1,13 @@
 use super::{
-    osm_node_data::OsmNodeData, osm_segment::OsmSegment, osm_way_data::OsmWayData,
-    AdjacencyDirection as Dir, AdjacencyList, AdjacencyList3, AdjacencyListDeprecated, OsmNodeId,
-    OsmNodes, OsmWayId, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
+    osm_node_data::OsmNodeData, osm_way_data::OsmWayData,
+    AdjacencyDirection as Dir, AdjacencyList3, OsmNodeId,
+    OsmNodes, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
 };
 use crate::model::osm::OsmError;
-use geo::LineString;
 use itertools::Itertools;
 use kdam::tqdm;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-use wkt::ToWkt;
+use std::collections::{HashMap, HashSet};
 
 pub type TripletRow<'a> =
     Result<Option<Vec<(&'a OsmNodeData, &'a OsmWayData, &'a OsmNodeData)>>, OsmError>;
@@ -347,7 +342,7 @@ impl OsmGraph {
     pub fn connected_node_data_iterator<'a>(
         &'a self,
         sorted: bool,
-    ) -> Box<dyn Iterator<Item = Result<(&'a OsmNodeData), OsmError>> + 'a + Send + Sync> {
+    ) -> Box<dyn Iterator<Item = Result<&'a OsmNodeData, OsmError>> + 'a + Send + Sync> {
         let iter = tqdm!(
             self.adj
                 .iter()
@@ -745,8 +740,8 @@ fn add_ways_to_graph(
                 Some(w) => w,
                 None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the way does not exist"))),
             };
-            let mut prev = match w.get_mut(*index) {
-                Some(mut prev) => prev,
+            let prev = match w.get_mut(*index) {
+                Some(prev) => prev,
                 None => return Err(OsmError::InternalError(format!("attempting to update way ({src})-[]->({dst}) multiedge index {index} but the index does not exist"))),
             };
             *prev = ways[0].clone();

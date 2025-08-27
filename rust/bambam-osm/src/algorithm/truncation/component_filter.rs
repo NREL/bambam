@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     cmp::Ordering,
     collections::{BinaryHeap, HashSet},
 };
@@ -7,7 +6,6 @@ use std::{
 use crate::model::osm::graph::OsmNodeId;
 use itertools::Itertools;
 use kdam::tqdm;
-use routee_compass_core::util::priority_queue::InternalPriorityQueue;
 use serde::{Deserialize, Serialize};
 
 /// Enumeration containing all policies for filtering connected components of

@@ -2,7 +2,7 @@ use itertools::Itertools;
 use osmpbf::Element;
 use regex::Regex;
 use serde::{
-    de::{DeserializeOwned, Visitor},
+    de::Visitor,
     Deserialize, Deserializer, Serialize,
 };
 use std::{
