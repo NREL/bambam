@@ -1,6 +1,4 @@
 use super::osm::OsmError;
-use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

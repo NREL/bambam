@@ -8,12 +8,12 @@ pub struct CliArgs {
     app: App,
 }
 
-use bambam::app::wci;
 use bambam::model::input_plugin::grid::extent_format::ExtentFormat;
 use bambam::model::input_plugin::grid::grid_input_plugin;
 use bambam::model::input_plugin::grid::grid_input_plugin_builder;
 use bambam::model::input_plugin::grid::grid_type::GridType;
 use bambam::model::input_plugin::population::population_source_config::PopulationSourceConfig;
+use bambam_osm::app::wci;
 use bamcensus_acs::model::AcsType;
 use bamcensus_core::model::identifier::GeoidType;
 use h3o::Resolution;

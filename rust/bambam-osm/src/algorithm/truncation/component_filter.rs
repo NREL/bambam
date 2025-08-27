@@ -1,14 +1,10 @@
+use crate::model::osm::graph::OsmNodeId;
+use kdam::tqdm;
+use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Cow,
     cmp::Ordering,
     collections::{BinaryHeap, HashSet},
 };
-
-use crate::model::osm::graph::OsmNodeId;
-use itertools::Itertools;
-use kdam::tqdm;
-use routee_compass_core::util::priority_queue::InternalPriorityQueue;
-use serde::{Deserialize, Serialize};
 
 /// Enumeration containing all policies for filtering connected components of
 /// a graph

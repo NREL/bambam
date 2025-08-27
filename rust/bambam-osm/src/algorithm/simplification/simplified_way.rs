@@ -1,24 +1,11 @@
 use crate::model::osm::{
-    graph::{
-        osm_segment::OsmSegment, osm_way_data::OsmWayData, AdjacencyListDeprecated, OsmNodeId,
-        OsmNodes, OsmWayId, OsmWays,
-    },
+    graph::{osm_segment::OsmSegment, OsmNodeId, OsmNodes, OsmWays},
     OsmError,
 };
-use geo::{
-    line_measures::LengthMeasurable, line_string, Convert, Coord, Haversine, Length, LineString,
-    Point,
-};
+use geo::{Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
-use kdam::{tqdm, Bar, BarExt};
-use rayon::prelude::*;
-use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
+use routee_compass_core::model::network::EdgeId;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
-};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SimplifiedWay {

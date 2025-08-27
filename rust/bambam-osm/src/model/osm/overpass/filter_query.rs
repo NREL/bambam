@@ -1,10 +1,7 @@
 use itertools::Itertools;
 use osmpbf::Element;
 use regex::Regex;
-use serde::{
-    de::{DeserializeOwned, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashSet,
     fmt::{self, Display},
@@ -30,10 +27,10 @@ pub struct FilterQuery {
 impl FilterQuery {
     pub fn filter(&self, element: &Element<'_>) -> bool {
         let tag = match element {
-            Element::Node(node) => node.tags().find(|(k, v)| *k == self.tag),
-            Element::DenseNode(dense_node) => dense_node.tags().find(|(k, v)| *k == self.tag),
-            Element::Way(way) => way.tags().find(|(k, v)| *k == self.tag),
-            Element::Relation(relation) => relation.tags().find(|(k, v)| *k == self.tag),
+            Element::Node(node) => node.tags().find(|(k, _)| *k == self.tag),
+            Element::DenseNode(dense_node) => dense_node.tags().find(|(k, _)| *k == self.tag),
+            Element::Way(way) => way.tags().find(|(k, _)| *k == self.tag),
+            Element::Relation(relation) => relation.tags().find(|(k, _)| *k == self.tag),
         };
         match tag {
             None => false,

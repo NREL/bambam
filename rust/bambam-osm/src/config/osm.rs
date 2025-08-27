@@ -2,7 +2,6 @@ use crate::{
     algorithm::truncation::ComponentFilter,
     model::{osm::graph::osm_element_filter::ElementFilter, OsmCliError},
 };
-use routee_compass_core::model::unit::DistanceUnit;
 use serde::{Deserialize, Serialize};
 
 /// defines behaviors for an OSM network import

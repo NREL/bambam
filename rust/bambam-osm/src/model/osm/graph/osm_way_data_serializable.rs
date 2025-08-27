@@ -1,16 +1,10 @@
 use super::osm_way_ops::{self, deserialize_linestring, serialize_linestring};
-use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmNodes, OsmSegment, OsmWayData, OsmWayId};
-use crate::model::{
-    feature::highway::{self, Highway},
-    osm::OsmError,
-};
+use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId};
+use crate::model::{feature::highway::Highway, osm::OsmError};
 use geo::{Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
-use routee_compass_core::model::{
-    network::{Vertex, VertexId},
-    unit::SpeedUnit,
-};
-use serde::{Deserialize, Serialize, Serializer};
+use routee_compass_core::model::network::{Vertex, VertexId};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
@@ -360,17 +354,17 @@ fn top_highway(
     }
 }
 
-fn extract_between_nodes<'a>(
-    src: &'a OsmNodeId,
-    dst: &'a OsmNodeId,
-    nodes: &'a [OsmNodeId],
-) -> Option<&'a [OsmNodeId]> {
-    let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
-    let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'
+// fn extract_between_nodes<'a>(
+//     src: &'a OsmNodeId,
+//     dst: &'a OsmNodeId,
+//     nodes: &'a [OsmNodeId],
+// ) -> Option<&'a [OsmNodeId]> {
+//     let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
+//     let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'
 
-    if start <= start + end {
-        Some(&nodes[start..=start + end])
-    } else {
-        None
-    }
-}
+//     if start <= start + end {
+//         Some(&nodes[start..=start + end])
+//     } else {
+//         None
+//     }
+// }

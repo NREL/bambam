@@ -3,28 +3,20 @@ use crate::algorithm::*;
 use crate::model::osm::graph::AdjacencyDirection;
 use crate::model::osm::graph::OsmNodeData;
 use crate::model::osm::graph::OsmWayData;
-use crate::model::osm::graph::{fill_value_lookup::FillValueLookup, OsmGraph, OsmNodeId};
-use crate::model::osm::graph::{AdjacencyListDeprecated, OsmWayId};
+use crate::model::osm::graph::OsmWayId;
+use crate::model::osm::graph::{OsmGraph, OsmNodeId};
 use crate::model::osm::OsmError;
 use clustering::ClusteredIntersections;
-use geo::{BooleanOps, BoundingRect, Intersects, Polygon, RemoveRepeatedPoints};
-use geo::{Coord, Geometry, Haversine, Length, LineString, MultiPolygon};
+use geo::Polygon;
+use geo::{Coord, Geometry};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    unit::{AsF64, DistanceUnit, SpeedUnit},
-};
-use rstar::primitives::{GeomWithData, Rectangle};
-use rstar::{RTree, RTreeObject};
+use rstar::RTree;
+use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::LinkedList;
-use std::collections::{BinaryHeap, HashMap};
-use std::fs::File;
 use std::sync::Arc;
 use std::sync::Mutex;
-use wkt::ToWkt;
 
 /// implements osmnx.simplification.consolidate_intersections with dead_ends=False, rebuild_graph=True,
 /// reconnect_edges=True for the given distance tolerance.
@@ -41,7 +33,6 @@ use wkt::ToWkt;
 pub fn consolidate_graph(
     graph: &mut OsmGraph,
     tolerance: uom::si::f64::Length,
-    ignore_osm_parsing_errors: bool,
 ) -> Result<(), OsmError> {
     // STEP 1
     // buffer nodes to passed-in distance and merge overlaps. turn merged nodes
@@ -171,17 +162,17 @@ pub fn buffer_nodes(
     result
 }
 
-fn get_fill_value(
-    way: &OsmWayData,
-    maxspeeds_fill_lookup: &FillValueLookup,
-) -> Result<uom::si::f64::Velocity, OsmError> {
-    let highway_class = way
-        .get_string_at_field("highway")
-        .map_err(OsmError::GraphConsolidationError)?;
-    let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    let result = uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed);
-    Ok(result)
-}
+// fn get_fill_value(
+//     way: &OsmWayData,
+//     maxspeeds_fill_lookup: &FillValueLookup,
+// ) -> Result<uom::si::f64::Velocity, OsmError> {
+//     let highway_class = way
+//         .get_string_at_field("highway")
+//         .map_err(OsmError::GraphConsolidationError)?;
+//     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
+//     let result = uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed);
+//     Ok(result)
+// }
 
 /// with knowledge of which geometry indices contain spatially-similar nodes,
 /// constructs new merged node data for the connected sub-clusters, assigning

@@ -1,8 +1,6 @@
 use routee_compass_core::model::network::{Vertex, VertexId};
 use serde::{Deserialize, Serialize};
 
-use super::osm_node_data::OsmNodeData;
-
 #[derive(Serialize, Deserialize)]
 pub struct VertexSerializable {
     vertex_id: VertexId,

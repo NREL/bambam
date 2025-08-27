@@ -5,17 +5,13 @@ use crate::{
         truncation::{self, ComponentFilter},
     },
     model::osm::{
-        graph::{OsmGraph, OsmGraphVectorized, OsmNodeId},
+        graph::{OsmGraph, OsmGraphVectorized},
         import_ops,
     },
 };
-use geo::{Convert, Geometry, MultiPolygon};
-use geo_buffer;
-use itertools::Itertools;
-use routee_compass_core::model::unit::DistanceUnit;
+use geo::Geometry;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use wkt::{ToWkt, TryFromWkt};
+use wkt::TryFromWkt;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum OsmSource {
@@ -132,7 +128,7 @@ impl OsmSource {
                 if *consolidate {
                     eprintln!();
                     log::info!("  (((6))) consolidating graph nodes");
-                    consolidation::consolidate_graph(&mut graph, *consolidation_threshold, false)?;
+                    consolidation::consolidate_graph(&mut graph, *consolidation_threshold)?;
                 } else {
                     eprintln!();
                     log::info!("  (((6))) consolidating graph nodes (skipped)");
@@ -177,9 +173,8 @@ fn deserialize_validate_extent_str(wkt_str: &str) -> Result<Geometry<f32>, OsmEr
 
 #[cfg(test)]
 mod test {
-    use geo::{Geometry, LineString, Polygon};
-
     use crate::model::osm::{osm_source::deserialize_validate_extent_str, OsmError};
+    use geo::{LineString, Polygon};
 
     #[test]
     fn test_deserialize_wkt_polygon() {
@@ -187,10 +182,10 @@ mod test {
         let poly_str = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))";
         let exterior_coords: Vec<(f32, f32)> = vec![(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
         let polygon = Polygon::new(LineString::from(exterior_coords), vec![]);
-        assert!(matches!(
-            deserialize_validate_extent_str(poly_str),
-            Ok::<Geometry::<f32>, OsmError>(polygon)
-        ));
+        match deserialize_validate_extent_str(poly_str) {
+            Ok(p) => assert_eq!(p, geo::Geometry::Polygon(polygon)),
+            Err(e) => panic!("failed due to: {}", e),
+        }
     }
 
     #[test]

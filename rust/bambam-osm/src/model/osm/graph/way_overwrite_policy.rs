@@ -1,8 +1,3 @@
-use crate::model::osm::{
-    graph::{OsmGraph, OsmNodeId, OsmWayData},
-    OsmError,
-};
-
 /// internal enumeration used to disambiguate graph update methods associated with
 /// the adjacency list.
 pub enum WayOverwritePolicy {

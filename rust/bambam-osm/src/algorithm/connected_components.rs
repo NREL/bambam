@@ -1,18 +1,11 @@
 use crate::model::osm::{
-    graph::{
-        AdjacencyDirection, AdjacencyList, AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmNodes,
-    },
+    graph::{OsmGraph, OsmNodeId},
     OsmError,
 };
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    io::Write,
-    time::Duration,
-};
+use std::collections::{HashMap, HashSet, VecDeque};
 
-const PROGRESS_BAR_MIN_SIZE: usize = 1000;
 pub type UndirectedAdjacencyList = HashMap<OsmNodeId, HashSet<OsmNodeId>>;
 
 pub fn to_undirected(graph: &OsmGraph) -> UndirectedAdjacencyList {
@@ -83,7 +76,7 @@ pub fn weakly_connected_components(
             }
             solution.push(cluster);
         }
-        bar.update(1);
+        let _ = bar.update(1);
     }
     eprintln!();
     log::info!("found {} weakly-connected components", solution.len());
@@ -133,11 +126,7 @@ pub fn bfs_undirected(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::osm::graph::{
-        osm_segment::OsmSegment, AdjacencyDirection, AdjacencyList, AdjacencyList3,
-        AdjacencyListDeprecated, OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId,
-        OsmWaysByOd,
-    };
+    use crate::model::osm::graph::{OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId};
     use std::collections::HashMap;
 
     #[test]
@@ -182,7 +171,7 @@ mod tests {
     fn test_bfs_complete_graph_5() {
         let source = OsmNodeId(0);
         let n_connected_nodes: usize = 5;
-        let mut nodes = create_nodes_in_circle(n_connected_nodes);
+        let nodes = create_nodes_in_circle(n_connected_nodes);
         let mut ways: HashMap<OsmWayId, OsmWayData> = HashMap::new();
 
         let n_iters = n_connected_nodes as i64;

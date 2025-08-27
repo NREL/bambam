@@ -1,22 +1,12 @@
-use crate::{
-    algorithm::simplification::SimplifiedWay,
-    model::osm::{
-        graph::{
-            osm_segment::OsmSegment, osm_way_data::OsmWayData, AdjacencyDirection, AdjacencyList,
-            AdjacencyListDeprecated, OsmGraph, OsmNodeId, OsmNodes, OsmWayId, OsmWays, Path3,
-        },
-        OsmError,
-    },
+use crate::model::osm::{
+    graph::{osm_way_data::OsmWayData, AdjacencyDirection, OsmGraph, OsmNodeId, Path3},
+    OsmError,
 };
-use geo::{line_string, Coord, Haversine, Length, LineString, Point};
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use rayon::prelude::*;
-use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     sync::{Arc, Mutex},
 };
 
@@ -28,12 +18,11 @@ pub fn simplify_graph(graph: &mut OsmGraph, parallelize: bool) -> Result<(), Osm
     log::info!("simplify: identified {} simple endpoints", endpoints.len());
 
     let simplified_paths = get_paths_to_simplify(&endpoints, graph, parallelize)?;
-    let n_simplified = simplified_paths.len();
 
     let (nodes_to_remove, simplified_ways) =
         generate_simplified_ways(&simplified_paths, graph, parallelize)?;
 
-    update_graph_adjacencies(nodes_to_remove, simplified_ways, graph, parallelize)?;
+    update_graph_adjacencies(nodes_to_remove, simplified_ways, graph)?;
 
     log::info!(
         "simplified adjacency list has {} nodes, {} segments",
@@ -175,7 +164,6 @@ fn update_graph_adjacencies(
     nodes_to_remove: Vec<OsmNodeId>,
     simplified_ways: Vec<OsmWayData>,
     graph: &mut OsmGraph,
-    parallelize: bool,
 ) -> Result<(), OsmError> {
     let n_nodes_to_remove = nodes_to_remove.len();
     let n_edges_to_add = simplified_ways.len();
@@ -235,14 +223,24 @@ fn generate_simplified_ways(
     let result: (Vec<Vec<OsmNodeId>>, Vec<OsmWayData>) = if parallelize {
         paths
             .into_par_iter()
-            .map(|path| simplify_way(path, graph))
+            .map(|path| {
+                if let Ok(mut bar_inner) = bar.clone().lock() {
+                    let _ = bar_inner.update(1);
+                }
+                simplify_way(path, graph)
+            })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .unzip()
     } else {
         paths
             .iter()
-            .map(|path| simplify_way(path, graph))
+            .map(|path| {
+                if let Ok(mut bar_inner) = bar.clone().lock() {
+                    let _ = bar_inner.update(1);
+                }
+                simplify_way(path, graph)
+            })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .unzip()

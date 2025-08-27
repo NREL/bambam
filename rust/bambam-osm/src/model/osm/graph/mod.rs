@@ -19,11 +19,7 @@ mod way_overwrite_policy;
 use crate::model::osm::OsmError;
 pub use adjacency_direction::AdjacencyDirection;
 pub use compass_writer::CompassWriter;
-use geo::{Coord, LineString};
 use itertools::Itertools;
-use kdam::tqdm;
-use log;
-use osm_element_filter::ElementFilter;
 pub use osm_graph::OsmGraph;
 pub use osm_graph_vectorized::OsmGraphVectorized;
 pub use osm_node_data::OsmNodeData;
@@ -33,15 +29,8 @@ use osm_segment::OsmSegment;
 pub use osm_way_data::OsmWayData;
 pub use osm_way_data_serializable::OsmWayDataSerializable;
 pub use osm_way_id::OsmWayId;
-use osmpbf::{Element, ElementReader};
-use routee_compass_core::{
-    model::{network::Vertex, unit::DistanceUnit},
-    util::compact_ordered_hash_map::CompactOrderedHashMap,
-};
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-};
+use routee_compass_core::model::network::Vertex;
+use std::collections::{HashMap, HashSet};
 pub use vertex_serializable::VertexSerializable;
 pub use way_overwrite_policy::WayOverwritePolicy;
 

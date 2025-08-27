@@ -3,14 +3,10 @@ use crate::model::{
     feature::highway::Highway,
     osm::{graph::osm_way_ops, OsmError},
 };
-use geo::{Coord, Haversine, Length, LineString};
+use geo::{Coord, LineString};
 use itertools::Itertools;
-use routee_compass_core::model::{
-    network::VertexId,
-    unit::{AsF64, SpeedUnit},
-};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct OsmWayData {
@@ -40,7 +36,6 @@ pub struct OsmWayData {
 }
 
 impl OsmWayData {
-    const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
     pub const VALUE_DELIMITER: &'static str = "#";
 
     pub fn new(way: &osmpbf::elements::Way) -> OsmWayData {
@@ -174,7 +169,7 @@ impl OsmWayData {
         match &self.highway {
             Some(h) => {
                 let highway = Highway::from_str(h).map_err(|e| {
-                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {h}"))
+                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {h}: {e}"))
                 })?;
                 Ok(Some(highway))
             }

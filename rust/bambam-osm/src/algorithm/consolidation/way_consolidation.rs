@@ -1,10 +1,4 @@
-use crate::model::osm::{
-    graph::{AdjacencyDirection, OsmGraph, OsmNodeId, OsmWayData},
-    OsmError,
-};
-use itertools::Itertools;
-use serde_json::value::Index;
-use std::collections::HashSet;
+use crate::model::osm::graph::{AdjacencyDirection, OsmNodeId, OsmWayData};
 
 /// tracks a way that will be impacted by node consolidation along with the
 /// source or destination node attached to it.

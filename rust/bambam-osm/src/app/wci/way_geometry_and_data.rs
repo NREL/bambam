@@ -1,9 +1,9 @@
 // Way struct is used to store needed information for OSM data for utilization in WCI calculations (wci.rs)
 // August 2025 EG
 
-use bambam_osm::model::osm::graph::OsmWayDataSerializable;
+use crate::model::osm::graph::OsmWayDataSerializable;
 use geo::prelude::*;
-use geo::{Euclidean, LineString, Point};
+use geo::{Euclidean, LineString};
 use rstar::{PointDistance, RTreeObject, AABB};
 
 #[derive(Clone)]
