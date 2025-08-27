@@ -3,7 +3,7 @@ use crate::model::fieldname;
 use chrono::{DateTime, Utc};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomVariableConfig, InputFeature, StateVariableConfig, StateVariable},
+    state::{CustomVariableConfig, InputFeature, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::sync::Arc;

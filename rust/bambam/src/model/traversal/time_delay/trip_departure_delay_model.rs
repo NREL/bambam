@@ -3,7 +3,7 @@ use crate::model::fieldname;
 use super::TimeDelayLookup;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
+    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
 };
 use std::sync::Arc;

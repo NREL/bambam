@@ -23,12 +23,15 @@ impl OutputPluginBuilder for OpportunityOutputPluginBuilder {
         &self,
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn OutputPlugin>, CompassComponentError> {
-        let config: OpportunityPluginConfig = serde_json::from_value(parameters.clone())
-            .map_err(|e| PluginError::BuildFailed(format!("failed to read opportunity plugin configuration: {e}")))?;
-        
-        let plugin =
-            OpportunityOutputPlugin::try_from(&config).map_err(PluginError::from)?;
-            
+        let config: OpportunityPluginConfig =
+            serde_json::from_value(parameters.clone()).map_err(|e| {
+                PluginError::BuildFailed(format!(
+                    "failed to read opportunity plugin configuration: {e}"
+                ))
+            })?;
+
+        let plugin = OpportunityOutputPlugin::try_from(&config).map_err(PluginError::from)?;
+
         Ok(Arc::new(plugin))
     }
 }

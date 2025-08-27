@@ -4,7 +4,7 @@ use super::FeatureDependency;
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{CustomVariableConfig, InputFeature, StateVariableConfig, StateModel, StateVariable},
+    state::{CustomVariableConfig, InputFeature, StateModel, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError},
 };
 use std::collections::HashMap;

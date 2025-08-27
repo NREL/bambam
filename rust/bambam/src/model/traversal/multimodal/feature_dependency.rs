@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::model::{
     fieldname,
     traversal::multimodal::{DependencyUnitType, FeatureDependencyConfig},
@@ -6,11 +5,13 @@ use crate::model::{
 use itertools::Itertools;
 use routee_compass_core::model::{
     state::{
-        CustomVariableConfig, InputFeature, StateVariableConfig, StateModel, StateModelError, StateVariable,
+        CustomVariableConfig, InputFeature, StateModel, StateModelError, StateVariable,
+        StateVariableConfig,
     },
     traversal::TraversalModelError,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uom::si::f64::Time;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -77,7 +78,10 @@ impl FeatureDependency {
     ) -> Result<(), StateModelError> {
         for (out_name, out_feature) in self.destination_features.iter() {
             match (&self.input_feature, out_feature) {
-                (InputFeature::Speed { unit, .. }, StateVariableConfig::Time { accumulator, .. }) => {
+                (
+                    InputFeature::Speed { unit, .. },
+                    StateVariableConfig::Time { accumulator, .. },
+                ) => {
                     let distance = state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
                     let speed = state_model.get_speed(state, &self.input_feature.name())?;
                     let time: Time = distance / speed;
@@ -98,19 +102,23 @@ impl FeatureDependency {
                 (InputFeature::Custom { .. }, StateVariableConfig::Custom { value, .. }) => {
                     match value {
                         CustomVariableConfig::FloatingPoint { .. } => {
-                            let value = state_model.get_custom_f64(state, &self.input_feature.name())?;
+                            let value =
+                                state_model.get_custom_f64(state, &self.input_feature.name())?;
                             state_model.set_custom_f64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::SignedInteger { .. } => {
-                            let value = state_model.get_custom_i64(state, &self.input_feature.name())?;
+                            let value =
+                                state_model.get_custom_i64(state, &self.input_feature.name())?;
                             state_model.set_custom_i64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::UnsignedInteger { .. } => {
-                            let value = state_model.get_custom_u64(state, &self.input_feature.name())?;
+                            let value =
+                                state_model.get_custom_u64(state, &self.input_feature.name())?;
                             state_model.set_custom_u64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::Boolean { .. } => {
-                            let value = state_model.get_custom_bool(state, &self.input_feature.name())?;
+                            let value =
+                                state_model.get_custom_bool(state, &self.input_feature.name())?;
                             state_model.set_custom_bool(state, out_name, &value)?;
                         }
                     }
@@ -118,7 +126,8 @@ impl FeatureDependency {
                 _ => {
                     return Err(StateModelError::RuntimeError(format!(
                         "invalid FeatureDependency mapping from '{}'->'{}' not supported",
-                        self.input_feature.name(), out_name
+                        self.input_feature.name(),
+                        out_name
                     )))
                 }
             }

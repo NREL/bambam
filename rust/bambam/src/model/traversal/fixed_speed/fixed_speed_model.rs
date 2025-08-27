@@ -2,7 +2,7 @@ use crate::model::traversal::fixed_speed::FixedSpeedConfig;
 use chrono::format::Fixed;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
+    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
     unit::SpeedUnit,
 };

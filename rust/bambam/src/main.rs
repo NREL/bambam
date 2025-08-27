@@ -1,6 +1,6 @@
 use clap::Parser;
 use routee_compass::app::cli::{cli_args::CliArgs, run};
-use routee_compass::app::compass::{CompassAppError};
+use routee_compass::app::compass::CompassAppError;
 
 // Import the library to ensure inventory registrations in lib.rs are included
 #[allow(unused_imports)]

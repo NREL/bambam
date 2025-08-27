@@ -2,7 +2,7 @@ use super::traversal::time_delay::TimeDelayLookup;
 use crate::model::fieldname;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    state::{StateVariableConfig, StateModel, StateModelError, StateVariable},
+    state::{StateModel, StateModelError, StateVariable, StateVariableConfig},
     traversal::TraversalModelError,
     unit::{DistanceUnit, SpeedUnit, TimeUnit},
 };

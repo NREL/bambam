@@ -5,7 +5,7 @@ use routee_compass_core::model::{
     access::{AccessModel, AccessModelError},
     map::MapModel,
     network::{Edge, EdgeId, Graph, Vertex, VertexId},
-    state::{InputFeature, StateVariableConfig, StateModel, StateVariable},
+    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError},
 };
 use rstar::RTree;
