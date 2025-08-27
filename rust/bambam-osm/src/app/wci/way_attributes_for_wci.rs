@@ -117,8 +117,7 @@ impl WayAttributesForWCI {
                     let mut neighbor_cycle_score = 0;
                     let origin = neighbor.geo.centroid();
                     if let Some(origin) = origin {
-                        let int_length =
-                            Euclidean::distance(&geo::Euclidean, origin, query_point);
+                        let int_length = Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
                         if let Some(ref cycleway) = neighbor.data.cycleway {
                             if cycleway == "lane" || cycleway == "designated" || cycleway == "track"

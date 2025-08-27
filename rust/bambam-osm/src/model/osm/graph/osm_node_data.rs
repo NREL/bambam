@@ -1,4 +1,3 @@
-
 use crate::model::osm::OsmError;
 use geo::{Centroid, Coord, Geometry, Intersects, MultiPoint, Point};
 use itertools::Itertools;

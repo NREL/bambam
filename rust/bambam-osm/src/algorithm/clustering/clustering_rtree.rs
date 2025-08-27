@@ -1,7 +1,7 @@
 use super::ClusteredGeometry;
 use crate::model::osm::graph::OsmNodeId;
-use geo::{BoundingRect, Intersects, Polygon};
 use geo::Coord;
+use geo::{BoundingRect, Intersects, Polygon};
 use itertools::Itertools;
 use kdam::tqdm;
 use rayon::prelude::*;

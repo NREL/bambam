@@ -1,7 +1,5 @@
 use crate::model::osm::{
-    graph::{
-        OsmGraph, OsmNodeId,
-    },
+    graph::{OsmGraph, OsmNodeId},
     OsmError,
 };
 use itertools::Itertools;

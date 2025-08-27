@@ -1,9 +1,7 @@
 use crate::model::osm::{
-        graph::{
-            osm_way_data::OsmWayData, AdjacencyDirection, OsmGraph, OsmNodeId, Path3,
-        },
-        OsmError,
-    };
+    graph::{osm_way_data::OsmWayData, AdjacencyDirection, OsmGraph, OsmNodeId, Path3},
+    OsmError,
+};
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;

@@ -9,8 +9,8 @@ use wkt::ToWkt;
 
 use crate::model::osm::{
     graph::{
-        fill_value_lookup::FillValueLookup,
-        osm_way_data_serializable::OsmWayDataSerializable, vertex_serializable::VertexSerializable,
+        fill_value_lookup::FillValueLookup, osm_way_data_serializable::OsmWayDataSerializable,
+        vertex_serializable::VertexSerializable,
     },
     OsmError,
 };

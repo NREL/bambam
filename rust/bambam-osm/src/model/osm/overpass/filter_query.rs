@@ -1,10 +1,7 @@
 use itertools::Itertools;
 use osmpbf::Element;
 use regex::Regex;
-use serde::{
-    de::Visitor,
-    Deserialize, Deserializer, Serialize,
-};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashSet,
     fmt::{self, Display},

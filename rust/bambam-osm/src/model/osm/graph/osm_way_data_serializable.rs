@@ -1,9 +1,6 @@
 use super::osm_way_ops::{self, deserialize_linestring, serialize_linestring};
 use super::{OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId};
-use crate::model::{
-    feature::highway::Highway,
-    osm::OsmError,
-};
+use crate::model::{feature::highway::Highway, osm::OsmError};
 use geo::{Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::network::{Vertex, VertexId};

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use super::{
-    CompassIndex, HashMap, Itertools, OsmError, OsmGraph, OsmNodeDataSerializable, OsmNodeId, OsmNodesSerializable, OsmWayDataSerializable, OsmWaysSerializable, Vertex,
-    VertexLookup,
+    CompassIndex, HashMap, Itertools, OsmError, OsmGraph, OsmNodeDataSerializable, OsmNodeId,
+    OsmNodesSerializable, OsmWayDataSerializable, OsmWaysSerializable, Vertex, VertexLookup,
 };
 use crate::model::osm::graph::{
     osm_way_data_serializable::create_linestring_for_od_path, OsmNodeData, OsmWayData,

@@ -1,13 +1,8 @@
 use crate::model::osm::{
-    graph::{
-        osm_segment::OsmSegment, OsmNodeId,
-        OsmNodes, OsmWays,
-    },
+    graph::{osm_segment::OsmSegment, OsmNodeId, OsmNodes, OsmWays},
     OsmError,
 };
-use geo::{
-    line_measures::LengthMeasurable, Convert, Coord, Haversine, Length, LineString,
-};
+use geo::{line_measures::LengthMeasurable, Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use rayon::prelude::*;
 use routee_compass_core::model::network::EdgeId;

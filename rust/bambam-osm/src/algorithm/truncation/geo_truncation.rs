@@ -1,7 +1,4 @@
-use crate::model::osm::{
-    graph::OsmGraph,
-    OsmError,
-};
+use crate::model::osm::{graph::OsmGraph, OsmError};
 use geo::{Contains, Geometry};
 use itertools::Itertools;
 use rayon::prelude::*;

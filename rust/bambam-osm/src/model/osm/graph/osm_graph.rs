@@ -1,7 +1,6 @@
 use super::{
-    osm_node_data::OsmNodeData, osm_way_data::OsmWayData,
-    AdjacencyDirection as Dir, AdjacencyList3, OsmNodeId,
-    OsmNodes, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
+    osm_node_data::OsmNodeData, osm_way_data::OsmWayData, AdjacencyDirection as Dir,
+    AdjacencyList3, OsmNodeId, OsmNodes, OsmWays, OsmWaysByOd, WayOverwritePolicy as WriteMode,
 };
 use crate::model::osm::OsmError;
 use itertools::Itertools;

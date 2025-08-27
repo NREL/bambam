@@ -1,4 +1,3 @@
-
 use geo::line_measures::LengthMeasurable;
 use geo::{
     line_string, Centroid, Convert, Coord, CoordFloat, Destination, Distance, GeoFloat, Geometry,

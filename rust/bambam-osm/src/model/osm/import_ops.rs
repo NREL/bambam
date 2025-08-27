@@ -1,7 +1,7 @@
 use super::{
     graph::{
-        osm_element_filter::ElementFilter, osm_segment::OsmSegment,
-        AdjacencyListDeprecated, OsmNodeId, OsmNodes, OsmWays,
+        osm_element_filter::ElementFilter, osm_segment::OsmSegment, AdjacencyListDeprecated,
+        OsmNodeId, OsmNodes, OsmWays,
     },
     OsmError,
 };
@@ -14,9 +14,7 @@ use crate::{
         },
     },
 };
-use geo::{
-    Contains, Geometry, Intersects,
-};
+use geo::{Contains, Geometry, Intersects};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use osmpbf::{Element, ElementReader};
