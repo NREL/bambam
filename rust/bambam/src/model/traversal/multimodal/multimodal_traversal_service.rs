@@ -5,7 +5,7 @@ use crate::model::traversal::multimodal::{FeatureDependency, MultimodalTraversal
 use super::MultimodalTraversalConfig;
 use itertools::Itertools;
 use routee_compass_core::model::{
-    state::OutputFeature,
+    state::StateVariableConfig,
     traversal::{TraversalModel, TraversalModelError, TraversalModelService},
 };
 use serde_json::Value;
@@ -44,7 +44,7 @@ impl TraversalModelService for MultimodalTraversalService {
             ))
         })?;
 
-        // get all output features here but dedup by field name. all OutputFeatures with the same key must have
+        // get all output features here but dedup by field name. all StateVariableConfigs with the same key must have
         // matching definitions in order to accept it.
         let feature_dependencies = dependency_configurations
             .iter()

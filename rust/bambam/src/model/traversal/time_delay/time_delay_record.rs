@@ -1,9 +1,9 @@
 use geo::{ConvexHull, Geometry, MultiPolygon};
 use geo::{Point, Polygon};
-use routee_compass_core::model::unit::Time;
 use rstar::{RTreeObject, AABB};
 use serde::de;
 use serde::Serialize;
+use uom::si::f64::Time;
 use wkt::TryFromWkt;
 
 #[derive(Serialize, Clone, Debug)]

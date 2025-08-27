@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// an API data source for opportunities.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
 pub enum OpportunitySource {
     /// collects opportunities from a Longitudinal Employer-Household Dynamics (LODES)

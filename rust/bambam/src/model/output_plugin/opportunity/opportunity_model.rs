@@ -10,7 +10,7 @@ use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
     algorithm::search::{SearchInstance, SearchTreeBranch},
-    model::network::VertexId,
+    model::{label::Label, network::VertexId},
 };
 use rstar::{RTree, RTreeObject};
 use std::collections::{HashMap, HashSet};
@@ -148,7 +148,7 @@ impl OpportunityModel {
     /// an opportunity vector id along with a vector of opportunity counts.
     fn collect_destination_opportunities(
         &self,
-        branch_origin_id: &VertexId,
+        origin_label: &Label,
         search_tree_branch: &SearchTreeBranch,
         si: &SearchInstance,
     ) -> Result<Vec<(OpportunityRowId, Vec<f64>)>, OutputPluginError> {
@@ -158,14 +158,15 @@ impl OpportunityModel {
                 activity_counts,
                 opportunity_orientation,
             } => {
-                let index = OpportunityRowId::new(
-                    branch_origin_id,
+                let opp_row = OpportunityRowId::new(
+                    origin_label,
                     search_tree_branch,
                     opportunity_orientation,
                 );
+                let index = opp_row.as_usize();
                 let result = activity_counts
-                    .get(*index.as_usize())
-                    .map(|opps| (index, opps.clone()))
+                    .get(index)
+                    .map(|opps| (opp_row, opps.clone()))
                     .ok_or_else(|| {
                         OutputPluginError::OutputPluginFailed(format!(
                             "activity table lookup failed - {opportunity_orientation} index {index} not found"
@@ -181,7 +182,7 @@ impl OpportunityModel {
                 opportunity_orientation,
             } => {
                 let index = OpportunityRowId::new(
-                    branch_origin_id,
+                    origin_label,
                     search_tree_branch,
                     opportunity_orientation,
                 );
@@ -216,11 +217,7 @@ impl OpportunityModel {
                 for model in models.iter() {
                     let vector_length = model.vector_length();
                     let matches = model
-                        .collect_destination_opportunities(
-                            branch_origin_id,
-                            search_tree_branch,
-                            si,
-                        )?
+                        .collect_destination_opportunities(origin_label, search_tree_branch, si)?
                         .into_iter()
                         .collect::<HashMap<_, _>>();
 

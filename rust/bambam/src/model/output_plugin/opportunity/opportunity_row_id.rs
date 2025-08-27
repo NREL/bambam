@@ -5,6 +5,7 @@ use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
     algorithm::search::{SearchInstance, SearchTreeBranch},
     model::{
+        label::Label,
         map::MapModel,
         network::{EdgeId, Graph, VertexId},
     },
@@ -18,10 +19,10 @@ use crate::model::output_plugin::opportunity::{
 };
 
 // identifier in the graph tagging where an opportunity was found
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(Serialize, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum OpportunityRowId {
-    OriginVertex(VertexId),
-    DestinationVertex(VertexId),
+    OriginVertex(Label),
+    DestinationVertex(Label),
     Edge(EdgeId),
 }
 
@@ -34,27 +35,27 @@ impl std::fmt::Display for OpportunityRowId {
 impl OpportunityRowId {
     /// create a new opportunity vector identifier based on the table orientation which denotes where opportunities are stored
     pub fn new(
-        branch_vertex_id: &VertexId,
+        branch_label: &Label,
         branch: &SearchTreeBranch,
         format: &OpportunityOrientation,
     ) -> OpportunityRowId {
         use OpportunityOrientation as O;
         match format {
             // stored at the origin of the edge, corresponding with the branch origin id
-            O::OriginVertexOriented => Self::OriginVertex(*branch_vertex_id),
+            O::OriginVertexOriented => Self::OriginVertex(branch_label.clone()),
             // stored at the destination of the edge at the branch's terminal vertex id
-            O::DestinationVertexOriented => Self::DestinationVertex(branch.terminal_vertex),
+            O::DestinationVertexOriented => Self::DestinationVertex(branch.terminal_label.clone()),
             // stored on the edge itself
             O::EdgeOriented => Self::Edge(branch.edge_traversal.edge_id),
         }
     }
 
     /// helper to get the underlying usize value from this index
-    pub fn as_usize(&self) -> &usize {
+    pub fn as_usize(&self) -> usize {
         match self {
-            OpportunityRowId::OriginVertex(v) => &v.0,
-            OpportunityRowId::DestinationVertex(v) => &v.0,
-            OpportunityRowId::Edge(e) => &e.0,
+            OpportunityRowId::OriginVertex(v) => v.vertex_id().0,
+            OpportunityRowId::DestinationVertex(v) => v.vertex_id().0,
+            OpportunityRowId::Edge(e) => e.0,
         }
     }
 
@@ -64,14 +65,14 @@ impl OpportunityRowId {
         graph: Arc<Graph>,
     ) -> Result<geo::Point<f32>, OutputPluginError> {
         let vertex_id = match self {
-            OpportunityRowId::OriginVertex(vertex_id) => Ok(vertex_id),
-            OpportunityRowId::DestinationVertex(vertex_id) => Ok(vertex_id),
+            OpportunityRowId::OriginVertex(label) => Ok(label.vertex_id()),
+            OpportunityRowId::DestinationVertex(label) => Ok(label.vertex_id()),
             OpportunityRowId::Edge(edge_id) => Err(OutputPluginError::InternalError(String::from(
                 "cannot get vertex point for edge",
             ))),
         }?;
 
-        let vertex = graph.get_vertex(vertex_id).map_err(|e| {
+        let vertex = graph.get_vertex(&vertex_id).map_err(|e| {
             OutputPluginError::OutputPluginFailed(format!("unknown vertex id '{vertex_id}'"))
         })?;
         let point = geo::Point::new(vertex.x(), vertex.y());

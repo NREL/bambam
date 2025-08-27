@@ -7,7 +7,7 @@ use geo::{Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::VertexId,
-    unit::{AsF64, Convert, Grade, GradeUnit, Speed, SpeedUnit},
+    unit::{AsF64, SpeedUnit},
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, str::FromStr};
@@ -157,7 +157,7 @@ impl OsmWayData {
         &self,
         key: &str,
         ignore_invalid_entries: bool,
-    ) -> Result<Option<(Speed, SpeedUnit)>, String> {
+    ) -> Result<Option<uom::si::f64::Velocity>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => osm_way_ops::deserialize_speed(

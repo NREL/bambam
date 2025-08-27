@@ -16,18 +16,18 @@ pub enum MultimodalConstraintConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DistanceTuple {
-    value: Distance,
+    value: f64,
     unit: DistanceUnit,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TimeTuple {
-    value: Time,
+    value: f64,
     unit: TimeUnit,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EnergyTuple {
-    value: Energy,
+    value: f64,
     unit: EnergyUnit,
 }

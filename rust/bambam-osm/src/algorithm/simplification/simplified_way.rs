@@ -6,15 +6,13 @@ use crate::model::osm::{
     OsmError,
 };
 use geo::{
-    line_measures::LengthMeasurable, line_string, Coord, Haversine, Length, LineString, Point,
+    line_measures::LengthMeasurable, line_string, Convert, Coord, Haversine, Length, LineString,
+    Point,
 };
 use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use rayon::prelude::*;
-use routee_compass_core::model::{
-    network::EdgeId,
-    unit::{Convert, Distance, DistanceUnit},
-};
+use routee_compass_core::model::{network::EdgeId, unit::DistanceUnit};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
@@ -28,7 +26,7 @@ pub struct SimplifiedWay {
     pub src_osmid: OsmNodeId,
     pub dst_osmid: OsmNodeId,
     pub geometry: LineString<f32>,
-    pub length: Distance,
+    pub length: uom::si::f64::Length,
 }
 
 impl SimplifiedWay {
@@ -39,7 +37,6 @@ impl SimplifiedWay {
         simplified_way_id: EdgeId,
         nodes: &OsmNodes,
         ways: &OsmWays,
-        distance_unit: Option<&DistanceUnit>,
     ) -> Result<SimplifiedWay, OsmError> {
         // grab all original ways associated with this aggregated segment
         let segment_ways = segments
@@ -73,23 +70,16 @@ impl SimplifiedWay {
             .collect::<Result<Vec<_>, OsmError>>()?;
         let geometry = LineString::new(linestring_coords);
 
-        // find the segment length
-        let length_haversine_f64 = Haversine.length(&geometry) as f64;
-        let mut length = Cow::Owned(Distance::from(length_haversine_f64));
-        if let Some(du) = distance_unit {
-            DistanceUnit::Meters.convert(&mut length, du).map_err(
-                |e: routee_compass_core::model::unit::UnitError| {
-                    OsmError::GraphSimplificationError(e.to_string())
-                },
-            )?;
-        };
+        let geometry_f64: LineString<f64> = geometry.convert(); // use f64 precision in haversine
+        let length_f64 = Haversine.length(&geometry_f64);
+        let length = uom::si::f64::Length::new::<uom::si::length::meter>(length_f64);
 
         let way = SimplifiedWay {
             simplified_way_id,
             src_osmid,
             dst_osmid,
             geometry,
-            length: length.into_owned(),
+            length,
         };
         Ok(way)
     }

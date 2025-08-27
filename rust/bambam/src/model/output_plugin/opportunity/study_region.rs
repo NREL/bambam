@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Describes what study region bounds the activity dataset, as either
 /// the entire nation, or, as a combination of census geoids.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum StudyRegion {
     National,

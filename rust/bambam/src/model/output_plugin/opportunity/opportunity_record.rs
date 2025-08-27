@@ -7,10 +7,11 @@ use crate::model::{
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::model::{
     state::{StateModel, StateVariable},
-    unit::{Time, TimeUnit},
+    unit::TimeUnit,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use uom::si::f64::Time;
 
 /// properties of accessing some activity type from a grid cell origin location. comes in two flavors:
 ///
@@ -48,19 +49,16 @@ impl OpportunityRecord {
         }
     }
 
-    pub fn get_time(
-        &self,
-        state_model: Arc<StateModel>,
-    ) -> Result<(Time, TimeUnit), OutputPluginError> {
+    pub fn get_time(&self, state_model: Arc<StateModel>) -> Result<Time, OutputPluginError> {
         match self {
             Self::Disaggregate { state, .. } => {
                 // time comes from the trip travel time taken to reach this point
-                let (t, tu) = state_model.get_time(state, fieldname::TRIP_TIME, Some(&TimeUnit::Minutes)).map_err(|e| OutputPluginError::OutputPluginFailed(format!("failure grabbing the trip time in point-based mode intensity model: {e}")))?;
-                Ok((t, *tu))
+                state_model.get_time(state, fieldname::TRIP_TIME)
+                    .map_err(|e| OutputPluginError::OutputPluginFailed(format!("with disaggregate opportunity record, could not find trip time due to: {e}")))
             }
             Self::Aggregate { time_bin, .. } => {
                 // time comes from the isochrone bin
-                Ok((time_bin.max_time(&TimeUnit::Minutes), TimeUnit::Minutes))
+                Ok(time_bin.max_time())
             }
         }
     }

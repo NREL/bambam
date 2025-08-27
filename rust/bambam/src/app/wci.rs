@@ -61,7 +61,7 @@ pub fn wci_calculate(way: WayAttributesForWCI) -> Option<i32> {
         fn sidewalk_score(way: &WayAttributesForWCI) -> i32 {
             match way.sidewalk_exists {
                 Some(value) => {
-                    if value == true {
+                    if value {
                         2
                     } else {
                         -2
@@ -143,12 +143,12 @@ pub fn process_wci(
                     .clone()
                     .highway
                     .as_ref()
-                    .map_or(false, |h| h.contains("stop"));
+                    .is_some_and(|h| h.contains("stop"));
                 let has_traf_sig = src_node
                     .clone()
                     .highway
                     .as_ref()
-                    .map_or(false, |h| h.contains("traffic_signals"));
+                    .is_some_and(|h| h.contains("traffic_signals"));
                 if let Some(centroid) = linestring.centroid() {
                     let centroid_geo: geo::Point<f32> = geo::Point::new(centroid.x(), centroid.y());
                     centroids.push(centroid_geo);

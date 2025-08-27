@@ -17,7 +17,7 @@ impl TraversalModelBuilder for MultimodalTraversalBuilder {
         let config: MultimodalTraversalConfig = serde_json::from_value(parameters.clone())
             .map_err(|e| {
                 TraversalModelError::BuildError(format!(
-                    "failed to read multimodal traversal configuration: {e}"
+                    "failed to read multimodal traversal configuration object, line {}, col {}: {e}", e.line(), e.column()
                 ))
             })?;
         let service = MultimodalTraversalService::new(Arc::new(config));

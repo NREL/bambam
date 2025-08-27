@@ -1,12 +1,20 @@
 use chrono::{DateTime, Utc};
-use routee_compass_core::model::unit::Time;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use uom::{si::f64::Time, ConstZero};
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct ScheduledHeadway {
     departure: DateTime<Utc>,
     duration: Time,
+}
+
+impl Eq for ScheduledHeadway {}
+
+impl PartialEq for ScheduledHeadway {
+    fn eq(&self, other: &Self) -> bool {
+        self.departure == other.departure
+    }
 }
 
 impl PartialOrd for ScheduledHeadway {
@@ -22,10 +30,11 @@ impl Ord for ScheduledHeadway {
 }
 
 impl ScheduledHeadway {
-    pub fn dummy_comparator(t: DateTime<Utc>) -> ScheduledHeadway {
+    /// query an OrderedSkipList<ScheduledHeadway> with a given station arrival time.
+    pub fn query(t: DateTime<Utc>) -> ScheduledHeadway {
         ScheduledHeadway {
             departure: t,
-            duration: Time::ONE,
+            duration: Time::ZERO,
         }
     }
 }

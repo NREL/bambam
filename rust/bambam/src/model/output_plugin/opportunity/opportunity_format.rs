@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 /// Sets how opportunities are tagged to a response row as either aggregate or disaggregate.
-#[derive(Deserialize, Serialize, Clone, Copy)]
+#[derive(Deserialize, Serialize, Clone, Debug, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum OpportunityFormat {
     /// write opportunities as a JSON object with keys as activity types, values

@@ -1,10 +1,13 @@
 use std::borrow::Cow;
+use std::cmp::Ordering;
 
 use crate::model::osm::graph::{OsmNodeId, OsmWayDataSerializable};
 use geo::LineString;
 use itertools::Itertools;
-use routee_compass_core::model::unit::{Convert, Speed, SpeedUnit};
+use routee_compass_core::model::unit::SpeedUnit;
 use serde::{de, Serializer};
+use uom::si::f64::Velocity;
+use uom::si::velocity;
 use wkt::ToWkt;
 
 pub const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
@@ -23,7 +26,7 @@ pub fn deserialize_speed(
     s: &str,
     separator: Option<&str>,
     ignore_invalid_entries: bool,
-) -> Result<Option<(Speed, SpeedUnit)>, String> {
+) -> Result<Option<uom::si::f64::Velocity>, String> {
     let separated_entries = match separator {
         Some(sep) => s.split(sep).collect_vec(),
         None => vec![s],
@@ -41,7 +44,7 @@ pub fn deserialize_speed(
                 ["default"] => Ok(None),
                 ["variable"] => Ok(None),
                 ["national"] => Ok(None),
-                ["25mph"] => Ok(Some((Speed::from(25.0), SpeedUnit::MPH))),
+                ["25mph"] => Ok(Some(Velocity::new::<velocity::mile_per_hour>(25.0))),
 
                 // todo! handle all default speed limits
                 // see https://wiki.openstreetmap.org/wiki/Default_speed_limits
@@ -49,7 +52,9 @@ pub fn deserialize_speed(
                     // Austria + Germany's posted "walking speed". i found a reference that
                     // suggests this is 4-7kph:
                     // https://en.wikivoyage.org/wiki/Driving_in_Germany#Speed_limits
-                    Ok(Some((Speed::from(DEFAULT_WALK_SPEED_KPH), SpeedUnit::KPH)))
+                    Ok(Some(
+                        (Velocity::new::<velocity::kilometer_per_hour>(DEFAULT_WALK_SPEED_KPH)),
+                    ))
                 }
                 [speed_str] => {
                     let speed_result = speed_str
@@ -72,7 +77,7 @@ pub fn deserialize_speed(
                     if speed == 0.0 || speed.is_nan() {
                         Ok(None)
                     } else {
-                        Ok(Some((Speed::from(speed), SpeedUnit::KPH)))
+                        Ok(Some(Velocity::new::<velocity::kilometer_per_hour>(speed)))
                     }
                 }
                 [speed_str, unit_str] => {
@@ -103,7 +108,7 @@ pub fn deserialize_speed(
                             return Ok(None);
                         }
                     };
-                    let result = (Speed::from(speed), speed_unit);
+                    let result = speed_unit.to_uom(speed);
                     Ok(Some(result))
                 }
                 _ => Err(format!("unexpected maxspeed entry '{s}'")),
@@ -117,15 +122,11 @@ pub fn deserialize_speed(
                 .collect::<Result<Vec<_>, _>>()?;
             let min = maxspeeds
                 .into_iter()
-                .min_by_key(|m| match m {
-                    Some((s, su)) => {
-                        let mut s_cow = Cow::Borrowed(s);
-                        match su.convert(&mut s_cow, &SpeedUnit::KPH) {
-                            Ok(()) => s_cow.into_owned(),
-                            Err(_) => Speed::from(999999.9),
-                        }
-                    }
-                    None => Speed::from(999999.9),
+                .min_by(|a, b| match (a, b) {
+                    (None, None) => Ordering::Equal,
+                    (None, Some(_)) => Ordering::Greater,
+                    (Some(_), None) => Ordering::Less,
+                    (Some(a), Some(b)) => a.partial_cmp(b).unwrap_or(Ordering::Greater),
                 })
                 .flatten();
             Ok(min)
@@ -243,9 +244,14 @@ mod tests {
     fn deserialize_speed_1() {
         //   - 45        (45 kph)
         match osm_way_ops::deserialize_speed("45", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 45.0);
-                assert_eq!(speed_unit, SpeedUnit::KPH);
+            Ok(Some(speed)) => {
+                let result = speed.get::<uom::si::velocity::kilometer_per_hour>();
+                let diff_from_expected = 45.0 - result;
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 45.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
@@ -255,9 +261,14 @@ mod tests {
     fn deserialize_speed_2() {
         //   - 45 mph    (72.4203 kph)
         match osm_way_ops::deserialize_speed("45 mph", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 45.0);
-                assert_eq!(speed_unit, SpeedUnit::MPH);
+            Ok(Some(speed)) => {
+                let result = speed.get::<uom::si::velocity::mile_per_hour>();
+                let diff_from_expected = 45.0 - result;
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 45.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
@@ -267,9 +278,14 @@ mod tests {
     fn deserialize_speed_3() {
         //   - walk      (5 kph)
         match osm_way_ops::deserialize_speed("5 kph", None, false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 5.0);
-                assert_eq!(speed_unit, SpeedUnit::KPH);
+            Ok(Some(speed)) => {
+                let result = speed.get::<uom::si::velocity::kilometer_per_hour>();
+                let diff_from_expected = 5.0 - result;
+                assert!(
+                    diff_from_expected < 0.001,
+                    "value {} should be within 0.001 of 5.0",
+                    result
+                );
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),
@@ -280,9 +296,8 @@ mod tests {
     fn deserialize_speed_sep_1() {
         //   - a few speed values, where 3 kph is the minimum
         match super::deserialize_speed("3.1415 kph;3;2 mph", Some(";"), false) {
-            Ok(Some((speed, speed_unit))) => {
-                assert_eq!(speed.as_f64(), 3.0); // using a pessimistic approach, picks the min speed in the group
-                assert_eq!(speed_unit, SpeedUnit::KPH);
+            Ok(Some(speed)) => {
+                assert_eq!(speed.get::<uom::si::velocity::kilometer_per_hour>(), 3.0);
             }
             Ok(None) => panic!("should parse valid speed"),
             Err(e) => panic!("{e}"),

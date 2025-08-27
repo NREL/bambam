@@ -33,24 +33,12 @@ impl WayAttributesForWCI {
         let query_point = geo::Point::new(centroid.x(), centroid.y());
 
         let mut sidewalk = match &geo_data.data.sidewalk {
-            Some(string) => {
-                if string == "no" || string == "none" {
-                    false
-                } else {
-                    true
-                }
-            }
+            Some(string) => !(string == "no" || string == "none"),
             _ => false,
         };
 
         let foot = match &geo_data.data.footway {
-            Some(string) => {
-                if string == "no" || string == "none" {
-                    false
-                } else {
-                    true
-                }
-            }
+            Some(string) => !(string == "no" || string == "none"),
             _ => false,
         };
 
@@ -101,7 +89,7 @@ impl WayAttributesForWCI {
             walk_el = true;
         }
 
-        if walk_el == false {
+        if !walk_el {
             // return immediately
             return None;
         }
@@ -111,7 +99,7 @@ impl WayAttributesForWCI {
             neighbors.push(neighbor);
         }
         let mut no_adj: bool = true;
-        no_adj = (neighbors.len() == 0);
+        no_adj = (neighbors.is_empty());
 
         let cycle = match &geo_data.data.cycleway {
             Some(string) => {
@@ -158,7 +146,7 @@ impl WayAttributesForWCI {
                     let weight = length / total_lengths;
                     result_cycle += (*neighbor_cyclescore as f32) * weight;
                 }
-                if (cyclescores.len() > 0 && total_lengths != 0.0) {
+                if (!cyclescores.is_empty() && total_lengths != 0.0) {
                     ("from_neighbors", result_cycle as i32)
                 } else {
                     ("no_cycleway", -2)
@@ -194,7 +182,7 @@ impl WayAttributesForWCI {
                     let weight = length / total_lengths;
                     result_speed += (*neighbor_speed as f32) * weight;
                 }
-                if speeds.len() > 0 && total_lengths != 0.0 {
+                if !speeds.is_empty() && total_lengths != 0.0 {
                     result_speed as i32
                 } else {
                     0

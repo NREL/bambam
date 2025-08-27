@@ -12,7 +12,7 @@ use crate::{
 use geo::{Convert, Geometry, MultiPolygon};
 use geo_buffer;
 use itertools::Itertools;
-use routee_compass_core::model::unit::{Distance, DistanceUnit};
+use routee_compass_core::model::unit::DistanceUnit;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use wkt::{ToWkt, TryFromWkt};
@@ -28,7 +28,7 @@ pub enum OsmSource {
         ignore_errors: bool,
         simplify: bool,
         consolidate: bool,
-        consolidation_threshold: (Distance, DistanceUnit),
+        consolidation_threshold: uom::si::f64::Length,
         parallelize: bool,
     },
 }

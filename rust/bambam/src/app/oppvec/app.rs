@@ -12,9 +12,9 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use routee_compass_core::{
     model::{
-        map::{MapModelConfig, NearestSearchResult, SpatialIndex},
+        map::{DistanceTolerance, MapModelConfig, NearestSearchResult, SpatialIndex},
         network::Vertex,
-        unit::{Distance, DistanceUnit},
+        unit::DistanceUnit,
     },
     util::fs::read_utils,
 };
@@ -46,7 +46,10 @@ pub fn run(
     .map_err(|e| format!("{e}"))?;
     let spatial_index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
-        Some((Distance::from(200.0), DistanceUnit::Meters)),
+        Some(DistanceTolerance {
+            distance: 200.0,
+            unit: DistanceUnit::Meters,
+        }),
     ));
 
     // load opportunity data, build activity types lookup

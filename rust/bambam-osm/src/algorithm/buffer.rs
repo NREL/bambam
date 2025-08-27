@@ -7,8 +7,8 @@ use geo::{
 };
 use itertools::Itertools;
 use num_traits::FromPrimitive;
+use routee_compass_core::model::unit;
 use routee_compass_core::model::unit::AsF64;
-use routee_compass_core::model::unit::{self, Convert as _};
 
 pub trait Buffer<F: CoordFloat + FromPrimitive> {
     /// buffer a geometry up to some distance. GEOS uses a fancier method to determine
@@ -19,10 +19,7 @@ pub trait Buffer<F: CoordFloat + FromPrimitive> {
     /// for GEOS' approach, see [this page](https://github.com/libgeos/geos/blob/main/src/operation/buffer/OffsetSegmentGenerator.cpp#L78)
     /// where `filletAngleQuantum` is calculated and then used to set the `maxCurveSegmentError`
     /// before building buffer segments.
-    fn buffer(
-        &self,
-        size: (unit::Distance, unit::DistanceUnit),
-    ) -> Result<geo::Geometry<F>, String>;
+    fn buffer(&self, size: uom::si::f64::Length) -> Result<geo::Geometry<F>, String>;
 }
 mod consts {
     // pub const MIN_RES: usize = 6;
@@ -30,19 +27,13 @@ mod consts {
 }
 
 impl Buffer<f32> for Point<f32> {
-    fn buffer(
-        &self,
-        size: (unit::Distance, unit::DistanceUnit),
-    ) -> Result<geo::Geometry<f32>, String> {
+    fn buffer(&self, size: uom::si::f64::Length) -> Result<geo::Geometry<f32>, String> {
         let x = self.x() as f64;
         let y = self.y() as f64;
         let point: Point<f64> = geo::Point(geo::Coord::from((x, y)));
-        let (dist, unit) = size;
-        let mut dist_meters: Cow<unit::Distance> = Cow::Owned(dist);
-        unit.convert(&mut dist_meters, &unit::DistanceUnit::Meters)
-            .map_err(|e| e.to_string())?;
+        let dist_meters = size.get::<uom::si::length::meter>();
         let resolution = consts::MAX_RES;
-        let buffer = create_buffer(&point, dist_meters.as_f64(), resolution);
+        let buffer = create_buffer(&point, dist_meters, resolution);
         let buf32: Polygon<f32> = geo::Polygon::new(
             geo::LineString::from(
                 buffer

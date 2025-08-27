@@ -3,7 +3,7 @@ use crate::model::frontier::time_limit::{TimeLimitConfig, TimeLimitFrontierConfi
 use super::time_limit_frontier_service::TimeLimitFrontierService;
 use routee_compass_core::model::{
     frontier::{FrontierModelBuilder, FrontierModelError, FrontierModelService},
-    unit::{Time, TimeUnit},
+    unit::TimeUnit,
 };
 use std::sync::Arc;
 

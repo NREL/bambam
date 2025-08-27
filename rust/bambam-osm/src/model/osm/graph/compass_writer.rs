@@ -6,7 +6,7 @@ use itertools::Itertools;
 use kdam::tqdm;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
-    unit::{AsF64, Convert, Speed, SpeedUnit},
+    unit::{AsF64, SpeedUnit},
 };
 use wkt::ToWkt;
 
@@ -128,18 +128,12 @@ impl CompassWriter for OsmGraphVectorized {
 
         // construct maxspeed fill value lookup
         let maxspeed_cb = |r: &OsmWayDataSerializable| {
-            let r_opt = r
-                .get_speed("maxspeed", true)
-                .map_err(OsmError::InternalError)?;
-            if let Some((s, su)) = r_opt {
-                let mut s_convert = Cow::Owned(s);
-                su.convert(&mut s_convert, &SpeedUnit::KPH)
-                    .map_err(|e| OsmError::InternalError(e.to_string()))?;
-                let output = s_convert.into_owned().as_f64();
-                Ok(Some(output))
-            } else {
-                Ok(None)
-            }
+            r.get_speed("maxspeed", true)
+                .map_err(OsmError::InternalError)
+                .map(|maxspeed_opt| {
+                    maxspeed_opt
+                        .map(|maxspeed| maxspeed.get::<uom::si::velocity::kilometer_per_hour>())
+                })
         };
         let speed_lookup = FillValueLookup::new(&self.ways, "highway", "maxspeed", maxspeed_cb)?;
 
@@ -161,7 +155,7 @@ impl CompassWriter for OsmGraphVectorized {
                     edge_id,
                     row.src_vertex_id.0,
                     row.dst_vertex_id.0,
-                    row.length_meters as f64,
+                    uom::si::f64::Length::new::<uom::si::length::meter>(row.length_meters),
                 );
                 writer.serialize(edge).map_err(|e| {
                     OsmError::CsvWriteError(String::from(filenames::EDGES_COMPASS), e)
@@ -223,10 +217,12 @@ fn create_writer(
 fn get_fill_value(
     way: &OsmWayDataSerializable,
     maxspeeds_fill_lookup: &FillValueLookup,
-) -> Result<Speed, OsmError> {
+) -> Result<uom::si::f64::Velocity, OsmError> {
     let highway_class = way
         .get_string_at_field("highway")
         .map_err(OsmError::GraphConsolidationError)?;
     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    Ok(Speed::from(avg_speed))
+    Ok(uom::si::f64::Velocity::new::<
+        uom::si::velocity::kilometer_per_hour,
+    >(avg_speed))
 }

@@ -16,6 +16,8 @@ routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
 bambam-overturemaps = { path = "../bambam-overturemaps" }
 
+uom = { workspace = true }
+inventory = { version = "0.3.21" }
 log = "0.4.19"
 itertools = { version = "0.14.0" }
 chrono = { version = "0.4.31", features = ["serde"] }

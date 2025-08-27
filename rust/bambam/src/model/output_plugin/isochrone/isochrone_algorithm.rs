@@ -5,7 +5,7 @@ use geo::MultiPoint;
 use routee_compass::plugin::output::OutputPluginError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
 #[serde(tag = "type")]
 pub enum IsochroneAlgorithm {

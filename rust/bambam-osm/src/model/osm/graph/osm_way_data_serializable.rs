@@ -4,11 +4,11 @@ use crate::model::{
     feature::highway::{self, Highway},
     osm::OsmError,
 };
-use geo::{Coord, Haversine, Length, LineString};
+use geo::{Convert, Coord, Haversine, Length, LineString};
 use itertools::Itertools;
 use routee_compass_core::model::{
     network::{Vertex, VertexId},
-    unit::{Convert, Distance, Grade, Speed, SpeedUnit},
+    unit::SpeedUnit,
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
@@ -50,7 +50,7 @@ pub struct OsmWayDataSerializable {
         deserialize_with = "deserialize_linestring"
     )]
     pub linestring: LineString<f32>,
-    pub length_meters: f32,
+    pub length_meters: f64,
 }
 
 impl OsmWayDataSerializable {
@@ -116,7 +116,10 @@ impl OsmWayDataSerializable {
                 src_node_id, way.osmid, dst_node_id, linestring.to_wkt()
             )));
         }
-        let length_meters = Haversine.length(&linestring);
+
+        // use Haversine in f64 to estimate distance
+        let linestring_f64: LineString<f64> = linestring.convert();
+        let length_meters = Haversine.length(&linestring_f64);
         let highway = top_highway(&way.highway, OsmWayData::VALUE_DELIMITER)?;
 
         let row = Self {
@@ -182,7 +185,7 @@ impl OsmWayDataSerializable {
         &self,
         key: &str,
         ignore_invalid_entries: bool,
-    ) -> Result<Option<(Speed, SpeedUnit)>, String> {
+    ) -> Result<Option<uom::si::f64::Velocity>, String> {
         match self.get_string_at_field(key) {
             Ok(None) => Ok(None),
             Ok(Some(s)) => osm_way_ops::deserialize_speed(
