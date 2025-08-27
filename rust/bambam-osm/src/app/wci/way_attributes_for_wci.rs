@@ -286,5 +286,5 @@ fn walk_eligible(
             }
         }
     }
-    return false;
+    false
 }

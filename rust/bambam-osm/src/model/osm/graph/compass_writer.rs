@@ -35,7 +35,7 @@ mod filenames {
 impl CompassWriter for OsmGraphVectorized {
     fn write_compass(&self, output_directory: &Path, overwrite: bool) -> Result<(), OsmError> {
         if !output_directory.is_dir() {
-            if let Err(_) = std::fs::create_dir(output_directory) {
+            if std::fs::create_dir(output_directory).is_err() {
                 let dirname = output_directory.as_os_str().to_string_lossy();
                 return Err(OsmError::InternalError(format!(
                     "unable to create directory {}",
