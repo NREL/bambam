@@ -16,8 +16,9 @@ use uom::si::f64::Time;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 // #[serde(untagged, rename_all = "snake_case")]
 pub struct FeatureDependency {
-    pub input_name: String,
+    /// state variable that is read from to produce destination features
     pub input_feature: InputFeature,
+    /// the list of fields to write to with the given state variable configuration
     pub destination_features: Vec<(String, StateVariableConfig)>,
 }
 // pub enum FeatureDependency {
@@ -60,7 +61,6 @@ impl FeatureDependency {
             Ok((k.clone(), v.clone()))
         }).collect::<Result<Vec<_>, TraversalModelError>>()?;
         Ok(Self {
-            input_name: conf.input_name.clone(),
             input_feature: conf.input_feature.clone(),
             destination_features,
         })
@@ -79,7 +79,7 @@ impl FeatureDependency {
             match (&self.input_feature, out_feature) {
                 (InputFeature::Speed { unit, .. }, StateVariableConfig::Time { accumulator, .. }) => {
                     let distance = state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
-                    let speed = state_model.get_speed(state, &self.input_name)?;
+                    let speed = state_model.get_speed(state, &self.input_feature.name())?;
                     let time: Time = distance / speed;
                     if *accumulator {
                         state_model.add_time(state, out_name, &time)?;
@@ -88,7 +88,7 @@ impl FeatureDependency {
                     }
                 }
                 (InputFeature::Time { .. }, StateVariableConfig::Time { accumulator, .. }) => {
-                    let time = state_model.get_time(state, &self.input_name)?;
+                    let time = state_model.get_time(state, &self.input_feature.name())?;
                     if *accumulator {
                         state_model.add_time(state, out_name, &time)?;
                     } else {
@@ -98,19 +98,19 @@ impl FeatureDependency {
                 (InputFeature::Custom { .. }, StateVariableConfig::Custom { value, .. }) => {
                     match value {
                         CustomVariableConfig::FloatingPoint { .. } => {
-                            let value = state_model.get_custom_f64(state, &self.input_name)?;
+                            let value = state_model.get_custom_f64(state, &self.input_feature.name())?;
                             state_model.set_custom_f64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::SignedInteger { .. } => {
-                            let value = state_model.get_custom_i64(state, &self.input_name)?;
+                            let value = state_model.get_custom_i64(state, &self.input_feature.name())?;
                             state_model.set_custom_i64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::UnsignedInteger { .. } => {
-                            let value = state_model.get_custom_u64(state, &self.input_name)?;
+                            let value = state_model.get_custom_u64(state, &self.input_feature.name())?;
                             state_model.set_custom_u64(state, out_name, &value)?;
                         }
                         CustomVariableConfig::Boolean { .. } => {
-                            let value = state_model.get_custom_bool(state, &self.input_name)?;
+                            let value = state_model.get_custom_bool(state, &self.input_feature.name())?;
                             state_model.set_custom_bool(state, out_name, &value)?;
                         }
                     }
@@ -118,7 +118,7 @@ impl FeatureDependency {
                 _ => {
                     return Err(StateModelError::RuntimeError(format!(
                         "invalid FeatureDependency mapping from '{}'->'{}' not supported",
-                        self.input_name, out_name
+                        self.input_feature.name(), out_name
                     )))
                 }
             }
