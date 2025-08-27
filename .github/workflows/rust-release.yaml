@@ -18,8 +18,18 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Run tests
-        run: cargo test --all --manifest-path=rust/Cargo.toml
+      - name: Formatting
+        run: |
+          rustup component add rustfmt
+          cargo fmt --all --manifest-path rust/Cargo.toml -- --check
+          
+      - name: Install test assets
+        run: |
+          ./setup.sh
+
+      - name: Test
+        run: |
+          cargo test --workspace --verbose --manifest-path rust/Cargo.toml
 
       - name: Publish bambam-osm
         run: cargo publish -p bambam-osm --manifest-path=rust/Cargo.toml --token "${{ secrets.CRATES_IO_TOKEN }}"
