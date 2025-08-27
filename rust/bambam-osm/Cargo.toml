@@ -2,9 +2,23 @@
 name = "bambam-osm"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
+exclude = ["test", "**/.DS_Store", "target/"]
 readme = "README.md"
-description = "OpenStreetMaps integration for BAMBAM"
-documentation = "pages.github.nrel.gov/BAM/bambam-osm"
+repository = "https://github.com/NREL/bambam-osm"
+documentation = "https://docs.rs/bambam-osm"
+description = "OpenStreetMaps support for The Behavior and Advanced Mobility Big Access Model"
+keywords = [
+    "nrel",
+    "access-model",
+    "accessibility",
+    "routing",
+    "reachability",
+    "transit",
+    "multimodal",
+    "routee",
+]
+categories = ["command-line-utilities", "science", "science::geo"]
 
 [dependencies]
 bamcensus-core = { workspace = true }

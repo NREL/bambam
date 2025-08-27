@@ -2,9 +2,23 @@
 name = "bambam"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
+exclude = ["test", "**/.DS_Store", "target/"]
 readme = "README.md"
+repository = "https://github.com/NREL/bambam"
+documentation = "https://docs.rs/bambam"
 description = "The Behavior and Advanced Mobility Big Access Model"
-documentation = "pages.github.nrel.gov/BAM/bambam"
+keywords = [
+    "nrel",
+    "access-model",
+    "accessibility",
+    "routing",
+    "reachability",
+    "transit",
+    "multimodal",
+    "routee",
+]
+categories = ["command-line-utilities", "science", "science::geo"]
 
 [dependencies]
 bamcensus-core = { workspace = true }
@@ -14,7 +28,8 @@ bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
-bambam-overturemaps = { path = "../bambam-overturemaps" }
+bambam-osm = { version = "0.1.0", path = "../bambam-osm" }
+bambam-omf = { version = "0.1.0", path = "../bambam-omf" }
 
 uom = { workspace = true }
 inventory = { version = "0.3.21" }
@@ -52,4 +67,4 @@ gtfs-structures = "0.43.0"
 
 rayon = "1.10.0"
 tokio = "1.44.2"
-bambam-osm = { version = "0.1.0", path = "../bambam-osm" }
+

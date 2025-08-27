@@ -2,9 +2,23 @@
 name = "bambam-gtfs"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
+exclude = ["test", "**/.DS_Store", "target/"]
 readme = "README.md"
+repository = "https://github.com/NREL/bambam-gtfs"
+documentation = "https://docs.rs/bambam-gtfs"
 description = "GTFS Command Line Utilities for The Behavior and Advanced Mobility Big Access Model"
-documentation = "pages.github.nrel.gov/BAM/bambam-gtfs"
+keywords = [
+    "nrel",
+    "access-model",
+    "accessibility",
+    "routing",
+    "reachability",
+    "transit",
+    "multimodal",
+    "routee",
+]
+categories = ["command-line-utilities", "science", "science::geo"]
 
 [dependencies]
 

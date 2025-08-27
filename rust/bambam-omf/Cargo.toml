@@ -1,8 +1,24 @@
 [package]
-name = "bambam-overturemaps"
+name = "bambam-omf"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
+exclude = ["test", "**/.DS_Store", "target/"]
 readme = "README.md"
+repository = "https://github.com/NREL/bambam-omf"
+documentation = "https://docs.rs/bambam-omf"
+description = "OvertureMaps Foundation support for The Behavior and Advanced Mobility Big Access Model"
+keywords = [
+    "nrel",
+    "access-model",
+    "accessibility",
+    "routing",
+    "reachability",
+    "transit",
+    "multimodal",
+    "routee",
+]
+categories = ["command-line-utilities", "science", "science::geo"]
 
 [dependencies]
 bamcensus-core = { workspace = true }

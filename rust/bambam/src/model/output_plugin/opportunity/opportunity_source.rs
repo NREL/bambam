@@ -3,7 +3,7 @@ use super::{
     source::overture_opportunity_collection_model::OvertureOpportunityCollectionModel,
     study_region::StudyRegion,
 };
-use bambam_overturemaps::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
+use bambam_omf::collection::{Bbox, OvertureMapsCollectorConfig, ReleaseVersion};
 use bamcensus::app::lodes_tiger;
 use bamcensus_core::model::identifier::GeoidType;
 use bamcensus_lehd::model::{
