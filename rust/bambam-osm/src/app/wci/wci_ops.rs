@@ -34,7 +34,8 @@ pub fn process_wci(
     output_file: &str,
 ) -> Result<(), Box<dyn Error>> {
     let nodes_bar = BarBuilder::default().desc("WCI: read vertices file");
-    let nodes: Box<[OsmNodeDataSerializable]> = read_utils::from_csv(&vertices_file, true, Some(nodes_bar), None)?;
+    let nodes: Box<[OsmNodeDataSerializable]> =
+        read_utils::from_csv(&vertices_file, true, Some(nodes_bar), None)?;
     let mut edges_reader = csv::Reader::from_path(edges_file)?;
 
     let mut centroids = vec![];
@@ -79,7 +80,12 @@ pub fn process_wci(
 
     let rtree = RTree::bulk_load(rtree_data.clone());
 
-    let bar: Arc<Mutex<Bar>> = Arc::new(Mutex::new(BarBuilder::default().desc("WCI").total(centroids.len()).build()?));
+    let bar: Arc<Mutex<Bar>> = Arc::new(Mutex::new(
+        BarBuilder::default()
+            .desc("WCI")
+            .total(centroids.len())
+            .build()?,
+    ));
     let wci_vec: Vec<i32> = centroids
         .into_par_iter()
         .enumerate()
