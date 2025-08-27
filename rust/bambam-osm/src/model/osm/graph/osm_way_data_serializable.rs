@@ -354,17 +354,17 @@ fn top_highway(
     }
 }
 
-fn extract_between_nodes<'a>(
-    src: &'a OsmNodeId,
-    dst: &'a OsmNodeId,
-    nodes: &'a [OsmNodeId],
-) -> Option<&'a [OsmNodeId]> {
-    let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
-    let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'
+// fn extract_between_nodes<'a>(
+//     src: &'a OsmNodeId,
+//     dst: &'a OsmNodeId,
+//     nodes: &'a [OsmNodeId],
+// ) -> Option<&'a [OsmNodeId]> {
+//     let start = nodes.iter().position(|x| x == src)?; // Using ? for early return
+//     let end = nodes[start..].iter().position(|x| x == dst)?; // Search after 'a'
 
-    if start <= start + end {
-        Some(&nodes[start..=start + end])
-    } else {
-        None
-    }
-}
+//     if start <= start + end {
+//         Some(&nodes[start..=start + end])
+//     } else {
+//         None
+//     }
+// }

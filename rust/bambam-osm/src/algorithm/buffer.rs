@@ -1,11 +1,9 @@
-use geo::line_measures::LengthMeasurable;
 use geo::{
-    line_string, Centroid, Convert, Coord, CoordFloat, Destination, Distance, GeoFloat, Geometry,
-    Haversine, KNearestConcaveHull, Length, LineString, Point, Polygon, Scale, TryConvert,
+    line_string, Centroid, Coord, CoordFloat, Destination, GeoFloat, Geometry,
+    Haversine, KNearestConcaveHull, Length, LineString, Point, Polygon, Scale,
 };
 use itertools::Itertools;
 use num_traits::FromPrimitive;
-use routee_compass_core::model::unit::AsF64;
 
 pub trait Buffer<F: CoordFloat + FromPrimitive> {
     /// buffer a geometry up to some distance. GEOS uses a fancier method to determine

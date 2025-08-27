@@ -4,7 +4,7 @@ use crate::model::osm::graph::AdjacencyDirection;
 use crate::model::osm::graph::OsmNodeData;
 use crate::model::osm::graph::OsmWayData;
 use crate::model::osm::graph::OsmWayId;
-use crate::model::osm::graph::{fill_value_lookup::FillValueLookup, OsmGraph, OsmNodeId};
+use crate::model::osm::graph::{OsmGraph, OsmNodeId};
 use crate::model::osm::OsmError;
 use clustering::ClusteredIntersections;
 use geo::Polygon;
@@ -33,7 +33,6 @@ use std::sync::Mutex;
 pub fn consolidate_graph(
     graph: &mut OsmGraph,
     tolerance: uom::si::f64::Length,
-    ignore_osm_parsing_errors: bool,
 ) -> Result<(), OsmError> {
     // STEP 1
     // buffer nodes to passed-in distance and merge overlaps. turn merged nodes
@@ -163,17 +162,17 @@ pub fn buffer_nodes(
     result
 }
 
-fn get_fill_value(
-    way: &OsmWayData,
-    maxspeeds_fill_lookup: &FillValueLookup,
-) -> Result<uom::si::f64::Velocity, OsmError> {
-    let highway_class = way
-        .get_string_at_field("highway")
-        .map_err(OsmError::GraphConsolidationError)?;
-    let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
-    let result = uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed);
-    Ok(result)
-}
+// fn get_fill_value(
+//     way: &OsmWayData,
+//     maxspeeds_fill_lookup: &FillValueLookup,
+// ) -> Result<uom::si::f64::Velocity, OsmError> {
+//     let highway_class = way
+//         .get_string_at_field("highway")
+//         .map_err(OsmError::GraphConsolidationError)?;
+//     let avg_speed = maxspeeds_fill_lookup.get(&highway_class);
+//     let result = uom::si::f64::Velocity::new::<uom::si::velocity::kilometer_per_hour>(avg_speed);
+//     Ok(result)
+// }
 
 /// with knowledge of which geometry indices contain spatially-similar nodes,
 /// constructs new merged node data for the connected sub-clusters, assigning

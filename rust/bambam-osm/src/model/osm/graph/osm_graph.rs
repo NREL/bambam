@@ -274,7 +274,7 @@ impl OsmGraph {
         let iter = tqdm!(
             self.adj
                 .iter()
-                .filter_map(|((src, dir), adjacencies)| match dir {
+                .filter_map(|((src, dir), _)| match dir {
                     Dir::Reverse => None,
                     Dir::Forward => Some(src),
                 }),
@@ -345,7 +345,7 @@ impl OsmGraph {
         let iter = tqdm!(
             self.adj
                 .iter()
-                .flat_map(|((src, dir), adjacencies)| match dir {
+                .flat_map(|((src, dir), _)| match dir {
                     Dir::Reverse => None,
                     Dir::Forward => match self.nodes.get(src) {
                         None => Some(Err(OsmError::InternalError(format!(
@@ -640,12 +640,12 @@ impl OsmGraph {
         Ok(())
     }
 
-    /// creates an entry for each direction in the adjacency list for this node id
-    fn intialize_adjacency(&mut self, node_id: &OsmNodeId) -> Result<(), OsmError> {
-        init_adjacency(&mut self.adj, node_id, Dir::Forward)?;
-        init_adjacency(&mut self.adj, node_id, Dir::Reverse)?;
-        Ok(())
-    }
+    // /// creates an entry for each direction in the adjacency list for this node id
+    // fn intialize_adjacency(&mut self, node_id: &OsmNodeId) -> Result<(), OsmError> {
+    //     init_adjacency(&mut self.adj, node_id, Dir::Forward)?;
+    //     init_adjacency(&mut self.adj, node_id, Dir::Reverse)?;
+    //     Ok(())
+    // }
 
     /// removes a node from the adjacency list
     fn remove_adjacency_list_entry(
@@ -675,15 +675,15 @@ impl OsmGraph {
     }
 }
 
-/// puts a hashmap in the adjacency list for some node id and direction
-fn init_adjacency(adj: &mut AdjacencyList3, node_id: &OsmNodeId, dir: Dir) -> Result<(), OsmError> {
-    match adj.insert((*node_id, dir), HashSet::new()) {
-        Some(_) => Err(OsmError::InvalidOsmData(format!(
-            "attempting to insert node {node_id} already present in {dir} adjacencies"
-        ))),
-        None => Ok(()),
-    }
-}
+// /// puts a hashmap in the adjacency list for some node id and direction
+// fn init_adjacency(adj: &mut AdjacencyList3, node_id: &OsmNodeId, dir: Dir) -> Result<(), OsmError> {
+//     match adj.insert((*node_id, dir), HashSet::new()) {
+//         Some(_) => Err(OsmError::InvalidOsmData(format!(
+//             "attempting to insert node {node_id} already present in {dir} adjacencies"
+//         ))),
+//         None => Ok(()),
+//     }
+// }
 
 fn remove_adjacency_list_entry(
     adj: &mut AdjacencyList3,
@@ -790,107 +790,107 @@ fn remove_way_from_adjacency(
     Ok(())
 }
 
-/// helper to update the graph edges incident to a new consolidated node.
-///
-/// # Arguments
-/// * `new_node_id` - id replacing the src/dst node id for this way
-/// * `node_ids`    - ids that are being consolidated
-/// * `graph`       - graph to modify
-/// * `dir`         - direction in adjacency list to find the ways to modify
-fn update_incident_way_data(
-    new_node_id: OsmNodeId,
-    node_ids: &[OsmNodeId],
-    graph: &mut OsmGraph,
-    dir: Dir,
-) -> Result<(), OsmError> {
-    // find the ways that will be impacted by consolidation
-    let remove_nodes: HashSet<&OsmNodeId> = node_ids.iter().collect();
-    let updated = node_ids
-        .iter()
-        .map(|src| {
-            let adj = graph.get_neighbors(src, dir).unwrap_or_default();
-            let updated_ways = adj
-                .iter()
-                .map(|dst| {
-                    let ways = graph.get_ways_from_od(src, dst)?;
-                    let ways_updated = ways
-                        .iter()
-                        .enumerate()
-                        .map(|(index, way)| {
-                            let mut updated = way.clone();
-                            updated.nodes.retain(|n| !remove_nodes.contains(n));
+// /// helper to update the graph edges incident to a new consolidated node.
+// ///
+// /// # Arguments
+// /// * `new_node_id` - id replacing the src/dst node id for this way
+// /// * `node_ids`    - ids that are being consolidated
+// /// * `graph`       - graph to modify
+// /// * `dir`         - direction in adjacency list to find the ways to modify
+// fn update_incident_way_data(
+//     new_node_id: OsmNodeId,
+//     node_ids: &[OsmNodeId],
+//     graph: &mut OsmGraph,
+//     dir: Dir,
+// ) -> Result<(), OsmError> {
+//     // find the ways that will be impacted by consolidation
+//     let remove_nodes: HashSet<&OsmNodeId> = node_ids.iter().collect();
+//     let updated = node_ids
+//         .iter()
+//         .map(|src| {
+//             let adj = graph.get_neighbors(src, dir).unwrap_or_default();
+//             let updated_ways = adj
+//                 .iter()
+//                 .map(|dst| {
+//                     let ways = graph.get_ways_from_od(src, dst)?;
+//                     let ways_updated = ways
+//                         .iter()
+//                         .enumerate()
+//                         .map(|(index, way)| {
+//                             let mut updated = way.clone();
+//                             updated.nodes.retain(|n| !remove_nodes.contains(n));
 
-                            // insert the new node in the correct position along this way
-                            match dir {
-                                Dir::Forward => updated.nodes.insert(0, new_node_id),
-                                Dir::Reverse => updated.nodes.push(new_node_id),
-                            }
-                            (*src, *dst, index, updated)
-                        })
-                        .collect_vec();
-                    Ok(ways_updated)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(updated_ways)
-        })
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .flatten()
-        .collect_vec();
+//                             // insert the new node in the correct position along this way
+//                             match dir {
+//                                 Dir::Forward => updated.nodes.insert(0, new_node_id),
+//                                 Dir::Reverse => updated.nodes.push(new_node_id),
+//                             }
+//                             (*src, *dst, index, updated)
+//                         })
+//                         .collect_vec();
+//                     Ok(ways_updated)
+//                 })
+//                 .collect::<Result<Vec<_>, _>>()?;
+//             Ok(updated_ways)
+//         })
+//         .collect::<Result<Vec<_>, _>>()?
+//         .into_iter()
+//         .flatten()
+//         .collect_vec();
 
-    for ways in updated.into_iter() {
-        for (src, dst, index, way) in ways.into_iter() {
-            graph.update_way(&src, &dst, index, way)?;
-        }
-    }
+//     for ways in updated.into_iter() {
+//         for (src, dst, index, way) in ways.into_iter() {
+//             graph.update_way(&src, &dst, index, way)?;
+//         }
+//     }
 
-    // for node_id in node_ids.iter() {
-    //     for way in graph.get_adjacencies(node_id, dir)?.values() {
-    //         if way.nodes.is_empty() {
-    //             return Err(OsmError::InternalError(format!(
-    //                 "way {} has empty node list",
-    //                 way.osmid
-    //             )));
-    //         }
+//     // for node_id in node_ids.iter() {
+//     //     for way in graph.get_adjacencies(node_id, dir)?.values() {
+//     //         if way.nodes.is_empty() {
+//     //             return Err(OsmError::InternalError(format!(
+//     //                 "way {} has empty node list",
+//     //                 way.osmid
+//     //             )));
+//     //         }
 
-    //         // remove consolidated nodes from the Way nodelist, they are becoming a single point
-    //         way.nodes.retain(|n| !remove_nodes.contains(n));
+//     //         // remove consolidated nodes from the Way nodelist, they are becoming a single point
+//     //         way.nodes.retain(|n| !remove_nodes.contains(n));
 
-    //         // insert the new node in the correct position along this way
-    //         match dir {
-    //             Dir::Forward => way.nodes.insert(0, new_node_id),
-    //             Dir::Reverse => way.nodes.push(new_node_id),
-    //         }
-    //     }
-    // }
+//     //         // insert the new node in the correct position along this way
+//     //         match dir {
+//     //             Dir::Forward => way.nodes.insert(0, new_node_id),
+//     //             Dir::Reverse => way.nodes.push(new_node_id),
+//     //         }
+//     //     }
+//     // }
 
-    // for way_id in updated_way_ids.iter() {
-    //     if way.nodes.is_empty() {
-    //         return Err(OsmError::InternalError(format!(
-    //             "way {} has empty node list",
-    //             way_id
-    //         )));
-    //     }
+//     // for way_id in updated_way_ids.iter() {
+//     //     if way.nodes.is_empty() {
+//     //         return Err(OsmError::InternalError(format!(
+//     //             "way {} has empty node list",
+//     //             way_id
+//     //         )));
+//     //     }
 
-    //     // remove consolidated nodes from the Way nodelist, they are becoming a single point
-    //     way.nodes.retain(|n| !remove_nodes.contains(n));
+//     //     // remove consolidated nodes from the Way nodelist, they are becoming a single point
+//     //     way.nodes.retain(|n| !remove_nodes.contains(n));
 
-    //     // insert the new node in the correct position along this way
-    //     match dir {
-    //         Dir::Forward => way.nodes.insert(0, new_node_id),
-    //         Dir::Reverse => way.nodes.push(new_node_id),
-    //     }
-    // }
-    Ok(())
-}
+//     //     // insert the new node in the correct position along this way
+//     //     match dir {
+//     //         Dir::Forward => way.nodes.insert(0, new_node_id),
+//     //         Dir::Reverse => way.nodes.push(new_node_id),
+//     //     }
+//     // }
+//     Ok(())
+// }
 
-#[cfg(test)]
-mod tests {
-    use super::OsmGraph;
-    use crate::model::osm::graph::{
-        osm_node_data::OsmNodeData, osm_way_data::OsmWayData, AdjacencyDirection, OsmNodeId,
-        OsmWayId,
-    };
+// #[cfg(test)]
+// mod tests {
+    // use super::OsmGraph;
+    // use crate::model::osm::graph::{
+    //     osm_node_data::OsmNodeData, osm_way_data::OsmWayData, AdjacencyDirection, OsmNodeId,
+    //     OsmWayId,
+    // };
 
     // #[test]
     // fn test_add_and_remove() {
@@ -968,4 +968,4 @@ mod tests {
     //         "node should be removed from adjacencies"
     //     );
     // }
-}
+// }

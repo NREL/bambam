@@ -214,7 +214,6 @@ mod tests {
     use std::path::Path;
 
     use crate::model::osm::graph::{osm_way_ops, OsmNodeId};
-    use routee_compass_core::model::unit::{AsF64, SpeedUnit};
 
     #[test]
     fn test_extract() {
@@ -228,7 +227,6 @@ mod tests {
         ];
         let result = osm_way_ops::extract_between_nodes(&OsmNodeId(2), &OsmNodeId(4), &nodes);
         println!("{result:?}");
-        let expected = [&OsmNodeId(2), &OsmNodeId(3), &OsmNodeId(4)];
         match result {
             Some([a, b, c]) => {
                 assert_eq!(a, &nodes[1]);
@@ -319,18 +317,15 @@ mod tests {
     #[test]
     fn deserialize_csv_linestring_no_quotes() {
         let wkt = "LINESTRING (0 0, 1 1)";
-        let expected = geo::line_string![
-            geo::coord! { x: 0.0f32, y: 0.0f32},
-            geo::coord! { x: 1.0f32, y: 1.0f32},
-        ];
         match super::csv_string_to_linestring(wkt) {
-            Ok(result) => {}
+            Ok(_) => {}
             Err(e) => panic!("{e}"),
         }
     }
 
     #[test]
     fn linestring_from_csv_01() {
+        #[allow(unused)]
         #[derive(serde::Deserialize, Debug)]
         struct Row {
             index: usize,

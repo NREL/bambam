@@ -67,9 +67,9 @@ fn custom_overpass_queries_filter(element: &Element, queries: &[FilterQuery]) ->
 /// * true if we accept this Element, false if it does not pass a filter criteria
 fn osmnx_all_public_filter(e: &Element) -> bool {
     match e {
-        Element::Node(node) => return true,
-        Element::DenseNode(dense_node) => return true,
-        Element::Relation(relation) => return false,
+        Element::Node(_) => return true,
+        Element::DenseNode(_) => return true,
+        Element::Relation(_) => return false,
         _ => {}
     }
     // ["highway"]

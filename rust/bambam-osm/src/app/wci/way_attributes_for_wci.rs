@@ -43,49 +43,7 @@ impl WayAttributesForWCI {
             sidewalk = true;
         }
 
-        // walk_el determines if the road is eligible for walking comfort index calculation
-        // walk eligible if one is true: has sidewalk, has footway, has correct highway type, or adjacent sidewalk
-        let mut walk_el: bool = false;
-        let this_highway: Highway = geo_data.data.highway.clone();
-
-        if sidewalk {
-            walk_el = true;
-        } else if foot {
-            walk_el = true;
-        } else if matches!(
-            this_highway,
-            Highway::Residential
-                | Highway::Unclassified
-                | Highway::LivingStreet
-                | Highway::Service
-                | Highway::Pedestrian
-                | Highway::Trailhead
-                | Highway::Track
-                | Highway::Footway
-                | Highway::Bridleway
-                | Highway::Steps
-                | Highway::Corridor
-                | Highway::Path
-                | Highway::Elevator
-        ) {
-            walk_el = true;
-        } else {
-            // check for adjacent sidewalks
-            for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
-                if let Some(ref sidewalk) = neighbor.data.sidewalk {
-                    if sidewalk != "no" && sidewalk != "none" {
-                        walk_el = true;
-                        break;
-                    }
-                } // could also be neighboring footway=sidewalk
-                if neighbor.data.footway == Some("sidewalk".to_string()) {
-                    walk_el = true;
-                    break;
-                }
-            }
-            walk_el = true;
-        }
-
+        let walk_el = walk_eligible(rtree, geo_data, query_pointf32, sidewalk, foot);
         if !walk_el {
             // return immediately
             return None;
@@ -95,8 +53,7 @@ impl WayAttributesForWCI {
         for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
             neighbors.push(neighbor);
         }
-        let mut no_adj: bool = true;
-        no_adj = neighbors.is_empty();
+        let no_adj = neighbors.is_empty();
 
         let cycle = match &geo_data.data.cycleway {
             Some(string) => {
@@ -110,27 +67,26 @@ impl WayAttributesForWCI {
             }
             _ => {
                 // neighbor weighting
-                let weighted_cycle = 0;
+                // let weighted_cycle = 0;
                 let mut total_lengths: f32 = 0.0;
                 let mut cyclescores = vec![];
                 for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
-                    let mut neighbor_cycle_score = 0;
                     let origin = neighbor.geo.centroid();
                     if let Some(origin) = origin {
                         let int_length = Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
                         if let Some(ref cycleway) = neighbor.data.cycleway {
-                            if cycleway == "lane" || cycleway == "designated" || cycleway == "track"
+                            let neighbor_cycle_score = if cycleway == "lane" || cycleway == "designated" || cycleway == "track"
                             {
-                                neighbor_cycle_score = 2;
+                                2
                             } else if cycleway == "crossing"
                                 || cycleway == "shared"
                                 || cycleway == "shared_lane"
                             {
-                                neighbor_cycle_score = 0;
+                                0
                             } else {
-                                neighbor_cycle_score = -2;
-                            }
+                                -2
+                            };
                             cyclescores.push((neighbor_cycle_score, int_length));
                         }
                     } else {
@@ -281,4 +237,52 @@ impl WayAttributesForWCI {
             Some(final_score)
         }
     }
+}
+
+/// determines if the road is eligible for walking comfort index calculation
+/// if one is true: has sidewalk, has footway, has correct highway type, or adjacent sidewalk
+fn walk_eligible(
+    rtree: &RTree<WayGeometryData>,
+    geo_data: &WayGeometryData,
+    query_pointf32: [f32; 2],
+    sidewalk: bool,
+    foot: bool
+) -> bool {
+    let this_highway: Highway = geo_data.data.highway.clone();
+
+    if sidewalk {
+        return true;
+    } else if foot {
+        return true;
+    } else if matches!(
+        this_highway,
+        Highway::Residential
+            | Highway::Unclassified
+            | Highway::LivingStreet
+            | Highway::Service
+            | Highway::Pedestrian
+            | Highway::Trailhead
+            | Highway::Track
+            | Highway::Footway
+            | Highway::Bridleway
+            | Highway::Steps
+            | Highway::Corridor
+            | Highway::Path
+            | Highway::Elevator
+    ) {
+        return true;
+    } else {
+        // check for adjacent sidewalks
+        for neighbor in rtree.locate_within_distance(query_pointf32, 0.0001378) {
+            if let Some(ref sidewalk) = neighbor.data.sidewalk {
+                if sidewalk != "no" && sidewalk != "none" {
+                    return true;
+                }
+            } // could also be neighboring footway=sidewalk
+            if neighbor.data.footway == Some("sidewalk".to_string()) {
+                return true;
+            }
+        }
+    }
+    return false;
 }

@@ -2,9 +2,7 @@ use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashSet},
 };
-
 use crate::model::osm::graph::OsmNodeId;
-use itertools::Itertools;
 use kdam::tqdm;
 use serde::{Deserialize, Serialize};
 

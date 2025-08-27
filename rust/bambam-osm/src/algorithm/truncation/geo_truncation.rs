@@ -56,7 +56,6 @@ fn truncate_graph_by_edge(
     extent: &Geometry<f32>,
     fail_if_missing: bool,
 ) -> Result<usize, OsmError> {
-    let shared_extent = Arc::new(extent);
     let remove_segments = {
         let shared_graph = Arc::new(&graph);
         shared_graph
@@ -71,7 +70,6 @@ fn truncate_graph_by_edge(
                 triplets
                     .iter()
                     .find(|(src_node, _, dst_node)| {
-                        let inner_graph = shared_graph.clone();
                         let inner_extent = extent.clone();
 
                         let src_in_extent = inner_extent.contains(&src_node.get_point());
@@ -98,7 +96,6 @@ fn truncate_graph_by_node(
     extent: &Geometry<f32>,
     fail_if_missing: bool,
 ) -> Result<usize, OsmError> {
-    let shared_extent = Arc::new(extent);
     let remove_nodes = {
         let shared_graph = Arc::new(&graph);
         let outer = shared_graph.clone();
@@ -107,7 +104,6 @@ fn truncate_graph_by_node(
             .par_bridge()
             .map(|result| {
                 let node = result?;
-                let inner_graph = shared_graph.clone();
                 let inner_extent = extent.clone();
                 let point = node.get_point();
                 if inner_extent.contains(&point) {

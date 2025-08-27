@@ -128,7 +128,7 @@ impl OsmSource {
                 if *consolidate {
                     eprintln!();
                     log::info!("  (((6))) consolidating graph nodes");
-                    consolidation::consolidate_graph(&mut graph, *consolidation_threshold, false)?;
+                    consolidation::consolidate_graph(&mut graph, *consolidation_threshold)?;
                 } else {
                     eprintln!();
                     log::info!("  (((6))) consolidating graph nodes (skipped)");
@@ -173,8 +173,7 @@ fn deserialize_validate_extent_str(wkt_str: &str) -> Result<Geometry<f32>, OsmEr
 
 #[cfg(test)]
 mod test {
-    use geo::{Geometry, LineString, Polygon};
-
+    use geo::{LineString, Polygon};
     use crate::model::osm::{osm_source::deserialize_validate_extent_str, OsmError};
 
     #[test]
@@ -183,10 +182,10 @@ mod test {
         let poly_str = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))";
         let exterior_coords: Vec<(f32, f32)> = vec![(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
         let polygon = Polygon::new(LineString::from(exterior_coords), vec![]);
-        assert!(matches!(
-            deserialize_validate_extent_str(poly_str),
-            Ok::<Geometry::<f32>, OsmError>(polygon)
-        ));
+        match deserialize_validate_extent_str(poly_str) {
+            Ok(p) => assert_eq!(p, geo::Geometry::Polygon(polygon)),
+            Err(e) => panic!("failed due to: {}", e),
+        }
     }
 
     #[test]

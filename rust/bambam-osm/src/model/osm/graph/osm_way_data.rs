@@ -36,7 +36,6 @@ pub struct OsmWayData {
 }
 
 impl OsmWayData {
-    const DEFAULT_WALK_SPEED_KPH: f64 = 5.0;
     pub const VALUE_DELIMITER: &'static str = "#";
 
     pub fn new(way: &osmpbf::elements::Way) -> OsmWayData {
@@ -170,7 +169,7 @@ impl OsmWayData {
         match &self.highway {
             Some(h) => {
                 let highway = Highway::from_str(h).map_err(|e| {
-                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {h}"))
+                    OsmError::InvalidOsmData(format!("unable to deserialize Highway tag {h}: {e}"))
                 })?;
                 Ok(Some(highway))
             }

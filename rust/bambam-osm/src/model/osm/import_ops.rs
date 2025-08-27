@@ -14,11 +14,10 @@ use crate::{
         },
     },
 };
-use geo::{Contains, Geometry, Intersects};
+use geo::{Geometry, Intersects};
 use itertools::Itertools;
 use kdam::{term, tqdm, Bar, BarExt};
 use osmpbf::{Element, ElementReader};
-use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -85,7 +84,7 @@ pub fn read_pbf(
         .for_each(|e| {
             let valid_element = filter.accept(&e);
             match e {
-                Element::Node(node) if !valid_element => {
+                Element::Node(_) if !valid_element => {
                     // Skip invalid nodes
                 }
                 Element::Node(node) => {
@@ -109,7 +108,7 @@ pub fn read_pbf(
                         }
                     }
                 }
-                Element::DenseNode(dense) if !valid_element => {
+                Element::DenseNode(_) if !valid_element => {
                     // Skip invalid dense nodes
                 }
                 Element::DenseNode(dense) => {
@@ -127,7 +126,7 @@ pub fn read_pbf(
                         nodes_map.insert(n.osmid, n);
                     }
                 }
-                Element::Way(way) if !valid_element => {
+                Element::Way(_) if !valid_element => {
                     // Skip invalid ways
                 }
                 Element::Way(way) => {
@@ -333,43 +332,43 @@ fn insert_op(
     Ok(())
 }
 
-fn insert_op2(
-    target_id: &OsmNodeId,
-    way: &OsmWayData,
-    entry: &mut HashMap<OsmNodeId, OsmWayData>,
-) -> Result<(), OsmError> {
-    // determine if we should insert this new way, depending on whether there is an
-    // existing way in this entry, and if so, how their highway tags compare.
-    // rjf 2025-03-06: should we actually combine these instead?
-    let insert_way = match (
-        way.get_highway(),
-        entry.get(target_id).map(|w| w.get_highway()),
-    ) {
-        (Ok(None), _) => false,
-        (Ok(Some(_highway)), None) => true,
-        (Ok(Some(new_highway)), Some(Ok(Some(old_highway)))) => new_highway < old_highway,
-        (_, Some(Ok(None))) => {
-            return Err(OsmError::InternalError(String::from(
-                "existing way in the graph has no highway tag",
-            )))
-        }
-        (Ok(_), Some(Err(e))) => {
-            return Err(OsmError::InternalError(format!(
-                "existing way in the graph has an invalid highway tag '{}': {}",
-                way.highway.clone().unwrap_or_default(),
-                e
-            )))
-        }
-        (Err(e), None) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
-        (Err(e), Some(_)) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
-    };
+// fn insert_op2(
+//     target_id: &OsmNodeId,
+//     way: &OsmWayData,
+//     entry: &mut HashMap<OsmNodeId, OsmWayData>,
+// ) -> Result<(), OsmError> {
+//     // determine if we should insert this new way, depending on whether there is an
+//     // existing way in this entry, and if so, how their highway tags compare.
+//     // rjf 2025-03-06: should we actually combine these instead?
+//     let insert_way = match (
+//         way.get_highway(),
+//         entry.get(target_id).map(|w| w.get_highway()),
+//     ) {
+//         (Ok(None), _) => false,
+//         (Ok(Some(_highway)), None) => true,
+//         (Ok(Some(new_highway)), Some(Ok(Some(old_highway)))) => new_highway < old_highway,
+//         (_, Some(Ok(None))) => {
+//             return Err(OsmError::InternalError(String::from(
+//                 "existing way in the graph has no highway tag",
+//             )))
+//         }
+//         (Ok(_), Some(Err(e))) => {
+//             return Err(OsmError::InternalError(format!(
+//                 "existing way in the graph has an invalid highway tag '{}': {}",
+//                 way.highway.clone().unwrap_or_default(),
+//                 e
+//             )))
+//         }
+//         (Err(e), None) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
+//         (Err(e), Some(_)) => return Err(OsmError::InvalidOsmData(format!("{e}"))),
+//     };
 
-    if insert_way {
-        let _ = entry.insert(*target_id, way.clone());
-    }
+//     if insert_way {
+//         let _ = entry.insert(*target_id, way.clone());
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 pub fn build_rev_adjacency_list(fwd: &AdjacencyListDeprecated) -> AdjacencyListDeprecated {
     let mut rev: AdjacencyListDeprecated = HashMap::new();

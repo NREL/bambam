@@ -154,7 +154,7 @@ impl From<&osmpbf::dense::DenseNode<'_>> for OsmNodeData {
 fn parse_ele(ele: &str) -> Option<f64> {
     ele.parse::<i64>()
         .map(|i| i as f64)
-        .or_else(|e| ele.parse::<f64>())
+        .or_else(|_| ele.parse::<f64>())
         // .map_err(|e| {
         //     format!(
         //         "unable to parse 'ele' value as integer or decimal number: {}",

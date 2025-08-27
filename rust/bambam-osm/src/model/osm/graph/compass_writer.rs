@@ -2,7 +2,6 @@ use std::{fs::File, path::Path};
 
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
-use itertools::Itertools;
 use kdam::tqdm;
 use routee_compass_core::model::network::Edge;
 use wkt::ToWkt;
@@ -36,7 +35,7 @@ mod filenames {
 impl CompassWriter for OsmGraphVectorized {
     fn write_compass(&self, output_directory: &Path, overwrite: bool) -> Result<(), OsmError> {
         if !output_directory.is_dir() {
-            if let Err(e) = std::fs::create_dir(output_directory) {
+            if let Err(_) = std::fs::create_dir(output_directory) {
                 let dirname = output_directory.as_os_str().to_string_lossy();
                 return Err(OsmError::InternalError(format!(
                     "unable to create directory {}",
@@ -101,7 +100,7 @@ impl CompassWriter for OsmGraphVectorized {
             total = self.nodes.len(),
             desc = "write vertex dataset"
         );
-        for (idx, node) in v_iter {
+        for (_, node) in v_iter {
             if let Some(ref mut writer) = node_writer {
                 writer.serialize(node).map_err(|e| {
                     OsmError::CsvWriteError(String::from(filenames::VERTICES_COMPLETE), e)
