@@ -1,13 +1,13 @@
 [package]
-name = "bambam-osm"
+name = "bambam-omf"
 version = "0.1.0"
 edition = "2021"
 license = "BSD-3-Clause"
 exclude = ["test", "**/.DS_Store", "target/"]
 readme = "README.md"
-repository = "https://github.com/NREL/bambam-osm"
-documentation = "https://docs.rs/bambam-osm"
-description = "OpenStreetMaps support for The Behavior and Advanced Mobility Big Access Model"
+repository = "https://github.com/NREL/bambam-omf"
+documentation = "https://docs.rs/bambam-omf"
+description = "OvertureMaps Foundation support for The Behavior and Advanced Mobility Big Access Model"
 keywords = [
     "nrel",
     "access-model",
@@ -23,32 +23,25 @@ categories = ["command-line-utilities", "science", "science::geo"]
 [dependencies]
 bamcensus-core = { workspace = true }
 bamcensus-acs = { workspace = true }
+bamcensus-lehd = { workspace = true }
 bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
 
-clap = { workspace = true }
-config = { workspace = true }
+arrow = { workspace = true }
+chrono = { workspace = true }
 csv = { workspace = true }
-env_logger = { workspace = true }
-flate2 = { workspace = true }
+futures = { workspace = true }
 geo = { workspace = true }
-geo-buffer = { workspace = true }
-gtfs-structures = { workspace = true }
-h3o = { workspace = true }
-itertools = { workspace = true }
-kdam = { workspace = true }
+geozero = { workspace = true }
+hex = { workspace = true }
 log = { workspace = true }
-num-traits = { workspace = true }
-osmio = { workspace = true }
-osmpbf = { workspace = true }
+object_store = { workspace = true }
+parquet = { workspace = true }
 rayon = { workspace = true }
-regex = { workspace = true }
-rstar = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-toml = { workspace = true }
-uom = { workspace = true }
-wkt = { workspace = true }
+tokio = { workspace = true }

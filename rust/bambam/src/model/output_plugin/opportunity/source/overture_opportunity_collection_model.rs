@@ -1,8 +1,8 @@
-use bambam_overturemaps::collection::{
+use bambam_omf::collection::{
     Bbox, BuildingsRecord, OvertureMapsCollectionError, OvertureMapsCollector, OvertureRecordType,
     PlacesRecord,
 };
-use bambam_overturemaps::collection::{
+use bambam_omf::collection::{
     OvertureMapsCollectorConfig, ReleaseVersion, RowFilterConfig, TaxonomyModel,
     TaxonomyModelBuilder,
 };
