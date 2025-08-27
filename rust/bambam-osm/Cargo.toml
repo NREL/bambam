@@ -28,42 +28,27 @@ routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
 
-uom = { workspace = true }
-num-traits = "0.2.19"
-osmpbf = "0.3.4"
-osmio = "0.14.0"
-
-log = "0.4.19"
-itertools = { version = "0.14.0" }
-# chrono = { version = "0.4.31", features = ["serde"] }
-# skiplist = "0.5.1"
-# zip = "2.1.3"
-# rusqlite = { version = "0.32.1", features = ["bundled"] }
-
-env_logger = "0.11.3"
-config = "0.15.11"
-thiserror = "2.0.12"
+clap = { workspace = true }
+config = { workspace = true }
+csv = { workspace = true }
+env_logger = { workspace = true }
+flate2 = { workspace = true }
+geo = { workspace = true }
+geo-buffer = { workspace = true }
+gtfs-structures = { workspace = true }
+h3o = { workspace = true }
+itertools = { workspace = true }
 kdam = { workspace = true }
-clap = { version = "4.3.19", features = ["derive"] }
-
-serde = { version = "1.0.160", features = ["derive"] }
-serde_json = { version = "1.0" }
-csv = { version = "1.2.2" }
-toml = { version = "0.8.20" }
-flate2 = "1.0"
-regex = { version = "1.11.1" }
-
-rstar = { version = "0.12.0" }
-geo = { version = "0.30.0", features = ["use-serde"] }
-geo-buffer = "0.2.0"
-wkt = { version = "0.13.0", features = ["serde"] }
-# proj = "0.27.2"
-# wkb = "0.7.1"
-# geojson = { version = "0.24.1" }
-# shapefile = "0.6.0"
-
-h3o = { version = "0.8.0", features = ["serde", "geo"] }
-gtfs-structures = "0.43.0"
-
-rayon = "1.10.0"
-# tokio = "1.39.2"
+log = { workspace = true }
+num-traits = { workspace = true }
+osmio = { workspace = true }
+osmpbf = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+rstar = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+uom = { workspace = true }
+wkt = { workspace = true }
