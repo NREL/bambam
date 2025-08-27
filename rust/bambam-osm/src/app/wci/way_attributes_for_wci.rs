@@ -76,7 +76,9 @@ impl WayAttributesForWCI {
                         let int_length = Euclidean::distance(&geo::Euclidean, origin, query_point);
                         total_lengths += int_length;
                         if let Some(ref cycleway) = neighbor.data.cycleway {
-                            let neighbor_cycle_score = if cycleway == "lane" || cycleway == "designated" || cycleway == "track"
+                            let neighbor_cycle_score = if cycleway == "lane"
+                                || cycleway == "designated"
+                                || cycleway == "track"
                             {
                                 2
                             } else if cycleway == "crossing"
@@ -246,7 +248,7 @@ fn walk_eligible(
     geo_data: &WayGeometryData,
     query_pointf32: [f32; 2],
     sidewalk: bool,
-    foot: bool
+    foot: bool,
 ) -> bool {
     let this_highway: Highway = geo_data.data.highway.clone();
 

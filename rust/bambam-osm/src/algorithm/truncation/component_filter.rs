@@ -1,10 +1,10 @@
+use crate::model::osm::graph::OsmNodeId;
+use kdam::tqdm;
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashSet},
 };
-use crate::model::osm::graph::OsmNodeId;
-use kdam::tqdm;
-use serde::{Deserialize, Serialize};
 
 /// Enumeration containing all policies for filtering connected components of
 /// a graph

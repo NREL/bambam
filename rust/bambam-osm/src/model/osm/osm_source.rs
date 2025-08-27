@@ -173,8 +173,8 @@ fn deserialize_validate_extent_str(wkt_str: &str) -> Result<Geometry<f32>, OsmEr
 
 #[cfg(test)]
 mod test {
-    use geo::{LineString, Polygon};
     use crate::model::osm::{osm_source::deserialize_validate_extent_str, OsmError};
+    use geo::{LineString, Polygon};
 
     #[test]
     fn test_deserialize_wkt_polygon() {

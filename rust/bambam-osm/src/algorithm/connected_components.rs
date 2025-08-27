@@ -6,7 +6,6 @@ use itertools::Itertools;
 use kdam::{tqdm, Bar, BarExt};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-
 pub type UndirectedAdjacencyList = HashMap<OsmNodeId, HashSet<OsmNodeId>>;
 
 pub fn to_undirected(graph: &OsmGraph) -> UndirectedAdjacencyList {
@@ -127,9 +126,7 @@ pub fn bfs_undirected(
 
 #[cfg(test)]
 mod tests {
-    use crate::model::osm::graph::{
-        OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId,
-    };
+    use crate::model::osm::graph::{OsmGraph, OsmNodeData, OsmNodeId, OsmWayData, OsmWayId};
     use std::collections::HashMap;
 
     #[test]

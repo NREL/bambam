@@ -1,6 +1,6 @@
 use geo::{
-    line_string, Centroid, Coord, CoordFloat, Destination, GeoFloat, Geometry,
-    Haversine, KNearestConcaveHull, Length, LineString, Point, Polygon, Scale,
+    line_string, Centroid, Coord, CoordFloat, Destination, GeoFloat, Geometry, Haversine,
+    KNearestConcaveHull, Length, LineString, Point, Polygon, Scale,
 };
 use itertools::Itertools;
 use num_traits::FromPrimitive;

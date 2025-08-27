@@ -272,12 +272,10 @@ impl OsmGraph {
         sorted: bool,
     ) -> Box<dyn Iterator<Item = &'a OsmNodeId> + 'a + Send + Sync> {
         let iter = tqdm!(
-            self.adj
-                .iter()
-                .filter_map(|((src, dir), _)| match dir {
-                    Dir::Reverse => None,
-                    Dir::Forward => Some(src),
-                }),
+            self.adj.iter().filter_map(|((src, dir), _)| match dir {
+                Dir::Reverse => None,
+                Dir::Forward => Some(src),
+            }),
             desc = "sort nodes for iteration",
             total = self.adj.len()
         );
@@ -343,17 +341,15 @@ impl OsmGraph {
         sorted: bool,
     ) -> Box<dyn Iterator<Item = Result<&'a OsmNodeData, OsmError>> + 'a + Send + Sync> {
         let iter = tqdm!(
-            self.adj
-                .iter()
-                .flat_map(|((src, dir), _)| match dir {
-                    Dir::Reverse => None,
-                    Dir::Forward => match self.nodes.get(src) {
-                        None => Some(Err(OsmError::InternalError(format!(
-                            "node data for node '{src}' missing from graph"
-                        )))),
-                        Some(node_data) => Some(Ok(node_data)),
-                    },
-                }),
+            self.adj.iter().flat_map(|((src, dir), _)| match dir {
+                Dir::Reverse => None,
+                Dir::Forward => match self.nodes.get(src) {
+                    None => Some(Err(OsmError::InternalError(format!(
+                        "node data for node '{src}' missing from graph"
+                    )))),
+                    Some(node_data) => Some(Ok(node_data)),
+                },
+            }),
             desc = "sort node and data for iteration",
             total = self.adj.len()
         );
@@ -886,86 +882,86 @@ fn remove_way_from_adjacency(
 
 // #[cfg(test)]
 // mod tests {
-    // use super::OsmGraph;
-    // use crate::model::osm::graph::{
-    //     osm_node_data::OsmNodeData, osm_way_data::OsmWayData, AdjacencyDirection, OsmNodeId,
-    //     OsmWayId,
-    // };
+// use super::OsmGraph;
+// use crate::model::osm::graph::{
+//     osm_node_data::OsmNodeData, osm_way_data::OsmWayData, AdjacencyDirection, OsmNodeId,
+//     OsmWayId,
+// };
 
-    // #[test]
-    // fn test_add_and_remove() {
-    //     // setup
-    //     let mut graph = OsmGraph::default();
-    //     let mut n1 = OsmNodeData::default();
-    //     let mut n2 = OsmNodeData::default();
-    //     let nid1 = OsmNodeId(1);
-    //     let nid2 = OsmNodeId(2);
-    //     let wid1 = OsmWayId(1);
-    //     n1.osmid = nid1;
-    //     n1.x = 0.0;
-    //     n1.y = 0.0;
-    //     n2.osmid = nid2;
-    //     n2.x = 1.0;
-    //     n2.y = 1.0;
-    //     let mut w1 = OsmWayData::default();
-    //     w1.osmid = wid1;
-    //     w1.nodes = vec![n1.osmid, n2.osmid];
+// #[test]
+// fn test_add_and_remove() {
+//     // setup
+//     let mut graph = OsmGraph::default();
+//     let mut n1 = OsmNodeData::default();
+//     let mut n2 = OsmNodeData::default();
+//     let nid1 = OsmNodeId(1);
+//     let nid2 = OsmNodeId(2);
+//     let wid1 = OsmWayId(1);
+//     n1.osmid = nid1;
+//     n1.x = 0.0;
+//     n1.y = 0.0;
+//     n2.osmid = nid2;
+//     n2.x = 1.0;
+//     n2.y = 1.0;
+//     let mut w1 = OsmWayData::default();
+//     w1.osmid = wid1;
+//     w1.nodes = vec![n1.osmid, n2.osmid];
 
-    //     // 1. add to graph
-    //     graph.add_node_and_adjacencies(n1).unwrap();
-    //     graph.add_node_and_adjacencies(n2).unwrap();
-    //     graph.add_way_and_adjacencies(w1).unwrap();
+//     // 1. add to graph
+//     graph.add_node_and_adjacencies(n1).unwrap();
+//     graph.add_node_and_adjacencies(n2).unwrap();
+//     graph.add_way_and_adjacencies(w1).unwrap();
 
-    //     // 2. remove way, should leave nodes untouched
-    //     graph.remove_way_adjacencies(wid1).unwrap();
-    //     assert_eq!(graph.nodes.len(), 2);
-    //     assert_eq!(graph.ways.len(), 0);
-    //     // 3. remove one node, should not impact other node
-    //     graph.remove_node_adjacencies(nid1).unwrap();
-    //     assert_eq!(graph.nodes.len(), 1);
-    //     assert_eq!(graph.ways.len(), 0);
-    //     // 4. remove other node, graph should be empty
-    //     graph.remove_node_adjacencies(nid2).unwrap();
-    //     assert_eq!(graph.nodes.len(), 0);
-    //     assert_eq!(graph.ways.len(), 0);
-    // }
+//     // 2. remove way, should leave nodes untouched
+//     graph.remove_way_adjacencies(wid1).unwrap();
+//     assert_eq!(graph.nodes.len(), 2);
+//     assert_eq!(graph.ways.len(), 0);
+//     // 3. remove one node, should not impact other node
+//     graph.remove_node_adjacencies(nid1).unwrap();
+//     assert_eq!(graph.nodes.len(), 1);
+//     assert_eq!(graph.ways.len(), 0);
+//     // 4. remove other node, graph should be empty
+//     graph.remove_node_adjacencies(nid2).unwrap();
+//     assert_eq!(graph.nodes.len(), 0);
+//     assert_eq!(graph.ways.len(), 0);
+// }
 
-    // #[test]
-    // fn test_remove_connected_node() {
-    //     // setup
-    //     let mut graph = OsmGraph::default();
-    //     let mut n1 = OsmNodeData::default();
-    //     let mut n2 = OsmNodeData::default();
-    //     n1.osmid = OsmNodeId(0);
-    //     n1.x = 0.0;
-    //     n1.y = 0.0;
-    //     n2.osmid = OsmNodeId(1);
-    //     n2.x = 1.0;
-    //     n2.y = 1.0;
-    //     let mut w1 = OsmWayData::default();
-    //     w1.osmid = OsmWayId(0);
-    //     w1.nodes = vec![n1.osmid, n2.osmid];
+// #[test]
+// fn test_remove_connected_node() {
+//     // setup
+//     let mut graph = OsmGraph::default();
+//     let mut n1 = OsmNodeData::default();
+//     let mut n2 = OsmNodeData::default();
+//     n1.osmid = OsmNodeId(0);
+//     n1.x = 0.0;
+//     n1.y = 0.0;
+//     n2.osmid = OsmNodeId(1);
+//     n2.x = 1.0;
+//     n2.y = 1.0;
+//     let mut w1 = OsmWayData::default();
+//     w1.osmid = OsmWayId(0);
+//     w1.nodes = vec![n1.osmid, n2.osmid];
 
-    //     // 1. add to graph
-    //     graph.add_node_and_adjacencies(n1).unwrap();
-    //     graph.add_node_and_adjacencies(n2).unwrap();
-    //     graph.add_way_and_adjacencies(w1).unwrap();
+//     // 1. add to graph
+//     graph.add_node_and_adjacencies(n1).unwrap();
+//     graph.add_node_and_adjacencies(n2).unwrap();
+//     graph.add_way_and_adjacencies(w1).unwrap();
 
-    //     // 2. remove a node
-    //     let remove_node_id = OsmNodeId(0);
-    //     graph.remove_node_and_adjacencies(remove_node_id).unwrap();
+//     // 2. remove a node
+//     let remove_node_id = OsmNodeId(0);
+//     graph.remove_node_and_adjacencies(remove_node_id).unwrap();
 
-    //     assert!(
-    //         graph.nodes.get(&remove_node_id).is_none(),
-    //         "node should have been removed"
-    //     );
+//     assert!(
+//         graph.nodes.get(&remove_node_id).is_none(),
+//         "node should have been removed"
+//     );
 
-    //     assert_eq!(graph.ways.len(), 0, "should have removed the way also");
+//     assert_eq!(graph.ways.len(), 0, "should have removed the way also");
 
-    //     let expected_key = (remove_node_id, AdjacencyDirection::Forward);
-    //     assert!(
-    //         graph.adj.get(&expected_key).is_none(),
-    //         "node should be removed from adjacencies"
-    //     );
-    // }
+//     let expected_key = (remove_node_id, AdjacencyDirection::Forward);
+//     assert!(
+//         graph.adj.get(&expected_key).is_none(),
+//         "node should be removed from adjacencies"
+//     );
+// }
 // }
