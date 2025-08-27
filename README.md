@@ -37,15 +37,7 @@ g = ox.graph_from_place("Denver, Colorado, USA", network_type="drive")
 generate_compass_dataset(g, output_directory="denver_co")
 ```
 
-Also, create a `test.json` file with the following contents:
-
-```json
-{
-    "extent": "POLYGON ((-105.026035 39.728445, -104.958401 39.728445, -104.958401 39.77002, -105.026035 39.77002, -105.026035 39.728445))"
-}
-```
-
-And copy our bambam test configuration into the generated denver_co directory:
+Copy the test configuration into the generated denver_co directory:
 
 ```
 $ cp configuration/denver_test.toml denver_co/denver_test.toml
@@ -56,7 +48,7 @@ $ cp configuration/denver_test.toml denver_co/denver_test.toml
 To run bambam, use the `bambam` command and provide the imported network:
 
 ```
-$ ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file query/denver_extent.json
+$ RUST_LOG=info ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file query/denver_extent.json
 ```
 
 # Roadmap
