@@ -37,8 +37,8 @@ jobs:
       - name: Publish bambam-gtfs
         run: cargo publish -p bambam-gtfs --manifest-path=rust/Cargo.toml --token "${{ secrets.CRATES_IO_TOKEN }}"
 
-      - name: Publish bambam-overturemaps
-        run: cargo publish -p bambam-overturemaps --manifest-path=rust/Cargo.toml --token "${{ secrets.CRATES_IO_TOKEN }}"
+      - name: Publish bambam-omf
+        run: cargo publish -p bambam-omf --manifest-path=rust/Cargo.toml --token "${{ secrets.CRATES_IO_TOKEN }}"
 
       - name: Publish bambam
         run: cargo publish -p bambam --manifest-path=rust/Cargo.toml --token "${{ secrets.CRATES_IO_TOKEN }}"
