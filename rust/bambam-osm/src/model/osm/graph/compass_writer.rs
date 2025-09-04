@@ -3,7 +3,7 @@ use std::{fs::File, path::Path};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use kdam::tqdm;
-use routee_compass_core::model::network::Edge;
+use routee_compass_core::model::network::{EdgeConfig, EdgeId};
 use wkt::ToWkt;
 
 use crate::model::osm::{
@@ -144,12 +144,12 @@ impl CompassWriter for OsmGraphVectorized {
             }
             // COMPASS
             if let Some(ref mut writer) = edge_writer {
-                let edge = Edge::new(
-                    edge_id,
-                    row.src_vertex_id.0,
-                    row.dst_vertex_id.0,
-                    uom::si::f64::Length::new::<uom::si::length::meter>(row.length_meters),
-                );
+                let edge = EdgeConfig {
+                    edge_id: EdgeId(edge_id),
+                    src_vertex_id: row.src_vertex_id,
+                    dst_vertex_id: row.dst_vertex_id,
+                    distance: row.length_meters,
+                };
                 writer.serialize(edge).map_err(|e| {
                     OsmError::CsvWriteError(String::from(filenames::EDGES_COMPASS), e)
                 })?;
