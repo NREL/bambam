@@ -4,7 +4,7 @@
 //! search destinations into opportunities.
 mod destination_opportunity;
 mod opportunity_format;
-mod opportunity_iterator;
+pub mod opportunity_iterator;
 mod opportunity_model;
 mod opportunity_model_config;
 mod opportunity_orientation;
