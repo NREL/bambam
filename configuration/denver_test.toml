@@ -47,28 +47,18 @@ speed = 16.0
 speed_unit = "kph"
 
 [[search.traversal.models]]
-type = "speed_profile"
-edge_to_speed_profile_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-speed-profile-id-mapping-enumerated.txt.gz"
-speed_profile_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-profile.csv.gz"
-# 35.704525623444134 is the average of all weekday_speed and weekend_speed entries
-fallback = { type = "global", fill_value = 35.704, speed_unit = "kph" }
-max_speed = 128
-distance_unit = "kilometers"
-time_unit = "minutes"
+type = "speed"
+speed_table_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-weekday-avg-fill-enumerated.txt.gz"
 speed_unit = "kph"
-[search.traversal.models.speed_trace]
-type = "dense"
-speed_trace_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-trace.csv.gz"
-stride = 300
 
 [[search.traversal.models]]
 type = "multimodal"
 
 [search.traversal.models.dependencies]
-walk = [{ input_name = "walk_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
-bike = [{ input_name = "bike_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
+walk = [{ input_feature = { name = "walk_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
+bike = [{ input_feature = { name = "bike_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
 drive = [
-    { input_name = "edge_speed", input_feature = { type = "speed" }, destination_features = ["edge_time", "trip_time"] },
+    { input_feature = { name = "edge_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] },
     # { time_feature = "trip_enroute_delay", destinations = [
     #     "edge_time",
     #     "trip_time",
