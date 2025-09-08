@@ -1,7 +1,7 @@
+use bambam::model::builder;
 use clap::Parser;
 use routee_compass::app::cli::{cli_args::CliArgs, run};
 use routee_compass::app::compass::CompassAppError;
-use bambam::model::builder;
 inventory::submit! { builder::BUILDER_REGISTRATION }
 
 // Import the library to ensure inventory registrations in lib.rs are included
@@ -9,7 +9,7 @@ inventory::submit! { builder::BUILDER_REGISTRATION }
 
 fn main() {
     env_logger::init();
-    
+
     log::debug!("cwd: {:?}", std::env::current_dir());
     let args = CliArgs::parse();
     // let args = CliArgs {
