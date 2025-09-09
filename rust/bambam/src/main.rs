@@ -38,7 +38,6 @@ mod test {
 
     use crate::run_bambam;
 
-
     #[test]
     fn test_denver() {
         let conf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -59,8 +58,8 @@ mod test {
             .to_str()
             .expect("test invariant failed: config file path cannot be a string");
         let query_file = query_path
-                    .to_str()
-                    .expect("test invariant failed: config file path cannot be a string");
+            .to_str()
+            .expect("test invariant failed: config file path cannot be a string");
 
         let args = CliArgs {
             config_file: conf_file.to_string(),
@@ -70,7 +69,7 @@ mod test {
         };
 
         match run_bambam(args) {
-            Ok(()) => {},
+            Ok(()) => {}
             Err(e) => panic!("test failed: {e}"),
         }
     }
