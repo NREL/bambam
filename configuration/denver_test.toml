@@ -2,12 +2,12 @@ parallelism = 6
 response_persistence_policy = "discard_response_from_memory"
 
 [graph]
-edge_list.input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-compass.csv.gz"
-vertex_list_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"
+edge_list.input_file = "../denver_co/edges-compass.csv.gz"
+vertex_list_input_file = "../denver_co/vertices-compass.csv.gz"
 
 [mapping]
 type = "edge"
-geometry = { input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-geometries-enumerated.txt.gz" }
+geometry = { input_file = "../denver_co/edges-geometries-enumerated.txt.gz" }
 tolerance.distance = 15.0
 tolerance.unit = "meters"
 queries_without_destinations = false
@@ -48,7 +48,7 @@ speed_unit = "kph"
 
 [[search.traversal.models]]
 type = "speed"
-speed_table_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/speed-weekday-avg-fill-enumerated.txt.gz"
+speed_table_input_file = "../denver_co/edges-posted-speed-enumerated.txt.gz"
 speed_unit = "kph"
 
 [[search.traversal.models]]
@@ -66,8 +66,8 @@ drive = [
 ]
 
 [search.traversal.models.output_features]
-trip_time = { time_unit = "minutes", initial = 0.0, accumulator = true }
-edge_time = { time_unit = "minutes", initial = 0.0, accumulator = false }
+trip_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = true }
+edge_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = false }
 # penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
 
 # use a time-optimal routing strategy
@@ -80,7 +80,7 @@ cost_aggregation = "sum"
 
 [search.access]
 type = "turn_delay"
-edge_heading_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-headings-enumerated.csv.gz"
+edge_heading_input_file = "../denver_co/edges-headings-enumerated.csv.gz"
 [search.access.turn_delay_model]
 type = "tabular_discrete"
 time_unit = "seconds"
@@ -99,16 +99,15 @@ type = "combined"
 
 [[search.frontier.models]]
 type = "road_class"
-road_class_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-routing-class-enumerated.txt.gz"
+road_class_input_file = "../denver_co/edges-road-class-enumerated.txt.gz"
 
-[[search.frontier.models]]
-type = "turn_restriction"
-turn_restriction_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/edges-turn-restrictions.csv.gz"
+# [[search.frontier.models]]
+# type = "turn_restriction"
+# turn_restriction_input_file = "../denver_co/edges-turn-restrictions.csv.gz"
 
 [[search.frontier.models]]
 type = "time_limit"
-time_limit = 40.0
-time_unit = "minutes"
+time_limit = { time = 40.0, time_unit = "minutes" }
 
 [[plugin.input_plugins]]
 type = "grid"
@@ -127,7 +126,8 @@ format = "key_value"
 write_mode = "overwrite"
 key = "grid_search"
 [plugin.input_plugins.value]
-modes = [{ mode = "walk", road_classes = [4, 5, 6, 7] }, { mode = "bike", road_classes = [4, 5, 6, 7] }, { mode = "drive", road_classes = [1, 2, 3, 4, 5, 6] }]
+mode = ["walk", "bike", "drive"]
+# modes = [{ mode = "walk", road_classes = [4, 5, 6, 7] }, { mode = "bike", road_classes = [4, 5, 6, 7] }, { mode = "drive", road_classes = [1, 2, 3, 4, 5, 6] }]
 
 [[plugin.input_plugins]]
 type = "inject"
@@ -143,12 +143,12 @@ value = "monday"
 format = "key_value"
 write_mode = "overwrite"
 
-[[plugin.input_plugins]]
-type = "inject"
-key = "time_limit"
-value = 40.0
-format = "key_value"
-write_mode = "overwrite"
+# [[plugin.input_plugins]]
+# type = "inject"
+# key = "time_limit"
+# value = 40.0
+# format = "key_value"
+# write_mode = "overwrite"
 
 [[plugin.input_plugins]]
 type = "grid_search"
@@ -187,7 +187,7 @@ type = "combined"
 
 [[plugin.output_plugins.model.models]]
 type = "api"
-vertex_input_file = "/Users/rfitzger/dev/nrel/routee/routee-compass-tomtom/data/tomtom_denver/vertices-compass.csv.gz"
+vertex_input_file = "../denver_co/vertices-compass.csv.gz"
 activity_column_names = ["jobs"]
 table_orientation = "destination_vertex_oriented"
 

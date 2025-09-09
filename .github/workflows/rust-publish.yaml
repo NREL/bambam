@@ -18,6 +18,10 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install test assets
+        run: |
+          ./setup_bambam_osm_test.sh
+
       - name: Run tests
         run: cargo test --all --manifest-path=rust/Cargo.toml
 

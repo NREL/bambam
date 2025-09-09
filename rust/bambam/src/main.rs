@@ -27,12 +27,51 @@ fn main() {
 fn run_bambam(args: CliArgs) -> Result<(), CompassAppError> {
     log::info!("starting app at {}", chrono::Local::now().to_rfc3339());
 
-    match run::command_line_runner(&args, None, None) {
-        Ok(_) => {}
-        Err(e) => {
-            log::error!("{e}")
+    run::command_line_runner(&args, None, None)
+}
+
+#[cfg(test)]
+mod test {
+    use std::path::PathBuf;
+
+    use routee_compass::app::cli::cli_args::CliArgs;
+
+    use crate::run_bambam;
+
+
+    #[test]
+    fn test_denver() {
+        let conf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("test invariant failed: repo 'rust/bambam' dir has no parent")
+            .parent()
+            .expect("test invariant failed: repo 'rust' dir has no parent")
+            .join("configuration")
+            .join("denver_test.toml");
+        let query_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("test invariant failed: repo 'rust/bambam' dir has no parent")
+            .parent()
+            .expect("test invariant failed: repo 'rust' dir has no parent")
+            .join("query")
+            .join("denver_extent.json");
+        let conf_file = conf_path
+            .to_str()
+            .expect("test invariant failed: config file path cannot be a string");
+        let query_file = query_path
+                    .to_str()
+                    .expect("test invariant failed: config file path cannot be a string");
+
+        let args = CliArgs {
+            config_file: conf_file.to_string(),
+            query_file: query_file.to_string(),
+            chunksize: None,
+            newline_delimited: false,
+        };
+
+        match run_bambam(args) {
+            Ok(()) => {},
+            Err(e) => panic!("test failed: {e}"),
         }
     }
-
-    Ok(())
 }

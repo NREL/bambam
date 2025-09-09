@@ -25,7 +25,7 @@ jobs:
           
       - name: Install test assets
         run: |
-          ./setup.sh
+          ./setup_bambam_osm_test.sh
 
       - name: Test
         run: |
