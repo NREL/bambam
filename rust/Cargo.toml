@@ -9,9 +9,9 @@ bamcensus-core = { version = "0.1.0" }
 bamcensus-acs = { version = "0.1.0" }
 bamcensus = { version = "0.1.0" }
 bamcensus-lehd = { version = "0.1.0" }
-routee-compass = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/extend-graph" }
-routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/extend-graph" }
-routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", branch = "rjf/extend-graph" }
+routee-compass = { git = "https://github.com/NREL/routee-compass.git", branch = "main" }
+routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", branch = "main" }
+routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", branch = "main" }
 
 # third party
 arrow = { version = "55.0.0" }
