@@ -34,7 +34,11 @@ fn run_bambam(args: CliArgs) -> Result<Vec<Value>, CompassAppError> {
     let config_path = Path::new(&args.config_file);
     let app = CompassApp::try_from(config_path)?;
     let query_filename = &args.query_file;
-    let query_file = File::open(query_filename).map_err(|e| CompassAppError::BuildFailure(format!("failure reading input query file '{query_filename}': {e}")))?;
+    let query_file = File::open(query_filename).map_err(|e| {
+        CompassAppError::BuildFailure(format!(
+            "failure reading input query file '{query_filename}': {e}"
+        ))
+    })?;
     let reader = BufReader::new(query_file);
     let user_json: serde_json::Value = serde_json::from_reader(reader)?;
     let mut user_queries = user_json.get_queries()?;
@@ -84,10 +88,13 @@ mod test {
                 assert_eq!(rows.len(), 144);
                 for (idx, row) in rows.iter().enumerate() {
                     if let Some(error) = row.get("error") {
-                        panic!("row {idx} has error: {}", serde_json::to_string_pretty(error).unwrap_or_default());
+                        panic!(
+                            "row {idx} has error: {}",
+                            serde_json::to_string_pretty(error).unwrap_or_default()
+                        );
                     }
                 }
-            },
+            }
             Err(e) => panic!("test failed: {e}"),
         }
     }
