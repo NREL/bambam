@@ -4,7 +4,7 @@ use std::path::Path;
 
 use bambam::model::builder;
 use clap::Parser;
-use routee_compass::app::cli::{cli_args::CliArgs, run};
+use routee_compass::app::cli::cli_args::CliArgs;
 use routee_compass::app::compass::{CompassApp, CompassAppError, CompassJsonExtensions};
 use serde_json::Value;
 inventory::submit! { builder::BUILDER_REGISTRATION }
