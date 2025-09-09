@@ -1,5 +1,5 @@
 parallelism = 6
-response_persistence_policy = "discard_response_from_memory"
+response_persistence_policy = "persist_response_from_memory"
 
 [graph]
 edge_list.input_file = "../denver_co/edges-compass.csv.gz"
@@ -143,13 +143,6 @@ value = "monday"
 format = "key_value"
 write_mode = "overwrite"
 
-# [[plugin.input_plugins]]
-# type = "inject"
-# key = "time_limit"
-# value = 40.0
-# format = "key_value"
-# write_mode = "overwrite"
-
 [[plugin.input_plugins]]
 type = "grid_search"
 
@@ -188,7 +181,7 @@ type = "combined"
 [[plugin.output_plugins.model.models]]
 type = "api"
 vertex_input_file = "../denver_co/vertices-compass.csv.gz"
-activity_column_names = ["jobs"]
+activity_column_names = ["entertainment", "food", "retail", "healthcare", "services", "jobs"]
 table_orientation = "destination_vertex_oriented"
 
 [plugin.output_plugins.model.models.opportunity_source]
@@ -230,130 +223,17 @@ CNS03 = ["jobs"] # 22 (Utilities)
 CNS04 = ["jobs"] # 23 (Construction)
 CNS05 = ["jobs"] # 31-33 (Manufacturing)
 CNS06 = ["jobs"] # 42 (Wholesale Trade)
-CNS07 = ["jobs"] # 44-45 (Retail Trade)
+CNS07 = ["jobs", "retail"] # 44-45 (Retail Trade)
 CNS08 = ["jobs"] # 48-49 (Transportation and Warehousing)
 CNS09 = ["jobs"] # 51 (Information)
 CNS10 = ["jobs"] # 52 (Finance and Insurance)
 CNS11 = ["jobs"] # 53 (Real Estate and Rental and Leasing)
-CNS12 = ["jobs"] # 54 (Professional, Scientific, and Technical Services)
+CNS12 = ["jobs", "services"] # 54 (Professional, Scientific, and Technical Services)
 CNS13 = ["jobs"] # 55 (Management of Companies and Enterprises)
 CNS14 = ["jobs"] # 56 (Admin/Support/Waste Mgmt/Remediation Services)
 CNS15 = ["jobs"] # 61 (Educational Services)
-CNS16 = ["jobs"] # 62 (Health Care and Social Assistance)
-CNS17 = ["jobs"] # 71 (Arts, Entertainment, and Recreation)
-CNS18 = ["jobs"] # 72 (Accommodation and Food Services)
+CNS16 = ["jobs", "healthcare"] # 62 (Health Care and Social Assistance)
+CNS17 = ["jobs", "entertainment"] # 71 (Arts, Entertainment, and Recreation)
+CNS18 = ["jobs", "food"] # 72 (Accommodation and Food Services)
 CNS19 = ["jobs"] # 81 (Other Services [except Public Administration])
 CNS20 = ["jobs"] # 92 (Public Administration)
-
-
-[[plugin.output_plugins]]
-type = "mep_score"
-normalizing_activity = "jobs"
-
-[plugin.output_plugins.modal_intensity_model]
-type = "global"
-
-[plugin.output_plugins.modal_intensity_model.intensities]
-walk = { "energy" = 0, "cost" = 0 }
-bike = { "energy" = 0, "cost" = 0 }
-drive = { "energy" = 0.48, "cost" = 0.9 }
-transit = { "energy" = 0.855, "cost" = 0.65 }
-
-[plugin.output_plugins.modal_weighting_factors]
-walk = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
-bike = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
-drive = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
-transit = { "energy" = -0.5, "time" = -0.08, "cost" = -0.5 }
-
-[plugin.output_plugins.activity_frequencies]
-type = "global_frequencies"
-[plugin.output_plugins.activity_frequencies.frequencies]
-# healthcare = 3.1
-# retail = 1.5
-# entertainment = 19.5
-# services = 8.4
-# food = 6.7
-jobs = 16.6
-
-###########################
-### OUTPUT FILE FORMATS ###
-###########################
-[response_output_policy]
-type = "combined"
-
-[[response_output_policy.policies]]
-type = "file"
-filename = "complete.json"
-[response_output_policy.policies.format]
-type = "json"
-newline_delimited = true
-
-[[response_output_policy.policies]]
-type = "file"
-filename = "errors.csv"
-[response_output_policy.policies.format]
-type = "csv"
-sorted = true
-[response_output_policy.policies.format.mapping]
-grid_id = "request.grid_id"
-mode = "request.mode"
-error = { optional = "error" }
-
-[[response_output_policy.policies]]
-type = "file"
-filename = "result.csv"
-[response_output_policy.policies.format]
-type = "csv"
-sorted = true
-[response_output_policy.policies.format.mapping]
-grid_id = "request.grid_id"
-lon = "request.origin_x"
-lat = "request.origin_y"
-mode = "request.mode"
-runtime = "search_app_runtime"
-ram_mb = "search_result_size_mib"
-
-# opps_entertainment_total = "opportunity_totals.entertainment"
-# opps_retail_total = "opportunity_totals.retail"
-# opps_healthcare_total = "opportunity_totals.healthcare"
-# opps_services_total = "opportunity_totals.services"
-# opps_food_total = "opportunity_totals.food"
-opps_jobs_total = "opportunity_totals.jobs"
-
-# opps_entertainment_10 = "bin.10.opportunities.entertainment"
-# opps_retail_10 = "bin.10.opportunities.retail"
-# opps_healthcare_10 = "bin.10.opportunities.healthcare"
-# opps_services_10 = "bin.10.opportunities.services"
-# opps_food_10 = "bin.10.opportunities.food"
-opps_jobs_10 = "bin.10.opportunities.jobs"
-# opps_entertainment_20 = "bin.20.opportunities.entertainment"
-# opps_retail_20 = "bin.20.opportunities.retail"
-# opps_healthcare_20 = "bin.20.opportunities.healthcare"
-# opps_services_20 = "bin.20.opportunities.services"
-# opps_food_20 = "bin.20.opportunities.food"
-opps_jobs_20 = "bin.20.opportunities.jobs"
-# opps_entertainment_30 = "bin.30.opportunities.entertainment"
-# opps_retail_30 = "bin.30.opportunities.retail"
-# opps_healthcare_30 = "bin.30.opportunities.healthcare"
-# opps_services_30 = "bin.30.opportunities.services"
-# opps_food_30 = "bin.30.opportunities.food"
-opps_jobs_30 = "bin.30.opportunities.jobs"
-# opps_entertainment_40 = "bin.40.opportunities.entertainment"
-# opps_retail_40 = "bin.40.opportunities.retail"
-# opps_healthcare_40 = "bin.40.opportunities.healthcare"
-# opps_services_40 = "bin.40.opportunities.services"
-# opps_food_40 = "bin.40.opportunities.food"
-opps_jobs_40 = "bin.40.opportunities.jobs"
-
-isochrone_10 = "bin.10.isochrone"
-isochrone_20 = "bin.20.isochrone"
-isochrone_30 = "bin.30.isochrone"
-isochrone_40 = "bin.40.isochrone"
-
-# mep = { sum = ["bin.10.mep.entertainment", "bin.10.mep.food", "bin.10.mep.healthcare", "bin.10.mep.jobs", "bin.10.mep.retail", "bin.10.mep.services", "bin.20.mep.entertainment", "bin.20.mep.food", "bin.20.mep.healthcare", "bin.20.mep.jobs", "bin.20.mep.retail", "bin.20.mep.services", "bin.30.mep.entertainment", "bin.30.mep.food", "bin.30.mep.healthcare", "bin.30.mep.jobs", "bin.30.mep.retail", "bin.30.mep.services", "bin.40.mep.entertainment", "bin.40.mep.food", "bin.40.mep.healthcare", "bin.40.mep.jobs", "bin.40.mep.retail", "bin.40.mep.services"] }
-# mep_entertainment = { sum = ["bin.10.mep.entertainment", "bin.20.mep.entertainment", "bin.30.mep.entertainment", "bin.40.mep.entertainment"] }
-# mep_food = { sum = ["bin.10.mep.food", "bin.20.mep.food", "bin.30.mep.food", "bin.40.mep.food"] }
-# mep_healthcare = { sum = ["bin.10.mep.healthcare", "bin.20.mep.healthcare", "bin.30.mep.healthcare", "bin.40.mep.healthcare"] }
-mep_jobs = { sum = ["bin.10.mep.jobs", "bin.20.mep.jobs", "bin.30.mep.jobs", "bin.40.mep.jobs"] }
-# mep_retail = { sum = ["bin.10.mep.retail", "bin.20.mep.retail", "bin.30.mep.retail", "bin.40.mep.retail"] }
-# mep_services = { sum = ["bin.10.mep.services", "bin.20.mep.services", "bin.30.mep.services", "bin.40.mep.services"] }
