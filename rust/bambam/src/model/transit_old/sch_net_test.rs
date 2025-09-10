@@ -3,7 +3,7 @@ mod test {
     use gtfs_structures::{Gtfs, RawGtfs};
 
     #[test]
-    fn test_read() {
+    fn test_e2e_read() {
         let gtfs =
             RawGtfs::new("http://data.trilliumtransit.com/gtfs/bustang-co-us/bustang-co-us.zip")
                 .unwrap();

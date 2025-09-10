@@ -54,7 +54,7 @@ mod test {
     use crate::run_bambam;
 
     #[test]
-    fn test_denver() {
+    fn test_e2e_denver() {
         let conf_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("test invariant failed: repo 'rust/bambam' dir has no parent")
