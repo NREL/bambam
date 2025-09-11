@@ -13,6 +13,7 @@ impl LabelModel for MultimodalLabelModel {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<Label, LabelModelError> {
+        // building a `LabelEnum::VertexWithIntStateVec`?
         todo!()
     }
 }
