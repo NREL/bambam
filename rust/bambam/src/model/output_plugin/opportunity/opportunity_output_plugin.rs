@@ -108,8 +108,7 @@ fn process_disaggregate_opportunities(
     instance: &SearchInstance,
     plugin: &OpportunityOutputPlugin,
 ) -> Result<(), OutputPluginError> {
-    let destinations_iter =
-        bambam_ops::collect_destinations(result, None, &instance.state_model);
+    let destinations_iter = bambam_ops::collect_destinations(result, None, &instance.state_model);
     let opps = plugin
         .model
         .collect_trip_opportunities(destinations_iter, instance)?;
@@ -128,7 +127,8 @@ fn process_aggregate_opportunities(
     instance: &SearchInstance,
     plugin: &OpportunityOutputPlugin,
 ) -> Result<(), OutputPluginError> {
-    let bins = bambam_field::get_time_bins(output).map_err(OutputPluginError::OutputPluginFailed)?;
+    let bins =
+        bambam_field::get_time_bins(output).map_err(OutputPluginError::OutputPluginFailed)?;
 
     for time_bin in bins {
         let start_time = Instant::now();

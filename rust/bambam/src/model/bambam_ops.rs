@@ -13,7 +13,10 @@ use routee_compass_core::{
     },
 };
 use std::{borrow::Cow, collections::HashMap};
-use uom::{si::f64::{Length, Time}, ConstZero};
+use uom::{
+    si::f64::{Length, Time},
+    ConstZero,
+};
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =

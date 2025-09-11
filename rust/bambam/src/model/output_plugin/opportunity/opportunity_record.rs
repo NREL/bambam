@@ -1,8 +1,5 @@
 use crate::model::{
-    bambam_feature,
-    bambam_field, 
-    TimeBin,
-    output_plugin::opportunity::OpportunityOrientation,
+    bambam_feature, bambam_field, output_plugin::opportunity::OpportunityOrientation, TimeBin,
 };
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::model::{

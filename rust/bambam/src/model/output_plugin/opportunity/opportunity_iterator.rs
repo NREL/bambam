@@ -1,12 +1,10 @@
-use crate::model::{bambam_field, TimeBin};
 use crate::model::output_plugin::{
-    isochrone::{
-        isochrone_output_format::{self, IsochroneOutputFormat},
-    },
+    isochrone::isochrone_output_format::{self, IsochroneOutputFormat},
     opportunity::{
         DestinationOpportunity, OpportunityFormat, OpportunityOrientation, OpportunityRecord,
     },
 };
+use crate::model::{bambam_field, TimeBin};
 use geo::{orient, Geometry};
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
@@ -38,7 +36,8 @@ pub fn new_aggregated<'a>(
     activity_types: &'a [String],
 ) -> Result<OpportunityIterator<'a>, OutputPluginError> {
     let isochrone_format = bambam_field::get::isochrone_format(input)?;
-    let bin_iter = bambam_field::time_bins_iter(input).map_err(OutputPluginError::OutputPluginFailed)?;
+    let bin_iter =
+        bambam_field::time_bins_iter(input).map_err(OutputPluginError::OutputPluginFailed)?;
 
     let source: Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>> =
         Box::new(bin_iter.flat_map(move |bin_result| match bin_result {
