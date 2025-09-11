@@ -1,5 +1,11 @@
+use std::sync::Arc;
+
 use routee_compass_core::model::{
-    label::{label_model_error::LabelModelError, label_model_service::LabelModelService, Label},
+    label::{
+        label_model_error::{self, LabelModelError},
+        label_model_service::LabelModelService,
+        Label, LabelModel,
+    },
     network::VertexId,
     state::{StateModel, StateVariable},
 };
@@ -10,11 +16,8 @@ impl LabelModelService for MultimodalLabelService {
     fn build(
         &self,
         query: &serde_json::Value,
-        state_model: std::sync::Arc<routee_compass_core::model::state::StateModel>,
-    ) -> Result<
-        std::sync::Arc<dyn routee_compass_core::model::label::LabelModel>,
-        routee_compass_core::model::label::label_model_error::LabelModelError,
-    > {
+        state_model: Arc<StateModel>,
+    ) -> Result<std::sync::Arc<dyn LabelModel>, label_model_error::LabelModelError> {
         todo!()
     }
 }
