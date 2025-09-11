@@ -1,3 +1,6 @@
+//! state feature names assigned to the state model in bambam runs. also exports
+//! the upstream-defined features from compass.
+
 /// time delays accumulated throughout the trip
 pub const TRIP_ENROUTE_DELAY: &str = "trip_enroute_delay";
 

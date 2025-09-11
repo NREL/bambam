@@ -1,5 +1,5 @@
 use crate::model::{
-    fieldname,
+    bambam_feature,
     traversal::multimodal::{DependencyUnitType, FeatureDependencyConfig},
 };
 use itertools::Itertools;
@@ -82,7 +82,7 @@ impl FeatureDependency {
                     InputFeature::Speed { unit, .. },
                     StateVariableConfig::Time { accumulator, .. },
                 ) => {
-                    let distance = state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
+                    let distance = state_model.get_distance(state, bambam_feature::EDGE_DISTANCE)?;
                     let speed = state_model.get_speed(state, &self.input_feature.name())?;
                     let time: Time = distance / speed;
                     if *accumulator {

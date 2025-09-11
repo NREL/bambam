@@ -1,4 +1,4 @@
-use crate::model::{fieldname, traversal::fixed_speed::FixedSpeedModel};
+use crate::model::{bambam_feature, traversal::fixed_speed::FixedSpeedModel};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
     state::{InputFeature, StateModel, StateVariable, StateVariableConfig},

@@ -1,10 +1,8 @@
 use super::{
     opportunity_orientation::OpportunityOrientation, opportunity_spatial_row::OpportunitySpatialRow,
 };
-use crate::model::output_plugin::{
-    mep_output_ops::DestinationsIter,
-    opportunity::{opportunity_row_id::OpportunityRowId, DestinationOpportunity},
-};
+use crate::model::output_plugin::opportunity::{opportunity_row_id::OpportunityRowId, DestinationOpportunity};
+use crate::model::bambam_ops::DestinationsIter;
 use geo::Convert;
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;

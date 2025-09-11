@@ -1,4 +1,6 @@
-use super::{bambam_field, isochrone::time_bin::TimeBin};
+use crate::model::bambam_feature;
+
+use super::{bambam_field, TimeBin};
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
@@ -6,12 +8,12 @@ use routee_compass_core::{
     model::{
         label::Label,
         network::VertexId,
-        state::{StateModel, StateModelError},
+        state::{StateModel, StateModelError, StateVariable},
         unit::{AsF64, DistanceUnit},
     },
 };
 use std::{borrow::Cow, collections::HashMap};
-use uom::si::f64::Length;
+use uom::{si::f64::{Length, Time}, ConstZero};
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =
@@ -108,6 +110,22 @@ pub fn accumulate_global_opps(
         }
     }
     Ok(result)
+}
+
+/// helper that combines the arrival delay with the traversal time to produce
+/// the time to reach this point and call it a destination.
+pub fn get_reachability_time(
+    state: &[StateVariable],
+    state_model: &StateModel,
+) -> Result<Time, StateModelError> {
+    let trip_time = state_model.get_time(state, bambam_feature::TRIP_TIME)?;
+    let has_delay = state_model.contains_key(&bambam_feature::TRIP_ARRIVAL_DELAY.to_string());
+    let arrival_delay = if has_delay {
+        state_model.get_time(state, bambam_feature::TRIP_ARRIVAL_DELAY)?
+    } else {
+        Time::ZERO
+    };
+    Ok(trip_time + arrival_delay)
 }
 
 /// steps through each bin's output section for mutable updates

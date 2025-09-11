@@ -1,5 +1,5 @@
 use super::TimeDelayLookup;
-use crate::model::fieldname;
+use crate::model::bambam_feature;
 use routee_compass_core::model::{
     network::{Edge, Vertex},
     state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
@@ -40,7 +40,7 @@ impl TraversalModel for TripArrivalDelayModel {
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
-            fieldname::TRIP_ARRIVAL_DELAY.to_string(),
+            bambam_feature::TRIP_ARRIVAL_DELAY.to_string(),
             StateVariableConfig::Time {
                 initial: Time::ZERO,
                 output_unit: Some(self.0.config.time_unit),
@@ -78,7 +78,7 @@ fn add_delay_time(
     lookup: Arc<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
     if let Some(delay) = lookup.get_delay_for_vertex(destination) {
-        state_model.set_time(state, fieldname::TRIP_ARRIVAL_DELAY, &delay)?;
+        state_model.set_time(state, bambam_feature::TRIP_ARRIVAL_DELAY, &delay)?;
     }
     Ok(())
 }

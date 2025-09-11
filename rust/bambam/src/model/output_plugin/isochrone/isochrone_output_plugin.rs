@@ -1,9 +1,7 @@
 use super::destination_point_generator::DestinationPointGenerator;
 use super::isochrone_algorithm::IsochroneAlgorithm;
 use super::isochrone_output_format::IsochroneOutputFormat;
-use super::time_bin::TimeBin;
-use crate::model::output_plugin::bambam_field as field;
-use crate::model::output_plugin::mep_output_ops;
+use crate::model::{TimeBin, bambam_field as field, bambam_ops};
 use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
 use routee_compass::plugin::output::OutputPlugin;
 use routee_compass::plugin::output::OutputPluginError;
@@ -102,7 +100,7 @@ fn get_isochrone(
         min_time: 0,
         max_time: time_bin.max_time,
     };
-    let tree_destinations: Vec<_> = mep_output_ops::collect_destinations(
+    let tree_destinations: Vec<_> = bambam_ops::collect_destinations(
         search_result,
         Some(&isochrone_time_bin),
         &si.state_model,

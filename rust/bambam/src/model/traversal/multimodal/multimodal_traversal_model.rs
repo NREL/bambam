@@ -1,4 +1,4 @@
-use crate::model::fieldname;
+use crate::model::bambam_feature;
 
 use super::FeatureDependency;
 use itertools::Itertools;

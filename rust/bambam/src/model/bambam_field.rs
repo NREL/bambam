@@ -43,7 +43,7 @@
 //! }
 //! ```
 //!
-use super::isochrone::time_bin::TimeBin;
+use super::TimeBin;
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
 use serde::de::DeserializeOwned;
