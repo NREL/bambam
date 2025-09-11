@@ -9,5 +9,6 @@ mod time_bin;
 pub mod transit_new;
 pub mod transit_old;
 pub mod traversal;
+pub mod label;
 
 pub use time_bin::TimeBin;
