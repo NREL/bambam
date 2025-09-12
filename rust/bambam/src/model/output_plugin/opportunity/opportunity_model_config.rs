@@ -192,7 +192,6 @@ impl OpportunityModelConfig {
                     .chunk_by(|(_, match_id)| *match_id);
                 let proportion_iter = tqdm!(
                     proportion_groups.into_iter(),
-                    total = vertices.len(),
                     desc = "opportunities areal proportioning"
                 );
                 let mut proportion_lookup = HashMap::new();

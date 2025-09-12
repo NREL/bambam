@@ -6,8 +6,6 @@
 
 set -e
 
-# 1. bambam-osm test dataset
-cd rust/bambam-osm/src/test/
-./get_test.sh
-cd ../../../../
-
+# create a virtual environment
+echo "downloading denver_co scenario"
+uv run --with osmnx --with "nrel.routee.compass[all]" script/setup_test_bambam.py
