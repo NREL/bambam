@@ -438,4 +438,19 @@ mod test {
         assert_eq!(active_leg, 0);
         assert_eq!(leg_0_mode, &test_mode);
     }
+
+    #[test]
+    fn test_switch_trip_mode_access() {
+        todo!()
+    }
+
+    #[test]
+    fn test_initialize_trip_traversal() {
+        todo!()
+    }
+
+    #[test]
+    fn test_start_trip_traversal() {
+        todo!()
+    }
 }
