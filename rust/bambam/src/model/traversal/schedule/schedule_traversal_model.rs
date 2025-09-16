@@ -1,5 +1,5 @@
 use super::schedule_traversal_engine::ScheduleTraversalEngine;
-use crate::model::bambam_feature;
+use crate::model::bambam_state;
 use chrono::{DateTime, Utc};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
@@ -29,7 +29,7 @@ impl TraversalModel for ScheduleTraversalModel {
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
-            String::from(bambam_feature::ROUTE_ID),
+            String::from("route_id"),
             StateVariableConfig::Custom {
                 custom_type: String::from("RouteId"),
                 value: CustomVariableConfig::SignedInteger {

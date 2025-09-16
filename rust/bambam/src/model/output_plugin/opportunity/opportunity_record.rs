@@ -1,5 +1,5 @@
 use crate::model::{
-    bambam_feature, bambam_field, output_plugin::opportunity::OpportunityOrientation, TimeBin,
+    bambam_field, bambam_state, output_plugin::opportunity::OpportunityOrientation, TimeBin,
 };
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::model::{
@@ -50,7 +50,7 @@ impl OpportunityRecord {
         match self {
             Self::Disaggregate { state, .. } => {
                 // time comes from the trip travel time taken to reach this point
-                state_model.get_time(state, bambam_feature::TRIP_TIME)
+                state_model.get_time(state, bambam_state::TRIP_TIME)
                     .map_err(|e| OutputPluginError::OutputPluginFailed(format!("with disaggregate opportunity record, could not find trip time due to: {e}")))
             }
             Self::Aggregate { time_bin, .. } => {

@@ -43,7 +43,7 @@
 //! }
 //! ```
 //!
-use super::TimeBin;
+use crate::model::TimeBin;
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
 use serde::de::DeserializeOwned;

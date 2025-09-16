@@ -35,7 +35,7 @@ impl GtfsReader {
         let gtfs_archives: Vec<Archive> = zip_archives
             .iter()
             .map(|file| {
-                let zip_archive = zip::ZipArchive::new(file).map_err(GtfsError::ZipError)?;
+                let mut zip_archive = zip::ZipArchive::new(file).map_err(GtfsError::ZipError)?;
                 let gtfs_archive = Archive::new(&zip_archive)?;
                 Ok(gtfs_archive)
             })

@@ -1,4 +1,4 @@
-use crate::model::bambam_feature;
+use crate::model::bambam_state;
 
 use super::FeatureDependency;
 use itertools::Itertools;
@@ -9,6 +9,8 @@ use routee_compass_core::model::{
 };
 use std::collections::HashMap;
 
+/// routes values from fields within the state vector to accumulators
+/// within the state vector that are targeted by the cost model.
 pub struct MultimodalTraversalModel {
     pub feature_dependencies: Vec<FeatureDependency>,
     pub output_features: Vec<(String, StateVariableConfig)>,

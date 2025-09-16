@@ -1,4 +1,4 @@
-use crate::model::bambam_feature;
+use crate::model::bambam_state;
 
 use super::{bambam_field, TimeBin};
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
@@ -121,10 +121,10 @@ pub fn get_reachability_time(
     state: &[StateVariable],
     state_model: &StateModel,
 ) -> Result<Time, StateModelError> {
-    let trip_time = state_model.get_time(state, bambam_feature::TRIP_TIME)?;
-    let has_delay = state_model.contains_key(&bambam_feature::TRIP_ARRIVAL_DELAY.to_string());
+    let trip_time = state_model.get_time(state, bambam_state::TRIP_TIME)?;
+    let has_delay = state_model.contains_key(&bambam_state::TRIP_ARRIVAL_DELAY.to_string());
     let arrival_delay = if has_delay {
-        state_model.get_time(state, bambam_feature::TRIP_ARRIVAL_DELAY)?
+        state_model.get_time(state, bambam_state::TRIP_ARRIVAL_DELAY)?
     } else {
         Time::ZERO
     };

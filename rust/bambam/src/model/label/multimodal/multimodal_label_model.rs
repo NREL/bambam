@@ -4,7 +4,24 @@ use routee_compass_core::model::{
     state::{StateModel, StateVariable},
 };
 
-pub struct MultimodalLabelModel {}
+use crate::model::state::MultimodalMapping;
+
+pub struct MultimodalLabelModel {
+    mapping: MultimodalMapping<String, i64>,
+    max_trip_legs: usize,
+}
+
+impl MultimodalLabelModel {
+    pub fn new(
+        mapping: MultimodalMapping<String, i64>,
+        max_trip_legs: usize,
+    ) -> MultimodalLabelModel {
+        MultimodalLabelModel {
+            mapping,
+            max_trip_legs,
+        }
+    }
+}
 
 impl LabelModel for MultimodalLabelModel {
     fn label_from_state(
