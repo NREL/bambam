@@ -60,7 +60,7 @@ impl AccessModel for MultimodalTripLegModel {
         };
 
         match leg_and_mode_opt {
-            Some((_, mode)) if mode == &self.mode => {
+            Some((_, mode)) if mode == self.mode => {
                 // leg exists but no change in mode -> return early
             }
             _ => {
