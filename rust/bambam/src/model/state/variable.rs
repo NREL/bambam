@@ -15,7 +15,7 @@ pub const EMPTY: CustomVariableConfig = CustomVariableConfig::SignedInteger { in
 pub fn active_leg_input_feature() -> InputFeature {
     InputFeature::Custom {
         name: "active_leg".to_string(),
-        unit: "SignedInteger".to_string(),
+        unit: "signed_integer".to_string(),
     }
 }
 
@@ -30,7 +30,7 @@ pub fn active_leg_variable_config() -> StateVariableConfig {
 pub fn leg_mode_input_feature(leg_idx: LegIdx) -> InputFeature {
     InputFeature::Custom {
         name: fieldname::leg_mode_fieldname(leg_idx),
-        unit: "SignedInteger".to_string(),
+        unit: "signed_integer".to_string(),
     }
 }
 
