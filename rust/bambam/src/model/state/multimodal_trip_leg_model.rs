@@ -95,19 +95,20 @@ impl TraversalModel for MultimodalTripLegModel {
                 name: fieldname::EDGE_TIME.to_string(),
                 unit: None,
             },
+            state_variable::active_leg_input_feature(),
         ]
     }
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
-        let active_leg = std::iter::once((
-            fieldname::ACTIVE_LEG.to_string(),
-            state_variable::active_leg(),
-        ));
-        let leg_mode = (0..self.max_trip_legs).map(|idx| {
-            let name = super::fieldname::leg_mode_fieldname(idx);
-            let config = super::state_variable::leg_mode();
-            (name, config)
-        });
+        // let active_leg = std::iter::once((
+        //     fieldname::ACTIVE_LEG.to_string(),
+        //     state_variable::active_leg(),
+        // ));
+        // let leg_mode = (0..self.max_trip_legs).map(|idx| {
+        //     let name = super::fieldname::leg_mode_fieldname(idx);
+        //     let config = super::state_variable::leg_mode();
+        //     (name, config)
+        // });
         let leg_dist = (0..self.max_trip_legs).map(|idx| {
             let name = super::fieldname::leg_distance_fieldname(idx);
             let config = super::state_variable::multimodal_distance(None);
@@ -126,9 +127,9 @@ impl TraversalModel for MultimodalTripLegModel {
             super::fieldname::mode_time_fieldname(&self.mode),
             super::state_variable::multimodal_time(None),
         ));
-        active_leg
-            .chain(leg_mode)
-            .chain(leg_dist)
+        // active_leg
+        //     .chain(leg_mode)
+        leg_dist
             .chain(leg_time)
             .chain(mode_dist)
             .chain(mode_time)
@@ -375,37 +376,54 @@ impl MultimodalTripLegModel {
         state_model.set_custom_i64(state, &name, mode_label)
     }
 
-    pub fn serialize_access_state(
+    /// modifies a state serialization so that values related to multimodal access modeling
+    /// have been re-mapped to their categorical values
+    pub fn serialize_mapping_values(
         &self,
+        state_json: &mut serde_json::Value,
         state: &[StateVariable],
         state_model: &StateModel,
         accumulators_only: bool,
-    ) -> Result<serde_json::Value, StateModelError> {
-        // first, serialize using the StateModel
-        let mut result = state_model.serialize_state(state, accumulators_only)?;
-
-        // do not process "active_leg" key, it should remain a u64 value
-
+    ) -> Result<(), StateModelError> {
         // use mappings to map any multimodal state values to their respective categoricals
         for idx in (0..self.max_trip_legs) {
-            let name = super::fieldname::leg_mode_fieldname(idx);
-            if let Some(v) = result.get_mut(&name) {
-                let label = v.as_i64().ok_or_else(|| {
-                    StateModelError::RuntimeError(format!(
-                        "unable to get label (i64) value for leg mode key {name}"
-                    ))
-                })?;
-                let cat = self.mode_mapping.get_categorical(label)?.ok_or_else(|| {
-                    StateModelError::RuntimeError(format!(
-                        "access model missing leg mode entry for {name}"
-                    ))
-                })?;
-                *v = json![cat.to_string()];
-            }
+            // re-map leg mode
+            let mode_key = super::fieldname::leg_mode_fieldname(idx);
+            let route_key = super::fieldname::leg_route_id_fieldname(idx);
+            apply_mapping_for_serialization(state_json, &mode_key, idx, &self.mode_mapping)?;
+            apply_mapping_for_serialization(state_json, &route_key, idx, &self.route_id_mapping)?;
         }
 
-        Ok(result)
+        Ok(())
     }
+}
+
+/// helper function for applying the label/categorical mapping in the
+/// context of serializing a value on an output multimodal search state JSON.
+fn apply_mapping_for_serialization(
+    state_json: &mut serde_json::Value,
+    name: &str,
+    leg_idx: LegIdx,
+    mapping: &MultimodalMapping<String, i64>,
+) -> Result<(), StateModelError> {
+    if let Some(v) = state_json.get_mut(&name) {
+        let label = v.as_i64().ok_or_else(|| {
+            StateModelError::RuntimeError(format!(
+                "unable to get label (i64) value for leg index, key {leg_idx}, {name}"
+            ))
+        })?;
+        if label < 0 {
+            *v = json![""]; // no mode assigned
+        } else {
+            let cat = mapping.get_categorical(label)?.ok_or_else(|| {
+                StateModelError::RuntimeError(format!(
+                    "while serializing multimodal state, mapping failed for name, leg index, label: {name}, {leg_idx}, {label}"
+                ))
+            })?;
+            *v = json![cat.to_string()];
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -529,14 +547,15 @@ mod test {
             .expect("assertion 2 failed");
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
+        let mut state_json = state_model
+            .serialize_state(&state, false)
+            .expect("state serialization failed");
+        mmm_walk
+            .serialize_mapping_values(&mut state_json, &state, &state_model, false)
+            .expect("state serialization failed");
         println!(
             "{}",
-            serde_json::to_string_pretty(
-                &mmm_walk
-                    .serialize_access_state(&state, &state_model, false)
-                    .unwrap_or_default()
-            )
-            .unwrap_or_default()
+            serde_json::to_string_pretty(&state_json).unwrap_or_default()
         );
     }
 
@@ -560,8 +579,9 @@ mod test {
             .initial_state()
             .expect("test invariant failed: unable to create state");
 
-        // access edge 2 in walk mode, access edge 3 in bike mode
-        // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3) where
+        // the two trajectories concatenate together into the sequence
+        // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3)
+        // where
         //   - edge list 0 has edges 0 and 1, uses walk-mode access model
         //   - edge list 1 has edge 2, uses bike-mode access model
         let t1 = mock_trajectory(0, 0, 0, 0);
@@ -583,7 +603,6 @@ mod test {
             &mut state,
             &state_model,
         );
-
         match result {
             Ok(()) => panic!("assertion 1 failed"),
             Err(e) => assert!(format!("{e}").contains("invalid leg id 1 >= max leg id 1")),
