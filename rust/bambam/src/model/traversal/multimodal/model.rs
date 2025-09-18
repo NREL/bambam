@@ -36,8 +36,7 @@ impl TraversalModel for MultimodalTraversalModel {
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
-        let leg_modes =
-            (0..self.max_trip_legs).map(variable::leg_mode_input_feature);
+        let leg_modes = (0..self.max_trip_legs).map(variable::leg_mode_input_feature);
         let mut features = vec![
             InputFeature::Distance {
                 name: fieldname::EDGE_DISTANCE.to_string(),
@@ -246,7 +245,7 @@ mod test {
             .expect("test invariant failed: state model could not create initial state");
 
         // mock up some edge_dist, edge_time values
-        let distance = Length::new::<uom::si::length::meter>(3.14159);
+        let distance = Length::new::<uom::si::length::mile>(3.14159);
         state_model
             .set_distance(&mut state, "edge_distance", &distance)
             .expect("test invariant failed: could not assign edge_distance");
