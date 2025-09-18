@@ -1,6 +1,6 @@
 use crate::model::{
     bambam_state,
-    traversal::multimodal::{DependencyUnitType, FeatureDependencyConfig},
+    traversal::multimodal_dep::{DependencyUnitType, FeatureDependencyConfig},
 };
 use itertools::Itertools;
 use routee_compass_core::model::{

@@ -1,8 +1,7 @@
 pub mod fieldname;
 mod multimodal_mapping;
 pub mod multimodal_state_ops;
-mod multimodal_trip_leg_model;
-mod state_variable;
+pub mod variable;
 
 pub use multimodal_mapping::MultimodalMapping;
 

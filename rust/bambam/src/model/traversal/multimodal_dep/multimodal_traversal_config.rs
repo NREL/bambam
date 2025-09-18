@@ -1,5 +1,5 @@
 use super::{FeatureDependency, FeatureMappingsByMode};
-use crate::model::traversal::multimodal::FeatureDependencyConfig;
+use crate::model::traversal::multimodal_dep::FeatureDependencyConfig;
 use routee_compass_core::model::state::StateVariableConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

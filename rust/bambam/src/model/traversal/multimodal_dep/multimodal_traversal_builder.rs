@@ -3,7 +3,7 @@ use routee_compass_core::model::traversal::{
 };
 use std::sync::Arc;
 
-use crate::model::traversal::multimodal::{
+use crate::model::traversal::multimodal_dep::{
     multimodal_traversal_service::MultimodalTraversalService, MultimodalTraversalConfig,
 };
 

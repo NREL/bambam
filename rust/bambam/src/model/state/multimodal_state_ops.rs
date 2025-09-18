@@ -1,5 +1,179 @@
+use crate::model::state::{LegIdx, MultimodalMapping};
 use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde_json::json;
+use uom::si::f64::{Length, Time};
+
+use super::fieldname;
+
+/// inspect the current active leg for a trip
+pub fn get_active_leg_idx(
+    state: &[StateVariable],
+    state_model: &StateModel,
+) -> Result<Option<LegIdx>, StateModelError> {
+    let leg_i64 = state_model.get_custom_i64(state, fieldname::ACTIVE_LEG)?;
+    if leg_i64 < 0 {
+        Ok(None)
+    } else {
+        let leg_u64 = leg_i64.try_into().map_err(|e| {
+            StateModelError::RuntimeError(format!(
+                "internal error: while getting active trip leg, unable to parse {leg_i64} as a u64"
+            ))
+        })?;
+        Ok(Some(leg_u64))
+    }
+}
+
+/// report if any trip data has been recorded for the given trip leg.
+/// this uses the fact that any trip leg must have a leg mode, and leg modes
+/// are stored with non-negative integer values, negative denotes "empty".
+/// see [`super::state_variable`] for the leg mode variable configuration.
+pub fn contains_leg(
+    state: &mut [StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+) -> Result<bool, StateModelError> {
+    validate_leg_idx(leg_idx, max_trip_legs)?;
+    let name = fieldname::leg_mode_fieldname(leg_idx);
+    let label = state_model.get_custom_i64(state, &name)?;
+    Ok(label >= 0)
+}
+
+/// get the travel mode for a leg.
+pub fn get_leg_mode<'a>(
+    state: &[StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+    mode_mapping: &'a MultimodalMapping<String, i64>,
+) -> Result<&'a str, StateModelError> {
+    validate_leg_idx(leg_idx, max_trip_legs)?;
+    let name = fieldname::leg_mode_fieldname(leg_idx);
+    let label = state_model.get_custom_i64(state, &name)?;
+    if label < 0 {
+        Err(StateModelError::RuntimeError(format!(
+            "Internal Error: get_leg_mode called on leg idx {} but mode label is not set (stored as {})",
+            leg_idx,
+            label
+        )))
+    } else {
+        mode_mapping
+            .get_categorical(label)?
+            .ok_or_else(|| {
+                StateModelError::RuntimeError(format!(
+                    "internal error, leg {} has invalid mode label {}",
+                    leg_idx, label
+                ))
+            })
+            .map(|s| s.as_str())
+    }
+}
+
+pub fn get_leg_distance(
+    state: &[StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+) -> Result<Length, StateModelError> {
+    let name = fieldname::leg_distance_fieldname(leg_idx);
+    state_model.get_distance(state, &name)
+}
+
+pub fn get_leg_time(
+    state: &[StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+) -> Result<Time, StateModelError> {
+    let name = fieldname::leg_time_fieldname(leg_idx);
+    state_model.get_time(state, &name)
+}
+
+pub fn get_leg_route_id<'a>(
+    state: &[StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+    route_id_mapping: &'a MultimodalMapping<String, i64>,
+) -> Result<Option<&'a String>, StateModelError> {
+    let name = fieldname::leg_route_id_fieldname(leg_idx);
+    let route_id_label = state_model.get_custom_i64(state, &name)?;
+    let route_id = route_id_mapping.get_categorical(route_id_label)?;
+    Ok(route_id)
+}
+
+pub fn get_mode_distance(
+    state: &mut [StateVariable],
+    mode: &str,
+    state_model: &StateModel,
+) -> Result<Length, StateModelError> {
+    let name = fieldname::mode_distance_fieldname(mode);
+    state_model.get_distance(state, &name)
+}
+
+pub fn get_mode_time(
+    state: &[StateVariable],
+    mode: &str,
+    state_model: &StateModel,
+) -> Result<Time, StateModelError> {
+    let name = fieldname::mode_time_fieldname(mode);
+    state_model.get_time(state, &name)
+}
+
+/// increments the value at [`fieldname::ACTIVE_LEG`].
+/// when ACTIVE_LEG is negative (no active leg), it becomes zero.
+/// when it is a number in [0, max_legs-1), it is incremented by one.
+/// returns the new index value.
+pub fn increment_active_leg_idx(
+    state: &mut [StateVariable],
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+) -> Result<LegIdx, StateModelError> {
+    // get the index of the next leg
+    let next_leg_idx_u64 = match get_active_leg_idx(state, state_model)? {
+        Some(leg_idx) => {
+            let next = leg_idx + 1;
+            validate_leg_idx(next, max_trip_legs)?;
+            next
+        }
+        None => 0,
+    };
+    // as an i64, to match the storage format
+    let next_leg_idx: i64 = next_leg_idx_u64.try_into().map_err(|e| {
+        StateModelError::RuntimeError(format!(
+            "internal error: while getting active trip leg, unable to parse {next_leg_idx_u64} as a i64"
+        ))
+    })?;
+
+    // increment the value in the state vector
+    state_model.set_custom_i64(state, fieldname::ACTIVE_LEG, &next_leg_idx)?;
+    Ok(next_leg_idx_u64)
+}
+
+/// sets the mode value for the given leg. performs mapping from Mode -> i64 which is
+/// the storage type for Mode in the state vector.
+pub fn set_leg_mode(
+    state: &mut [StateVariable],
+    leg_idx: LegIdx,
+    mode: &str,
+    state_model: &StateModel,
+    mode_mapping: &MultimodalMapping<String, i64>,
+) -> Result<(), StateModelError> {
+    let mode_label = mode_mapping.get_label(mode).ok_or_else(|| {
+        StateModelError::RuntimeError(format!("mode mapping has no entry for '{}' mode", mode))
+    })?;
+    let name = fieldname::leg_mode_fieldname(leg_idx);
+    state_model.set_custom_i64(state, &name, mode_label)
+}
+
+/// validates leg_idx values, which must be in range [0, max_trip_legs)
+pub fn validate_leg_idx(leg_idx: LegIdx, max_trip_legs: LegIdx) -> Result<(), StateModelError> {
+    if leg_idx >= max_trip_legs {
+        Err(StateModelError::RuntimeError(format!(
+            "invalid leg id {leg_idx} >= max leg id {}",
+            max_trip_legs
+        )))
+    } else {
+        Ok(())
+    }
+}
 
 /// helper function for creating a descriptive error when attempting to apply
 /// the multimodal traversal model on a state that has not activated it's first trip leg.

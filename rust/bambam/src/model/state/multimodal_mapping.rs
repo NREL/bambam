@@ -67,6 +67,11 @@ where
         })
     }
 
+    /// get the list (in enumeration order) of categories
+    pub fn get_categories(&self) -> &[T] {
+        &self.label_to_cat
+    }
+
     /// append another categorical to the mapping, returning the new categorical's label id.
     /// if the categorical is already stored in the mapping, we return the existing label and
     /// no insert occurs.

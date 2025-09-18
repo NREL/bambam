@@ -1,3 +1,3 @@
-mod multimodal_access_model;
+mod model;
 
-pub use multimodal_access_model::MultimodalAccessModel;
+pub use model::MultimodalAccessModel;

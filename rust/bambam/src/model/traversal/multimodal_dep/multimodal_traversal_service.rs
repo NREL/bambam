@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::model::traversal::multimodal::{FeatureDependency, MultimodalTraversalModel};
+use crate::model::traversal::multimodal_dep::{FeatureDependency, MultimodalTraversalModel};
 
 use super::MultimodalTraversalConfig;
 use itertools::Itertools;

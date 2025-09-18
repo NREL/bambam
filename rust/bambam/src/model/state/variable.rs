@@ -14,7 +14,7 @@ pub const EMPTY: CustomVariableConfig = CustomVariableConfig::SignedInteger { in
 
 pub fn active_leg_input_feature() -> InputFeature {
     InputFeature::Custom {
-        name: "ActiveLeg".to_string(),
+        name: "active_leg".to_string(),
         unit: "i64".to_string(),
     }
 }

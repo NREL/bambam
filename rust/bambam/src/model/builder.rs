@@ -4,7 +4,6 @@ use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builde
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
-use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use inventory;
 use routee_compass::app::compass::BuilderRegistration;
@@ -27,10 +26,6 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
         Rc::new(TripDepartureDelayBuilder {}),
     );
     builders.add_traversal_model(String::from("arrival"), Rc::new(TripArrivalDelayBuilder {}));
-    builders.add_traversal_model(
-        String::from("multimodal"),
-        Rc::new(MultimodalTraversalBuilder {}),
-    );
 
     builders.add_frontier_model(
         String::from("time_limit"),
