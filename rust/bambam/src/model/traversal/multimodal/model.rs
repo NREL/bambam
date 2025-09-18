@@ -104,7 +104,7 @@ impl TraversalModel for MultimodalTraversalModel {
         )?;
         let d_leg = fieldname::leg_distance_fieldname(leg_idx);
         let d_mode = fieldname::mode_distance_fieldname(mode);
-        let t_leg = fieldname::leg_distance_fieldname(leg_idx);
+        let t_leg = fieldname::leg_time_fieldname(leg_idx);
         let t_mode = fieldname::mode_time_fieldname(mode);
         state_model.add_distance(state, &d_leg, &distance)?;
         state_model.add_distance(state, &d_mode, &distance)?;
