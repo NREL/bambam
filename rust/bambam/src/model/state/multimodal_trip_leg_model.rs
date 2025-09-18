@@ -35,11 +35,11 @@ impl AccessModel for MultimodalTripLegModel {
     fn state_features(&self) -> Vec<(String, StateVariableConfig)> {
         let active_leg = std::iter::once((
             fieldname::ACTIVE_LEG.to_string(),
-            state_variable::active_leg(),
+            state_variable::active_leg_variable_config(),
         ));
         let leg_mode = (0..self.max_trip_legs).map(|idx| {
             let name = super::fieldname::leg_mode_fieldname(idx);
-            let config = super::state_variable::leg_mode();
+            let config = super::state_variable::leg_mode_variable_config();
             (name, config)
         });
         active_leg.chain(leg_mode).collect_vec()
@@ -111,21 +111,21 @@ impl TraversalModel for MultimodalTripLegModel {
         // });
         let leg_dist = (0..self.max_trip_legs).map(|idx| {
             let name = super::fieldname::leg_distance_fieldname(idx);
-            let config = super::state_variable::multimodal_distance(None);
+            let config = super::state_variable::multimodal_distance_variable_config(None);
             (name, config)
         });
         let leg_time = (0..self.max_trip_legs).map(|idx| {
             let name = super::fieldname::leg_time_fieldname(idx);
-            let config = super::state_variable::multimodal_time(None);
+            let config = super::state_variable::multimodal_time_variable_config(None);
             (name, config)
         });
         let mode_dist = std::iter::once((
             super::fieldname::mode_distance_fieldname(&self.mode),
-            super::state_variable::multimodal_distance(None),
+            super::state_variable::multimodal_distance_variable_config(None),
         ));
         let mode_time = std::iter::once((
             super::fieldname::mode_time_fieldname(&self.mode),
-            super::state_variable::multimodal_time(None),
+            super::state_variable::multimodal_time_variable_config(None),
         ));
         // active_leg
         //     .chain(leg_mode)

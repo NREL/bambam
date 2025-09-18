@@ -19,7 +19,7 @@ pub fn active_leg_input_feature() -> InputFeature {
     }
 }
 
-pub fn active_leg() -> StateVariableConfig {
+pub fn active_leg_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "ActiveLeg".to_string(),
         value: EMPTY,
@@ -28,7 +28,7 @@ pub fn active_leg() -> StateVariableConfig {
 }
 
 /// creates configuration for mode state variables
-pub fn leg_mode() -> StateVariableConfig {
+pub fn leg_mode_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "Mode".to_string(),
         value: EMPTY,
@@ -37,7 +37,9 @@ pub fn leg_mode() -> StateVariableConfig {
 }
 
 /// creates configuration for distance state variables
-pub fn multimodal_distance(output_unit: Option<DistanceUnit>) -> StateVariableConfig {
+pub fn multimodal_distance_variable_config(
+    output_unit: Option<DistanceUnit>,
+) -> StateVariableConfig {
     StateVariableConfig::Distance {
         initial: Length::ZERO,
         accumulator: true,
@@ -46,7 +48,7 @@ pub fn multimodal_distance(output_unit: Option<DistanceUnit>) -> StateVariableCo
 }
 
 /// creates configuration for time state variables
-pub fn multimodal_time(output_unit: Option<TimeUnit>) -> StateVariableConfig {
+pub fn multimodal_time_variable_config(output_unit: Option<TimeUnit>) -> StateVariableConfig {
     StateVariableConfig::Time {
         initial: Time::ZERO,
         accumulator: true,
@@ -55,7 +57,7 @@ pub fn multimodal_time(output_unit: Option<TimeUnit>) -> StateVariableConfig {
 }
 
 /// creates configuration for route_id state variables
-pub fn multimodal_route_id() -> StateVariableConfig {
+pub fn multimodal_route_id_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "RouteId".to_string(),
         value: EMPTY,
