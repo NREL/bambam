@@ -100,7 +100,7 @@ pub fn get_leg_route_id<'a>(
 }
 
 pub fn get_mode_distance(
-    state: &mut [StateVariable],
+    state: &[StateVariable],
     mode: &str,
     state_model: &StateModel,
 ) -> Result<Length, StateModelError> {

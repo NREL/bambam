@@ -36,7 +36,9 @@ impl TraversalModel for MultimodalTraversalModel {
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
-        vec![
+        let leg_modes =
+            (0..self.max_trip_legs).map(|leg_idx| variable::leg_mode_input_feature(leg_idx));
+        let mut features = vec![
             InputFeature::Distance {
                 name: fieldname::EDGE_DISTANCE.to_string(),
                 unit: None,
@@ -45,8 +47,10 @@ impl TraversalModel for MultimodalTraversalModel {
                 name: fieldname::EDGE_TIME.to_string(),
                 unit: None,
             },
-            // variable::active_leg_input_feature(),
-        ]
+            variable::active_leg_input_feature(),
+        ];
+        features.extend(leg_modes);
+        features
     }
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
@@ -72,15 +76,6 @@ impl TraversalModel for MultimodalTraversalModel {
             let config = variable::multimodal_time_variable_config(None);
             (name, config)
         });
-
-        // let mode_dist = std::iter::once((
-        //     fieldname::mode_distance_fieldname(&self.mode),
-        //     variable::multimodal_distance_variable_config(None),
-        // ));
-        // let mode_time = std::iter::once((
-        //     fieldname::mode_time_fieldname(&self.mode),
-        //     variable::multimodal_time_variable_config(None),
-        // ));
         leg_dist
             .chain(leg_time)
             .chain(mode_dist)
@@ -181,7 +176,7 @@ mod test {
         },
         testing::mock::traversal_model::TestTraversalModel,
     };
-    use uom::si::f64::Length;
+    use uom::si::f64::{Length, Time};
 
     #[test]
     fn test_initialize_trip_traversal() {
@@ -211,10 +206,12 @@ mod test {
 
         // ASSERTION 1: state has the expected length given the provided number of trip legs + modes
         let expected_len = {
+            let active_leg = 1;
             let input_features = 2; // edge_time, trip_time
-            let leg_fields = 2;
+            let leg_fields = 3;
             let mode_fields = 2;
-            input_features
+            active_leg
+                + input_features
                 + available_modes.len() * mode_fields
                 + max_trip_legs as usize * leg_fields
         };
@@ -233,28 +230,59 @@ mod test {
 
     #[test]
     fn test_start_trip_traversal() {
-        let model = MultimodalTraversalModel::new_local("walk", 1, &["walk"])
-            .expect("test invariant failed, model constructor had error");
+        let available_modes = ["walk"];
+        let max_trip_legs = 1;
+        let tm = Arc::new(
+            MultimodalTraversalModel::new_local("walk", max_trip_legs, &available_modes)
+                .expect("test invariant failed, model constructor had error"),
+        );
+        let test_tm = TestTraversalModel::new(tm.clone())
+            .expect("test invariant failed, unable to produce a test model");
+
+        let state_model = StateModel::new(test_tm.output_features());
+
+        let mut state = state_model
+            .initial_state()
+            .expect("test invariant failed: state model could not create initial state");
+
+        // mock up some edge_dist, edge_time values
+        let distance = Length::new::<uom::si::length::meter>(3.14159);
+        state_model
+            .set_distance(&mut state, "edge_distance", &distance)
+            .expect("test invariant failed: could not assign edge_distance");
+        let time = Time::new::<uom::si::time::minute>(60.0);
+        state_model
+            .set_time(&mut state, "edge_time", &time)
+            .expect("test invariant failed: could not assign edge_time");
 
         // (0) -[0]-> (1)
-        let trajectory = mock_trajectory(0, 0, 0);
+        let t = mock_trajectory(0, 0, 0);
 
-        // let fields = [
-        //     "walk_distance",
-        //     "walk_time",
-        //     "leg_0_mode",
-        //     "leg_0_distance",
-        //     "leg_0_time",
-        //     "leg_0_route_id",
-        // ];
-        // assert_active_leg(Some(0), &state, &state_model);
-        // assert_active_mode(
-        //     Some("walk"),
-        //     &state,
-        //     &state_model,
-        //     tm.max_trip_legs,
-        //     &tm.mode_mapping,
-        // );
+        test_tm
+            .traverse_edge((&t.0, &t.1, &t.2), &mut state, &state_model)
+            .expect("failed to traverse edge");
+
+        // as a head check, we can also inspect the serialized access state JSON in the logs
+        let state_json = state_model
+            .serialize_state(&state, false)
+            .expect("state serialization failed");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&state_json).unwrap_or_default()
+        );
+
+        // ASSERTION 1: values copied to leg + mode accumulators should be correct
+        let leg_0_distance =
+            ops::get_leg_distance(&state, 0, &state_model).expect("should find leg distance");
+        let leg_0_time = ops::get_leg_time(&state, 0, &state_model).expect("should find leg time");
+        let mode_walk_distance = ops::get_mode_distance(&state, "walk", &state_model)
+            .expect("should find mode distance");
+        let mode_walk_time =
+            ops::get_mode_time(&state, "walk", &state_model).expect("should find mode time");
+        assert_eq!(leg_0_distance, distance);
+        assert_eq!(leg_0_time, time);
+        assert_eq!(mode_walk_distance, distance);
+        assert_eq!(mode_walk_time, time);
     }
 
     /// helper to create trajectories spaced apart evenly along a line with segments of uniform length

@@ -72,6 +72,11 @@ where
         &self.label_to_cat
     }
 
+    /// count the number of mapped categories
+    pub fn n_categories(&self) -> usize {
+        self.label_to_cat.len()
+    }
+
     /// append another categorical to the mapping, returning the new categorical's label id.
     /// if the categorical is already stored in the mapping, we return the existing label and
     /// no insert occurs.

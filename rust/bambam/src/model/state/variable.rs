@@ -1,5 +1,5 @@
 //! constructors for [`StateVariableConfig`] instances in multimodal routing.
-use crate::model::state::LegIdx;
+use crate::model::state::{fieldname, LegIdx};
 use routee_compass_core::model::{
     state::{CustomVariableConfig, InputFeature, StateVariableConfig},
     unit::{DistanceUnit, TimeUnit},
@@ -15,7 +15,7 @@ pub const EMPTY: CustomVariableConfig = CustomVariableConfig::SignedInteger { in
 pub fn active_leg_input_feature() -> InputFeature {
     InputFeature::Custom {
         name: "active_leg".to_string(),
-        unit: "i64".to_string(),
+        unit: "SignedInteger".to_string(),
     }
 }
 
@@ -24,6 +24,13 @@ pub fn active_leg_variable_config() -> StateVariableConfig {
         custom_type: "ActiveLeg".to_string(),
         value: EMPTY,
         accumulator: false,
+    }
+}
+
+pub fn leg_mode_input_feature(leg_idx: LegIdx) -> InputFeature {
+    InputFeature::Custom {
+        name: fieldname::leg_mode_fieldname(leg_idx),
+        unit: "SignedInteger".to_string(),
     }
 }
 
