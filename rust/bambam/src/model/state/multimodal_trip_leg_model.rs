@@ -11,6 +11,7 @@ use routee_compass_core::model::{
     state::{InputFeature, StateModel, StateModelError, StateVariable, StateVariableConfig},
     traversal::{TraversalModel, TraversalModelError},
 };
+use serde_json::json;
 use std::sync::Arc;
 use uom::si::f64::{Length, Time};
 
@@ -373,6 +374,38 @@ impl MultimodalTripLegModel {
         let name = fieldname::leg_mode_fieldname(leg_idx);
         state_model.set_custom_i64(state, &name, mode_label)
     }
+
+    pub fn serialize_access_state(
+        &self,
+        state: &[StateVariable],
+        state_model: &StateModel,
+        accumulators_only: bool,
+    ) -> Result<serde_json::Value, StateModelError> {
+        // first, serialize using the StateModel
+        let mut result = state_model.serialize_state(state, accumulators_only)?;
+
+        // do not process "active_leg" key, it should remain a u64 value
+
+        // use mappings to map any multimodal state values to their respective categoricals
+        for idx in (0..self.max_trip_legs) {
+            let name = super::fieldname::leg_mode_fieldname(idx);
+            if let Some(v) = result.get_mut(&name) {
+                let label = v.as_i64().ok_or_else(|| {
+                    StateModelError::RuntimeError(format!(
+                        "unable to get label (i64) value for leg mode key {name}"
+                    ))
+                })?;
+                let cat = self.mode_mapping.get_categorical(label)?.ok_or_else(|| {
+                    StateModelError::RuntimeError(format!(
+                        "access model missing leg mode entry for {name}"
+                    ))
+                })?;
+                *v = json![cat.to_string()];
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -380,7 +413,7 @@ mod test {
     use std::sync::Arc;
 
     use crate::model::state::{
-        fieldname, multimodal_trip_leg_model::MultimodalTripLegModel, MultimodalMapping,
+        fieldname, multimodal_trip_leg_model::MultimodalTripLegModel, LegIdx, MultimodalMapping,
     };
     use routee_compass_core::model::{
         access::AccessModel,
@@ -394,7 +427,7 @@ mod test {
     #[test]
     fn test_initialize_trip_access() {
         let test_mode = "walk";
-        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["bike", "walk"], &["1"])
+        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["walk"], &[])
             .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mmm.state_features());
 
@@ -402,12 +435,15 @@ mod test {
             .initial_state()
             .expect("test invariant failed: unable to create state");
 
-        let result_idx = mmm
-            .get_active_leg_idx(&state, &state_model)
-            .expect("failure getting active leg index");
+        // ASSERTION 1: there should be no active leg index, no trip has started.
+        assert_active_leg(None, &mmm, &state, &state_model).expect("assertion 1 failed");
 
-        // we have no accessor for the mode, but can confirm, the state should have
-        // two variables, both set to the EMPTY value of -1.0.
+        // ASSERTION 2: as we have no active leg index, the state vector should be in it's
+        // initial state. this should be a Vec of size 2 with both values set to 'EMPTY' (-1.0).
+        let expected = state_model
+            .initial_state()
+            .expect("test invariant failed: cannot build initial state");
+        assert_eq!(state, expected);
         assert_eq!(state, vec![StateVariable(-1.0), StateVariable(-1.0)]);
     }
 
@@ -417,44 +453,141 @@ mod test {
     #[test]
     fn test_start_trip_access() {
         let test_mode = "walk";
-        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["bike", "walk"], &["1"])
+        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["walk"], &[])
             .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mmm.state_features());
 
-        let trajectory = (
-            &Vertex::new(0, 0.0, 0.0),
-            &Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0)),
-            &Vertex::new(1, 0.01, 0.0),
-            &Edge::new(0, 1, 1, 2, Length::new::<uom::si::length::meter>(1000.0)),
-            &Vertex::new(2, 0.02, 0.0),
-        );
+        let t1 = mock_trajectory(0, 0, 0, 0);
         let mut state = state_model
             .initial_state()
             .expect("test invariant failed: unable to create state");
 
-        mmm.access_edge(trajectory, &mut state, &state_model)
-            .expect("access failed");
+        mmm.access_edge(
+            (&t1.0, &t1.1, &t1.2, &t1.3, &t1.4),
+            &mut state,
+            &state_model,
+        )
+        .expect("access failed");
 
-        let json = &state_model
-            .serialize_state(&state, false)
-            .expect("unable to serialize state");
+        // ASSERTION 1: by accessing a traversal, we must have transitioned from our initial state
+        // to a state with exactly one trip leg.
+        assert_active_leg(Some(0), &mmm, &state, &state_model).expect("assertion 1 failed");
 
-        let active_leg = mmm
-            .get_active_leg_idx(&state, &state_model)
-            .expect("failure getting active leg index")
-            .expect("active leg is not set");
-
-        let leg_0_mode = mmm
-            .get_leg_mode(&state, active_leg, &state_model)
-            .expect(&format!("failure getting mode for leg {active_leg}"));
-
-        assert_eq!(active_leg, 0);
-        assert_eq!(leg_0_mode, test_mode);
+        // ASSERTION 2: the trip leg should be associated with the mode that the AccessModel sets.
+        assert_active_mode(Some(test_mode), &mmm, &state, &state_model)
+            .expect("assertion 2 failed");
     }
 
     #[test]
     fn test_switch_trip_mode_access() {
-        todo!()
+        // create an access model for two edge lists, "walk" and "bike" topology
+        let mmm_walk = MultimodalTripLegModel::new_local("walk", 2, &["bike", "walk"], &[])
+            .expect("test invariant failed, model constructor had error");
+        let mmm_bike = MultimodalTripLegModel::new_local("bike", 2, &["bike", "walk"], &[])
+            .expect("test invariant failed, model constructor had error");
+
+        // build state model and initial search state
+        assert_eq!(
+            mmm_walk.state_features(),
+            mmm_bike.state_features(),
+            "test invariant failed: models should have matching state features"
+        );
+        let state_model = StateModel::new(mmm_walk.state_features());
+        let mut state = state_model
+            .initial_state()
+            .expect("test invariant failed: unable to create state");
+
+        // access edge 2 in walk mode, access edge 3 in bike mode
+        // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3) where
+        //   - edge list 0 has edges 0 and 1, uses walk-mode access model
+        //   - edge list 1 has edge 2, uses bike-mode access model
+        let t1 = mock_trajectory(0, 0, 0, 0);
+        let t2 = mock_trajectory(1, 1, 0, 1);
+
+        // ASSERTION 1: trip enters "walk" mode after accessing edge 1 on edge list 0
+        mmm_walk
+            .access_edge(
+                (&t1.0, &t1.1, &t1.2, &t1.3, &t1.4),
+                &mut state,
+                &state_model,
+            )
+            .expect("access failed");
+        assert_active_leg(Some(0), &mmm_walk, &state, &state_model).expect("assertion 1 failed");
+        assert_active_mode(Some("walk"), &mmm_walk, &state, &state_model)
+            .expect("assertion 1 failed");
+
+        // ASSERTION 2: trip enters "bike" mode after accessing edge 2 on edge list 1
+        mmm_bike
+            .access_edge(
+                (&t2.0, &t2.1, &t2.2, &t2.3, &t2.4),
+                &mut state,
+                &state_model,
+            )
+            .expect("access failed");
+        assert_active_leg(Some(1), &mmm_walk, &state, &state_model).expect("assertion 2 failed");
+        assert_active_mode(Some("bike"), &mmm_walk, &state, &state_model)
+            .expect("assertion 2 failed");
+
+        // as a head check, we can also inspect the serialized access state JSON in the logs
+        println!(
+            "{}",
+            serde_json::to_string_pretty(
+                &mmm_walk
+                    .serialize_access_state(&state, &state_model, false)
+                    .unwrap_or_default()
+            )
+            .unwrap_or_default()
+        );
+    }
+
+    #[test]
+    fn test_switch_exceeds_max_legs() {
+        // create an access model for two edge lists, "walk" and "bike" topology
+        // but, here, we limit trip legs to 1, so our trip should not be able to transition to bike
+        let mmm_walk = MultimodalTripLegModel::new_local("walk", 1, &["bike", "walk"], &[])
+            .expect("test invariant failed, model constructor had error");
+        let mmm_bike = MultimodalTripLegModel::new_local("bike", 1, &["bike", "walk"], &[])
+            .expect("test invariant failed, model constructor had error");
+
+        // build state model and initial search state
+        assert_eq!(
+            mmm_walk.state_features(),
+            mmm_bike.state_features(),
+            "test invariant failed: models should have matching state features"
+        );
+        let state_model = StateModel::new(mmm_walk.state_features());
+        let mut state = state_model
+            .initial_state()
+            .expect("test invariant failed: unable to create state");
+
+        // access edge 2 in walk mode, access edge 3 in bike mode
+        // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3) where
+        //   - edge list 0 has edges 0 and 1, uses walk-mode access model
+        //   - edge list 1 has edge 2, uses bike-mode access model
+        let t1 = mock_trajectory(0, 0, 0, 0);
+        let t2 = mock_trajectory(1, 1, 0, 1);
+
+        // establish the trip state on "walk"-mode travel
+        mmm_walk
+            .access_edge(
+                (&t1.0, &t1.1, &t1.2, &t1.3, &t1.4),
+                &mut state,
+                &state_model,
+            )
+            .expect("access failed");
+
+        // ASSERTION 1: trip tries to enter "bike" mode after accessing edge 2 on edge list 1,
+        // but this should result in an error, as we have restricted the max number of trip legs to 1.
+        let result = mmm_bike.access_edge(
+            (&t2.0, &t2.1, &t2.2, &t2.3, &t2.4),
+            &mut state,
+            &state_model,
+        );
+
+        match result {
+            Ok(()) => panic!("assertion 1 failed"),
+            Err(e) => assert!(format!("{e}").contains("invalid leg id 1 >= max leg id 1")),
+        }
     }
 
     #[test]
@@ -465,5 +598,109 @@ mod test {
     #[test]
     fn test_start_trip_traversal() {
         todo!()
+    }
+
+    /// helper to create trajectories spaced apart evenly along a line with segments of uniform length
+    fn mock_trajectory(
+        start_vertex: usize,
+        start_edge: usize,
+        e1_edgelist: usize,
+        e2_edgelist: usize,
+    ) -> (Vertex, Edge, Vertex, Edge, Vertex) {
+        let v1 = start_vertex;
+        let v2 = v1 + 1;
+        let v3 = v2 + 1;
+        let x1 = (v1 as f32) * 0.01;
+        let x2 = (v2 as f32) * 0.01;
+        let x3 = (v3 as f32) * 0.01;
+
+        let e1 = start_edge;
+        let e2 = e1 + 1;
+        (
+            Vertex::new(v1, x1, 0.0),
+            Edge::new(
+                e1_edgelist,
+                e1,
+                v1,
+                v2,
+                Length::new::<uom::si::length::meter>(1000.0),
+            ),
+            Vertex::new(v2, x2, 0.0),
+            Edge::new(
+                e2_edgelist,
+                e2,
+                v2,
+                v3,
+                Length::new::<uom::si::length::meter>(1000.0),
+            ),
+            Vertex::new(v3, x3, 0.0),
+        )
+    }
+
+    fn assert_active_leg(
+        leg_idx: Option<LegIdx>,
+        mmm: &MultimodalTripLegModel,
+        state: &[StateVariable],
+        state_model: &StateModel,
+    ) -> Result<(), String> {
+        let active_leg = mmm
+            .get_active_leg_idx(&state, &state_model)
+            .expect("failure getting active leg index");
+
+        match (leg_idx, active_leg) {
+            (None, None) => {
+                // no active leg testing against no active mode, ok
+                Ok(())
+            }
+            (None, Some(leg_idx)) => {
+                Err(format!("assert_active_leg failure: we are expecting no active leg, but state has leg index of {leg_idx}"))
+            }
+            (Some(idx), None) => {
+                Err(format!("assert_active_leg failure: we are expecting active leg index {idx}, but state has no active leg"))
+            }
+            (Some(test_idx), Some(active_leg_idx)) => {
+                if test_idx != active_leg_idx {
+                    Err(format!("expected active leg index of {active_leg_idx} to be {test_idx}"))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    fn assert_active_mode(
+        mode: Option<&str>,
+        mmm: &MultimodalTripLegModel,
+        state: &[StateVariable],
+        state_model: &StateModel,
+    ) -> Result<(), String> {
+        let active_leg_opt = mmm
+            .get_active_leg_idx(&state, &state_model)
+            .expect("failure getting active leg index");
+
+        match (mode, active_leg_opt) {
+            (None, None) => {
+                // no active leg testing against no active mode, ok
+                Ok(())
+            }
+            (None, Some(leg_idx)) => {
+                Err(format!("assert_active_mode failure: we are expecting no active mode, but state has leg index of {leg_idx}"))
+            }
+            (Some(m), None) => {
+                Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
+            }
+            (Some(test_mode), Some(leg_idx)) => {
+                let active_mode = mmm
+                    .get_leg_mode(&state, leg_idx, &state_model)
+                    .expect(&format!("failure getting mode for leg {leg_idx}"));
+
+                if active_mode != test_mode {
+                    Err(format!("expected active leg mode of {active_mode} to be {test_mode}"))
+                } else {
+                    Ok(())
+                }
+
+            }
+        }
     }
 }
