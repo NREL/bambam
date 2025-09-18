@@ -187,6 +187,42 @@ impl MultimodalTripLegModel {
         }
     }
 
+    /// builds a new [`MultimodalTripLegModel`] from its data dependencies only.
+    /// used in synchronous contexts like scripting or testing.
+    pub fn new_local(
+        mode: &str,
+        max_trip_legs: u64,
+        modes: &[&str],
+        route_ids: &[&str],
+    ) -> Result<MultimodalTripLegModel, StateModelError> {
+        let mode_mapping =
+            MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
+                .map_err(|e| {
+                StateModelError::BuildError(format!(
+                    "while building MultimodalTripLegModel, failure constructing mode mapping: {e}"
+                ))
+            })?;
+        let route_id_mapping = MultimodalMapping::new(
+            &route_ids
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>(),
+        )
+        .map_err(|e| {
+            StateModelError::BuildError(format!(
+                "while building MultimodalTripLegModel, failure constructing route_id mapping: {e}"
+            ))
+        })?;
+
+        let mmm = MultimodalTripLegModel::new(
+            mode.to_string(),
+            max_trip_legs,
+            Arc::new(mode_mapping),
+            Arc::new(route_id_mapping),
+        );
+        Ok(mmm)
+    }
+
     /// inspect the current active leg for a trip
     pub fn get_active_leg_idx(
         &self,
@@ -357,22 +393,11 @@ mod test {
     // leg_0_mode of None.
     #[test]
     fn test_initialize_trip_access() {
-        let mode_mapping = Arc::new(
-            MultimodalMapping::new(&[String::from("bike"), String::from("walk")])
-                .expect("test invariant failed: unable to construct mapping"),
-        );
-        let route_id_mapping = Arc::new(
-            MultimodalMapping::new(&[String::from("1")])
-                .expect("test invariant failed: unable to construct mapping"),
-        );
-        let this_mode = "walk".to_string();
-        let mmm = MultimodalTripLegModel::new(
-            this_mode.clone(),
-            1,
-            mode_mapping.clone(),
-            route_id_mapping,
-        );
+        let test_mode = "walk";
+        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["bike", "walk"], &["1"])
+            .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mmm.state_features());
+
         let mut state = state_model
             .initial_state()
             .expect("test invariant failed: unable to create state");
@@ -391,21 +416,9 @@ mod test {
     // leg should be 0.
     #[test]
     fn test_start_trip_access() {
-        let mode_mapping = Arc::new(
-            MultimodalMapping::new(&[String::from("bike"), String::from("walk")])
-                .expect("test invariant failed: unable to construct mapping"),
-        );
-        let route_id_mapping = Arc::new(
-            MultimodalMapping::new(&[String::from("1")])
-                .expect("test invariant failed: unable to construct mapping"),
-        );
-        let test_mode = "walk".to_string();
-        let mmm = MultimodalTripLegModel::new(
-            test_mode.clone(),
-            1,
-            mode_mapping.clone(),
-            route_id_mapping,
-        );
+        let test_mode = "walk";
+        let mmm = MultimodalTripLegModel::new_local("walk", 1, &["bike", "walk"], &["1"])
+            .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mmm.state_features());
 
         let trajectory = (
@@ -436,7 +449,7 @@ mod test {
             .expect(&format!("failure getting mode for leg {active_leg}"));
 
         assert_eq!(active_leg, 0);
-        assert_eq!(leg_0_mode, &test_mode);
+        assert_eq!(leg_0_mode, test_mode);
     }
 
     #[test]
