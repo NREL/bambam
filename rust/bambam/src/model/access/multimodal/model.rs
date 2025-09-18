@@ -168,7 +168,7 @@ fn apply_mapping_for_serialization(
     leg_idx: LegIdx,
     mapping: &MultimodalMapping<String, i64>,
 ) -> Result<(), StateModelError> {
-    if let Some(v) = state_json.get_mut(&name) {
+    if let Some(v) = state_json.get_mut(name) {
         let label = v.as_i64().ok_or_else(|| {
             StateModelError::RuntimeError(format!(
                 "unable to get label (i64) value for leg index, key {leg_idx}, {name}"
