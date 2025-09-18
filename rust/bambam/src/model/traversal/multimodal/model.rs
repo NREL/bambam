@@ -37,7 +37,7 @@ impl TraversalModel for MultimodalTraversalModel {
 
     fn input_features(&self) -> Vec<InputFeature> {
         let leg_modes =
-            (0..self.max_trip_legs).map(|leg_idx| variable::leg_mode_input_feature(leg_idx));
+            (0..self.max_trip_legs).map(variable::leg_mode_input_feature);
         let mut features = vec![
             InputFeature::Distance {
                 name: fieldname::EDGE_DISTANCE.to_string(),
