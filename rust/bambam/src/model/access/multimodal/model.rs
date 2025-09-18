@@ -18,7 +18,7 @@ pub struct MultimodalAccessModel {
     pub mode: String,
     pub max_trip_legs: u64,
     pub mode_mapping: Arc<MultimodalMapping<String, i64>>,
-    pub route_id_mapping: Arc<MultimodalMapping<String, i64>>,
+    // pub route_id_mapping: Arc<MultimodalMapping<String, i64>>,
 }
 
 /// Handles any mode transition occurring by accessing a new edge.
@@ -92,13 +92,13 @@ impl MultimodalAccessModel {
         mode: String,
         max_trip_legs: u64,
         mode_mapping: Arc<MultimodalMapping<String, i64>>,
-        route_id_mapping: Arc<MultimodalMapping<String, i64>>,
+        // route_id_mapping: Arc<MultimodalMapping<String, i64>>,
     ) -> MultimodalAccessModel {
         Self {
             mode,
             max_trip_legs,
             mode_mapping,
-            route_id_mapping,
+            // route_id_mapping,
         }
     }
 
@@ -117,23 +117,23 @@ impl MultimodalAccessModel {
                     "while building MultimodalAccessModel, failure constructing mode mapping: {e}"
                 ))
             })?;
-        let route_id_mapping = MultimodalMapping::new(
-            &route_ids
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>(),
-        )
-        .map_err(|e| {
-            StateModelError::BuildError(format!(
-                "while building MultimodalAccessModel, failure constructing route_id mapping: {e}"
-            ))
-        })?;
+        // let route_id_mapping = MultimodalMapping::new(
+        //     &route_ids
+        //         .iter()
+        //         .map(|s| s.to_string())
+        //         .collect::<Vec<String>>(),
+        // )
+        // .map_err(|e| {
+        //     StateModelError::BuildError(format!(
+        //         "while building MultimodalAccessModel, failure constructing route_id mapping: {e}"
+        //     ))
+        // })?;
 
         let mmm = MultimodalAccessModel::new(
             mode.to_string(),
             max_trip_legs,
             Arc::new(mode_mapping),
-            Arc::new(route_id_mapping),
+            // Arc::new(route_id_mapping),
         );
         Ok(mmm)
     }
@@ -153,7 +153,7 @@ impl MultimodalAccessModel {
             let mode_key = fieldname::leg_mode_fieldname(idx);
             let route_key = fieldname::leg_route_id_fieldname(idx);
             apply_mapping_for_serialization(state_json, &mode_key, idx, &self.mode_mapping)?;
-            apply_mapping_for_serialization(state_json, &route_key, idx, &self.route_id_mapping)?;
+            // apply_mapping_for_serialization(state_json, &route_key, idx, &self.route_id_mapping)?;
         }
 
         Ok(())
