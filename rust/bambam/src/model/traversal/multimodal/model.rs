@@ -181,27 +181,13 @@ mod test {
     fn test_initialize_trip_traversal() {
         let available_modes = ["walk", "bike", "drive"];
         let max_trip_legs = 4;
-        let tm = Arc::new(
-            MultimodalTraversalModel::new_local("walk", max_trip_legs, &available_modes)
-                .expect("test invariant failed, model constructor had error"),
-        );
-        let test_tm = TestTraversalModel::new(tm.clone())
-            .expect("test invariant failed, unable to produce a test model");
+        let this_mode = "walk";
 
-        let state_model = StateModel::new(test_tm.output_features());
-
-        let state = state_model
-            .initial_state()
-            .expect("test invariant failed: state model could not create initial state");
+        let (tm, test_tm, state_model, state) =
+            build_test_assets(&available_modes, max_trip_legs, this_mode);
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
-        let state_json = state_model
-            .serialize_state(&state, false)
-            .expect("state serialization failed");
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&state_json).unwrap_or_default()
-        );
+        print_state(&state, &state_model);
 
         // ASSERTION 1: state has the expected length given the provided number of trip legs + modes
         let expected_len = {
@@ -231,18 +217,9 @@ mod test {
     fn test_start_trip_traversal() {
         let available_modes = ["walk"];
         let max_trip_legs = 1;
-        let tm = Arc::new(
-            MultimodalTraversalModel::new_local("walk", max_trip_legs, &available_modes)
-                .expect("test invariant failed, model constructor had error"),
-        );
-        let test_tm = TestTraversalModel::new(tm.clone())
-            .expect("test invariant failed, unable to produce a test model");
-
-        let state_model = StateModel::new(test_tm.output_features());
-
-        let mut state = state_model
-            .initial_state()
-            .expect("test invariant failed: state model could not create initial state");
+        let this_mode = "walk";
+        let (tm, test_tm, state_model, mut state) =
+            build_test_assets(&available_modes, max_trip_legs, this_mode);
 
         // mock up some edge_dist, edge_time values
         let distance = Length::new::<uom::si::length::mile>(3.14159);
@@ -254,7 +231,7 @@ mod test {
             .set_time(&mut state, "edge_time", &time)
             .expect("test invariant failed: could not assign edge_time");
 
-        // (0) -[0]-> (1)
+        // let's traverse! topology: (0) -[0]-> (1), 1km edge
         let t = mock_trajectory(0, 0, 0);
 
         test_tm
@@ -262,13 +239,7 @@ mod test {
             .expect("failed to traverse edge");
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
-        let state_json = state_model
-            .serialize_state(&state, false)
-            .expect("state serialization failed");
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&state_json).unwrap_or_default()
-        );
+        print_state(&state, &state_model);
 
         // ASSERTION 1: values copied to leg + mode accumulators should be correct
         let leg_0_distance =
@@ -282,6 +253,37 @@ mod test {
         assert_eq!(leg_0_time, time);
         assert_eq!(mode_walk_distance, distance);
         assert_eq!(mode_walk_time, time);
+    }
+
+    /// creates all of the required test assets, where
+    ///   - tm is the MultimodalTraversalModel value
+    ///   - test_tm is the model concatenated with the TestTraversalModel to enable
+    ///     use of the edge_traversal method
+    ///   - state_model is the state model built from the test_tm
+    ///   - state is the initial state built from the state_model
+    fn build_test_assets(
+        available_modes: &[&str],
+        max_trip_legs: u64,
+        this_mode: &str,
+    ) -> (
+        Arc<MultimodalTraversalModel>,
+        Arc<dyn TraversalModel>,
+        StateModel,
+        Vec<StateVariable>,
+    ) {
+        let tm = Arc::new(
+            MultimodalTraversalModel::new_local(this_mode, max_trip_legs, &available_modes)
+                .expect("test invariant failed, model constructor had error"),
+        );
+        let test_tm = TestTraversalModel::new(tm.clone())
+            .expect("test invariant failed, unable to produce a test model");
+
+        let state_model = StateModel::new(test_tm.output_features());
+
+        let mut state = state_model
+            .initial_state()
+            .expect("test invariant failed: state model could not create initial state");
+        (tm, test_tm, state_model, state)
     }
 
     /// helper to create trajectories spaced apart evenly along a line with segments of uniform length
@@ -371,5 +373,16 @@ mod test {
 
             }
         }
+    }
+
+    /// helper for printing the state as JSON to the console
+    fn print_state(state: &[StateVariable], state_model: &StateModel) {
+        let state_json = state_model
+            .serialize_state(&state, false)
+            .expect("state serialization failed");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&state_json).unwrap_or_default()
+        );
     }
 }
