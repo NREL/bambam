@@ -34,17 +34,17 @@ type = "combined"
 type = "distance"
 distance_unit = "miles"
 
-[[search.traversal.models]]
-type = "fixed_speed"
-name = "walk"
-speed = 5.0
-speed_unit = "kph"
+# [[search.traversal.models]]
+# type = "fixed_speed"
+# name = "walk"
+# speed = 5.0
+# speed_unit = "kph"
 
-[[search.traversal.models]]
-type = "fixed_speed"
-name = "bike"
-speed = 16.0
-speed_unit = "kph"
+# [[search.traversal.models]]
+# type = "fixed_speed"
+# name = "bike"
+# speed = 16.0
+# speed_unit = "kph"
 
 [[search.traversal.models]]
 type = "speed"
@@ -52,23 +52,14 @@ speed_table_input_file = "../denver_co/edges-posted-speed-enumerated.txt.gz"
 speed_unit = "kph"
 
 [[search.traversal.models]]
+type = "time"
+time_unit = "minutes"
+
+[[search.traversal.models]]
 type = "multimodal"
-
-[search.traversal.models.dependencies]
-walk = [{ input_feature = { name = "walk_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
-bike = [{ input_feature = { name = "bike_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
-drive = [
-    { input_feature = { name = "edge_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] },
-    # { time_feature = "trip_enroute_delay", destinations = [
-    #     "edge_time",
-    #     "trip_time",
-    # ] },
-]
-
-[search.traversal.models.output_features]
-trip_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = true }
-edge_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = false }
-# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
+this_mode = "drive"
+available_modes = ["drive"]
+max_trip_legs = 1
 
 # use a time-optimal routing strategy
 [cost]
@@ -79,12 +70,21 @@ vehicle_rates = { trip_time = { type = "raw" } }
 cost_aggregation = "sum"
 
 [search.access]
+type = "combined"
+
+[[search.access.access_models]]
+type = "multimodal"
+this_mode = "drive"
+available_modes = ["drive"]
+max_trip_legs = 1
+
+[[search.access.access_models]]
 type = "turn_delay"
 edge_heading_input_file = "../denver_co/edges-headings-enumerated.csv.gz"
-[search.access.turn_delay_model]
+[search.access.access_models.turn_delay_model]
 type = "tabular_discrete"
 time_unit = "seconds"
-[search.access.turn_delay_model.table]
+[search.access.access_models.turn_delay_model.table]
 no_turn = 0.0
 slight_right = 0.5
 right = 1.0
