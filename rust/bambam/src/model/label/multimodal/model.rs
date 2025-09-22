@@ -1,3 +1,5 @@
+//! builds labels that include enumerations for leg modes.
+//!
 use routee_compass_core::model::{
     label::{label_model_error::LabelModelError, Label, LabelModel},
     network::VertexId,
