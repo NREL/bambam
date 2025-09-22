@@ -19,9 +19,7 @@ pub fn get_edge_list_mode<'a>(
     mode_to_edge_list
         .get_categorical(edge.edge_list_id.0)
         .map_err(|e| {
-            FrontierModelError::FrontierModelError(format!(
-                "failure getting edge list mode via edge list mode mapping"
-            ))
+            FrontierModelError::FrontierModelError("failure getting edge list mode via edge list mode mapping".to_string())
         })?
         .ok_or_else(|| {
             FrontierModelError::FrontierModelError(format!(
@@ -53,7 +51,7 @@ pub fn get_mode_counts(
 
 /// validates the observed number of mode counts against the provided limits
 pub fn valid_mode_counts(counts: &HashMap<String, usize>, limits: &HashMap<String, usize>) -> bool {
-    for (mode, observed) in counts.into_iter() {
+    for (mode, observed) in counts.iter() {
         match limits.get(mode) {
             Some(limit) if observed > limit => return false,
             None => return false,
