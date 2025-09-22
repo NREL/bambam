@@ -94,7 +94,7 @@ impl TraversalModel for MultimodalTraversalModel {
         })?;
         let distance: Length = state_model.get_distance(state, fieldname::EDGE_DISTANCE)?;
         let time: Time = state_model.get_time(state, fieldname::EDGE_TIME)?;
-        let mode = ops::get_leg_mode(
+        let mode = ops::get_existing_leg_mode(
             state,
             leg_idx,
             state_model,
@@ -166,7 +166,9 @@ mod test {
     use std::sync::Arc;
 
     use super::MultimodalTraversalModel;
-    use crate::model::state::{multimodal_state_ops as ops, LegIdx, MultimodalMapping};
+    use crate::model::state::{
+        fieldname, multimodal_state_ops as ops, variable, LegIdx, MultimodalMapping,
+    };
     use routee_compass_core::{
         model::{
             network::{Edge, Vertex},
@@ -362,7 +364,7 @@ mod test {
                 Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
             }
             (Some(test_mode), Some(leg_idx)) => {
-                let active_mode = ops::get_leg_mode(&state, leg_idx, &state_model, max_trip_legs, &mode_mapping)
+                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, max_trip_legs, &mode_mapping)
                     .expect(&format!("failure getting mode for leg {leg_idx}"));
 
                 if active_mode != test_mode {

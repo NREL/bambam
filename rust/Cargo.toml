@@ -9,9 +9,9 @@ bamcensus-core = { version = "0.1.0" }
 bamcensus-acs = { version = "0.1.0" }
 bamcensus = { version = "0.1.0" }
 bamcensus-lehd = { version = "0.1.0" }
-routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "8b81470f73c7e53c24f984414e00bca7e396e2c4" }
-routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "8b81470f73c7e53c24f984414e00bca7e396e2c4" }
-routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "8b81470f73c7e53c24f984414e00bca7e396e2c4" }
+routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "243695d061cdc639ab336514de77e385458540cc" }
+routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "243695d061cdc639ab336514de77e385458540cc" }
+routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "243695d061cdc639ab336514de77e385458540cc" }
 
 # third party
 arrow = { version = "55.0.0" }

@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use crate::model::state::{LegIdx, MultimodalMapping};
 use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde_json::json;
@@ -28,36 +30,48 @@ pub fn get_active_leg_idx(
 /// are stored with non-negative integer values, negative denotes "empty".
 /// see [`super::state_variable`] for the leg mode variable configuration.
 pub fn contains_leg(
-    state: &mut [StateVariable],
+    state: &[StateVariable],
     leg_idx: LegIdx,
     state_model: &StateModel,
-    max_trip_legs: LegIdx,
 ) -> Result<bool, StateModelError> {
-    validate_leg_idx(leg_idx, max_trip_legs)?;
     let name = fieldname::leg_mode_fieldname(leg_idx);
     let label = state_model.get_custom_i64(state, &name)?;
     Ok(label >= 0)
 }
 
 /// get the travel mode for a leg.
-pub fn get_leg_mode<'a>(
+pub fn get_leg_mode_label(
+    state: &[StateVariable],
+    leg_idx: LegIdx,
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+) -> Result<Option<i64>, StateModelError> {
+    validate_leg_idx(leg_idx, max_trip_legs)?;
+    let name = fieldname::leg_mode_fieldname(leg_idx);
+    let label = state_model.get_custom_i64(state, &name)?;
+    if label < 0 {
+        Ok(None)
+    } else {
+        Ok(Some(label))
+    }
+}
+
+/// get the travel mode for a leg. assumed that the leg mode exists,
+/// if the mode is not set, it is an error.
+pub fn get_existing_leg_mode<'a>(
     state: &[StateVariable],
     leg_idx: LegIdx,
     state_model: &StateModel,
     max_trip_legs: LegIdx,
     mode_mapping: &'a MultimodalMapping<String, i64>,
 ) -> Result<&'a str, StateModelError> {
-    validate_leg_idx(leg_idx, max_trip_legs)?;
-    let name = fieldname::leg_mode_fieldname(leg_idx);
-    let label = state_model.get_custom_i64(state, &name)?;
-    if label < 0 {
-        Err(StateModelError::RuntimeError(format!(
-            "Internal Error: get_leg_mode called on leg idx {} but mode label is not set (stored as {})",
-            leg_idx,
-            label
-        )))
-    } else {
-        mode_mapping
+    let label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
+    match label_opt {
+        None => Err(StateModelError::RuntimeError(format!(
+            "Internal Error: get_leg_mode called on leg idx {} but mode label is not set",
+            leg_idx
+        ))),
+        Some(label) => mode_mapping
             .get_categorical(label)?
             .ok_or_else(|| {
                 StateModelError::RuntimeError(format!(
@@ -65,7 +79,7 @@ pub fn get_leg_mode<'a>(
                     leg_idx, label
                 ))
             })
-            .map(|s| s.as_str())
+            .map(|s| s.as_str()),
     }
 }
 
@@ -115,6 +129,39 @@ pub fn get_mode_time(
 ) -> Result<Time, StateModelError> {
     let name = fieldname::mode_time_fieldname(mode);
     state_model.get_time(state, &name)
+}
+
+/// retrieves the sequence of mode labels stored on this state. stops when an unset
+/// mode label is encountered.
+pub fn get_mode_label_sequence(
+    state: &[StateVariable],
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+) -> Result<Vec<i64>, StateModelError> {
+    let mut labels: Vec<i64> = vec![];
+    let mut leg_idx = 0;
+    while let Some(label) = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)? {
+        labels.push(label);
+        leg_idx += 1;
+    }
+    Ok(labels)
+}
+
+/// retrieves the sequence of modes stored on this state. stops when an unset
+/// mode label is encountered.
+pub fn get_mode_sequence(
+    state: &[StateVariable],
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+    mode_mapping: &MultimodalMapping<String, i64>,
+) -> Result<Vec<String>, StateModelError> {
+    let mut modes: Vec<String> = vec![];
+    let mut leg_idx = 0;
+    while contains_leg(state, leg_idx, state_model)? {
+        let mode = get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_mapping)?;
+        modes.push(mode.to_string());
+    }
+    Ok(modes)
 }
 
 /// increments the value at [`fieldname::ACTIVE_LEG`].

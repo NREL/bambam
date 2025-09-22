@@ -1,6 +1,6 @@
 use crate::model::{
     label::multimodal::{MultimodalLabelConfig, MultimodalLabelModel},
-    state::MultimodalMapping,
+    state::{LegIdx, MultimodalMapping},
 };
 use routee_compass_core::model::{
     label::{
@@ -42,7 +42,7 @@ impl MultimodalLabelService {
     pub fn get_max_trip_legs(
         &self,
         query_conf: &MultimodalLabelConfig,
-    ) -> Result<usize, LabelModelError> {
+    ) -> Result<LegIdx, LabelModelError> {
         self.get_conf(query_conf, "max_trip_legs", |c| c.max_trip_legs)
     }
 

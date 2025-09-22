@@ -53,7 +53,7 @@ impl AccessModel for MultimodalAccessModel {
         // grab the leg_idx and leg mode if it exists
         let leg_and_mode_opt = match ops::get_active_leg_idx(state, state_model)? {
             Some(leg_idx) => {
-                let mode = ops::get_leg_mode(
+                let mode = ops::get_existing_leg_mode(
                     state,
                     leg_idx,
                     state_model,
@@ -457,7 +457,7 @@ mod test {
                 Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
             }
             (Some(test_mode), Some(leg_idx)) => {
-                let active_mode = ops::get_leg_mode(&state, leg_idx, &state_model, mmm.max_trip_legs, &mmm.mode_mapping)
+                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, mmm.max_trip_legs, &mmm.mode_mapping)
                     .expect(&format!("failure getting mode for leg {leg_idx}"));
 
                 if active_mode != test_mode {

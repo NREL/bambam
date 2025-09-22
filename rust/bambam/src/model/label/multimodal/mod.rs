@@ -1,9 +1,10 @@
-mod multimodal_label_builder;
-mod multimodal_label_config;
-mod multimodal_label_model;
-mod multimodal_label_service;
+mod builder;
+mod config;
+mod model;
+pub mod multimodal_label_ops;
+mod service;
 
-pub use multimodal_label_builder::MultimodalLabelBuilder;
-pub use multimodal_label_config::MultimodalLabelConfig;
-pub use multimodal_label_model::MultimodalLabelModel;
-pub use multimodal_label_service::MultimodalLabelService;
+pub use builder::MultimodalLabelBuilder;
+pub use config::MultimodalLabelConfig;
+pub use model::MultimodalLabelModel;
+pub use service::MultimodalLabelService;
