@@ -25,6 +25,24 @@ pub fn get_active_leg_idx(
     }
 }
 
+/// use the active leg index to count the number of trip legs in this state vector
+pub fn get_n_legs(
+    state: &[StateVariable],
+    state_model: &StateModel,
+) -> Result<usize, StateModelError> {
+    match get_active_leg_idx(state, state_model)? {
+        None => Ok(0),
+        Some(leg_idx) => {
+            let count: usize = (leg_idx + 1).try_into().map_err(|e| {
+                StateModelError::RuntimeError(format!(
+                    "internal error: unable to convert leg index {leg_idx} from u64 into usize"
+                ))
+            })?;
+            Ok(count)
+        }
+    }
+}
+
 /// report if any trip data has been recorded for the given trip leg.
 /// this uses the fact that any trip leg must have a leg mode, and leg modes
 /// are stored with non-negative integer values, negative denotes "empty".
@@ -63,7 +81,7 @@ pub fn get_existing_leg_mode<'a>(
     leg_idx: LegIdx,
     state_model: &StateModel,
     max_trip_legs: LegIdx,
-    mode_mapping: &'a MultimodalStateMapping,
+    mode_to_state: &'a MultimodalStateMapping,
 ) -> Result<&'a str, StateModelError> {
     let label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
     match label_opt {
@@ -71,7 +89,7 @@ pub fn get_existing_leg_mode<'a>(
             "Internal Error: get_leg_mode called on leg idx {} but mode label is not set",
             leg_idx
         ))),
-        Some(label) => mode_mapping
+        Some(label) => mode_to_state
             .get_categorical(label)?
             .ok_or_else(|| {
                 StateModelError::RuntimeError(format!(
@@ -153,12 +171,13 @@ pub fn get_mode_sequence(
     state: &[StateVariable],
     state_model: &StateModel,
     max_trip_legs: LegIdx,
-    mode_mapping: &MultimodalStateMapping,
+    mode_to_state: &MultimodalStateMapping,
 ) -> Result<Vec<String>, StateModelError> {
     let mut modes: Vec<String> = vec![];
     let mut leg_idx = 0;
     while contains_leg(state, leg_idx, state_model)? {
-        let mode = get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_mapping)?;
+        let mode =
+            get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_to_state)?;
         modes.push(mode.to_string());
     }
     Ok(modes)
@@ -201,9 +220,9 @@ pub fn set_leg_mode(
     leg_idx: LegIdx,
     mode: &str,
     state_model: &StateModel,
-    mode_mapping: &MultimodalStateMapping,
+    mode_to_state: &MultimodalStateMapping,
 ) -> Result<(), StateModelError> {
-    let mode_label = mode_mapping.get_label(mode).ok_or_else(|| {
+    let mode_label = mode_to_state.get_label(mode).ok_or_else(|| {
         StateModelError::RuntimeError(format!("mode mapping has no entry for '{}' mode", mode))
     })?;
     let name = fieldname::leg_mode_fieldname(leg_idx);

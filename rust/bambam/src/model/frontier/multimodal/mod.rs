@@ -2,6 +2,7 @@ mod config;
 mod model;
 mod multimodal_constraint;
 mod multimodal_constraint_config;
+pub mod multimodal_frontier_ops;
 mod service;
 
 pub use config::MultimodalFrontierConfig;

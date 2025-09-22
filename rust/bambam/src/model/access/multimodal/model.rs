@@ -20,7 +20,7 @@ use uom::si::f64::{Length, Time};
 pub struct MultimodalAccessModel {
     pub mode: String,
     pub max_trip_legs: u64,
-    pub mode_mapping: Arc<MultimodalStateMapping>,
+    pub mode_to_state: Arc<MultimodalStateMapping>,
     // pub route_id_mapping: Arc<MultimodalStateMapping>,
 }
 
@@ -61,7 +61,7 @@ impl AccessModel for MultimodalAccessModel {
                     leg_idx,
                     state_model,
                     self.max_trip_legs,
-                    &self.mode_mapping,
+                    &self.mode_to_state,
                 )?;
                 Some((leg_idx, mode))
             }
@@ -81,7 +81,7 @@ impl AccessModel for MultimodalAccessModel {
                     next_leg_idx,
                     &self.mode,
                     state_model,
-                    &self.mode_mapping,
+                    &self.mode_to_state,
                 )?;
             }
         };
@@ -94,14 +94,12 @@ impl MultimodalAccessModel {
     pub fn new(
         mode: String,
         max_trip_legs: u64,
-        mode_mapping: Arc<MultimodalStateMapping>,
-        // route_id_mapping: Arc<MultimodalStateMapping>,
+        mode_to_state: Arc<MultimodalStateMapping>,
     ) -> MultimodalAccessModel {
         Self {
             mode,
             max_trip_legs,
-            mode_mapping,
-            // route_id_mapping,
+            mode_to_state,
         }
     }
 
@@ -113,29 +111,18 @@ impl MultimodalAccessModel {
         modes: &[&str],
         route_ids: &[&str],
     ) -> Result<MultimodalAccessModel, StateModelError> {
-        let mode_mapping =
+        let mode_to_state =
             MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
                 .map_err(|e| {
                 StateModelError::BuildError(format!(
                     "while building MultimodalAccessModel, failure constructing mode mapping: {e}"
                 ))
             })?;
-        // let route_id_mapping = MultimodalMapping::new(
-        //     &route_ids
-        //         .iter()
-        //         .map(|s| s.to_string())
-        //         .collect::<Vec<String>>(),
-        // )
-        // .map_err(|e| {
-        //     StateModelError::BuildError(format!(
-        //         "while building MultimodalAccessModel, failure constructing route_id mapping: {e}"
-        //     ))
-        // })?;
 
         let mmm = MultimodalAccessModel::new(
             mode.to_string(),
             max_trip_legs,
-            Arc::new(mode_mapping),
+            Arc::new(mode_to_state),
             // Arc::new(route_id_mapping),
         );
         Ok(mmm)
@@ -155,7 +142,7 @@ impl MultimodalAccessModel {
             // re-map leg mode
             let mode_key = fieldname::leg_mode_fieldname(idx);
             let route_key = fieldname::leg_route_id_fieldname(idx);
-            apply_mapping_for_serialization(state_json, &mode_key, idx, &self.mode_mapping)?;
+            apply_mapping_for_serialization(state_json, &mode_key, idx, &self.mode_to_state)?;
             // apply_mapping_for_serialization(state_json, &route_key, idx, &self.route_id_mapping)?;
         }
 
@@ -460,7 +447,7 @@ mod test {
                 Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
             }
             (Some(test_mode), Some(leg_idx)) => {
-                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, mmm.max_trip_legs, &mmm.mode_mapping)
+                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, mmm.max_trip_legs, &mmm.mode_to_state)
                     .expect(&format!("failure getting mode for leg {leg_idx}"));
 
                 if active_mode != test_mode {

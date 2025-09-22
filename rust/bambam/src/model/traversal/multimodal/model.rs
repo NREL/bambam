@@ -25,7 +25,7 @@ use uom::si::f64::{Length, Time};
 pub struct MultimodalTraversalModel {
     pub mode: String,
     pub max_trip_legs: u64,
-    pub mode_mapping: Arc<MultimodalStateMapping>,
+    pub mode_to_state: Arc<MultimodalStateMapping>,
 }
 
 /// Applies the multimodal leg + mode-specific accumulator updates during
@@ -64,13 +64,13 @@ impl TraversalModel for MultimodalTraversalModel {
             (name, config)
         });
 
-        let mode_dist = self.mode_mapping.get_categories().iter().map(|mode| {
+        let mode_dist = self.mode_to_state.get_categories().iter().map(|mode| {
             let name = fieldname::mode_distance_fieldname(mode);
             let config = variable::multimodal_distance_variable_config(None);
             (name, config)
         });
 
-        let mode_time = self.mode_mapping.get_categories().iter().map(|mode| {
+        let mode_time = self.mode_to_state.get_categories().iter().map(|mode| {
             let name = fieldname::mode_time_fieldname(mode);
             let config = variable::multimodal_time_variable_config(None);
             (name, config)
@@ -99,7 +99,7 @@ impl TraversalModel for MultimodalTraversalModel {
             leg_idx,
             state_model,
             self.max_trip_legs,
-            &self.mode_mapping,
+            &self.mode_to_state,
         )?;
         let d_leg = fieldname::leg_distance_fieldname(leg_idx);
         let d_mode = fieldname::mode_distance_fieldname(mode);
@@ -131,12 +131,12 @@ impl MultimodalTraversalModel {
     pub fn new(
         mode: String,
         max_trip_legs: u64,
-        mode_mapping: Arc<MultimodalStateMapping>,
+        mode_to_state: Arc<MultimodalStateMapping>,
     ) -> MultimodalTraversalModel {
         Self {
             mode,
             max_trip_legs,
-            mode_mapping,
+            mode_to_state,
         }
     }
 
@@ -147,7 +147,7 @@ impl MultimodalTraversalModel {
         max_trip_legs: u64,
         modes: &[&str],
     ) -> Result<MultimodalTraversalModel, StateModelError> {
-        let mode_mapping =
+        let mode_to_state =
             MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
                 .map_err(|e| {
                 StateModelError::BuildError(format!(
@@ -156,7 +156,7 @@ impl MultimodalTraversalModel {
             })?;
 
         let mmm =
-            MultimodalTraversalModel::new(mode.to_string(), max_trip_legs, Arc::new(mode_mapping));
+            MultimodalTraversalModel::new(mode.to_string(), max_trip_legs, Arc::new(mode_to_state));
         Ok(mmm)
     }
 }
@@ -348,7 +348,7 @@ mod test {
         state: &[StateVariable],
         state_model: &StateModel,
         max_trip_legs: u64,
-        mode_mapping: &MultimodalStateMapping,
+        mode_to_state: &MultimodalStateMapping,
     ) -> Result<(), String> {
         let active_leg_opt = ops::get_active_leg_idx(&state, &state_model)
             .expect("failure getting active leg index");
@@ -365,7 +365,7 @@ mod test {
                 Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
             }
             (Some(test_mode), Some(leg_idx)) => {
-                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, max_trip_legs, &mode_mapping)
+                let active_mode = ops::get_existing_leg_mode(&state, leg_idx, &state_model, max_trip_legs, &mode_to_state)
                     .expect(&format!("failure getting mode for leg {leg_idx}"));
 
                 if active_mode != test_mode {

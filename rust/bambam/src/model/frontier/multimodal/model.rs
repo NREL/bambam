@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::model::frontier::multimodal::MultimodalConstraintConfig;
 use crate::model::state::{MultimodalMapping, MultimodalStateMapping};
 use crate::model::{
     frontier::multimodal::MultimodalConstraint, state::multimodal_state_ops as state_ops,
@@ -10,13 +13,66 @@ use routee_compass_core::model::{
 
 pub struct MultimodalFrontierModel {
     /// maps EdgeListIds to Modes
-    edge_list_mapping: MultimodalMapping<String, usize>,
+    mode_to_edge_list: Arc<MultimodalMapping<String, usize>>,
     /// maps state variables to Modes
-    mode_mapping: MultimodalStateMapping,
+    mode_to_state: Arc<MultimodalStateMapping>,
     /// logic of frontier validation
-    constraints: Vec<MultimodalConstraint>,
+    constraints: Arc<Vec<MultimodalConstraint>>,
     /// maximum number of trip legs allowed in a trip
     max_trip_legs: u64,
+}
+
+impl MultimodalFrontierModel {
+    pub fn new(
+        max_trip_legs: u64,
+        mode_to_state: Arc<MultimodalStateMapping>,
+        mode_to_edge_list: Arc<MultimodalMapping<String, usize>>,
+        constraints: Arc<Vec<MultimodalConstraint>>,
+    ) -> Self {
+        Self {
+            max_trip_legs,
+            mode_to_state,
+            mode_to_edge_list,
+            constraints,
+        }
+    }
+
+    /// builds a new [`MultimodalFrontierModel`] from its data dependencies only.
+    /// used in synchronous contexts like scripting or testing.
+    pub fn new_local(
+        max_trip_legs: u64,
+        modes: &[&str],
+        edge_lists: &[&str],
+        constraints: Vec<MultimodalConstraint>,
+    ) -> Result<Self, FrontierModelError> {
+        let mode_to_state =
+            MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
+                .map_err(|e| {
+                FrontierModelError::BuildError(format!(
+                    "while building MultimodalFrontierModel, failure constructing mode mapping: {e}"
+                ))
+            })?;
+
+        let mode_to_edge_list = MultimodalMapping::new(
+            &edge_lists
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>(),
+        )
+        .map_err(|e| {
+            FrontierModelError::BuildError(format!(
+                "while building MultimodalFrontierModel, failure constructing mode mapping: {e}"
+            ))
+        })?;
+
+        let mmm = Self::new(
+            max_trip_legs,
+            Arc::new(mode_to_state),
+            Arc::new(mode_to_edge_list),
+            Arc::new(constraints),
+        );
+        Ok(mmm)
+    }
 }
 
 impl FrontierModel for MultimodalFrontierModel {
@@ -33,48 +89,46 @@ impl FrontierModel for MultimodalFrontierModel {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<bool, FrontierModelError> {
-        let edge_mode = self
-            .edge_list_mapping
-            .get_categorical(edge.edge_list_id.0)
-            .map_err(|e| {
-                FrontierModelError::FrontierModelError(format!(
-                    "failure getting edge list mode via edge list mode mapping"
-                ))
-            })?
-            .ok_or_else(|| {
-                FrontierModelError::FrontierModelError(format!(
-                    "multimodal frontier model has no mode for edge list {}",
-                    edge.edge_list_id
-                ))
-            })?;
-        let active_leg_opt = state_ops::get_active_leg_idx(state, state_model).map_err(|e| {
-            FrontierModelError::FrontierModelError(format!(
-                "during multimodal frontier model, failed getting active leg due to: {e}"
-            ))
-        })?;
-        let leg_idx = match active_leg_opt {
-            Some(idx) => idx,
-            None => {
-                todo!("test constraints, not trip history yet")
+        for constraint in self.constraints.iter() {
+            let valid = constraint.valid_frontier(
+                edge,
+                state,
+                state_model,
+                &self.mode_to_state,
+                &self.mode_to_edge_list,
+                self.max_trip_legs,
+            )?;
+            if !valid {
+                return Ok(false);
             }
-        };
-        let current_mode = state_ops::get_existing_leg_mode(
-            state,
-            leg_idx,
-            state_model,
-            self.max_trip_legs,
-            &self.mode_mapping,
-        )
-        .map_err(|e| {
-            FrontierModelError::FrontierModelError(format!(
-                "state vector with current leg index {leg_idx} has no existing leg mode"
-            ))
-        })?;
+        }
 
-        todo!("test constraints")
+        Ok(true)
     }
 
     fn valid_edge(&self, edge: &Edge) -> Result<bool, FrontierModelError> {
         Ok(true)
     }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::model::frontier::multimodal::model::MultimodalFrontierModel;
+
+    #[test]
+    fn test_valid_n_legs_empty() {
+        let mfm = MultimodalFrontierModel::new_local(1, &[], &[], vec![]).expect("test failed");
+    }
+
+    #[test]
+    fn test_valid_n_legs() {}
+
+    #[test]
+    fn test_invalid_n_legs() {}
+
+    #[test]
+    fn test_valid_mode_counts() {}
+
+    #[test]
+    fn test_invalid_mode_counts() {}
 }

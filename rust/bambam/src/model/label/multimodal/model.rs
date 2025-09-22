@@ -11,17 +11,17 @@ use crate::model::state::{
 };
 
 pub struct MultimodalLabelModel {
-    mode_mapping: MultimodalStateMapping,
+    mode_to_state: MultimodalStateMapping,
     max_trip_legs: LegIdx,
 }
 
 impl MultimodalLabelModel {
     pub fn new(
-        mode_mapping: MultimodalStateMapping,
+        mode_to_state: MultimodalStateMapping,
         max_trip_legs: LegIdx,
     ) -> MultimodalLabelModel {
         MultimodalLabelModel {
-            mode_mapping,
+            mode_to_state,
             max_trip_legs,
         }
     }
@@ -103,11 +103,11 @@ mod test {
         .expect("test invariant failed");
         let sm = StateModel::new(am.state_features());
         let mut state = sm.initial_state().expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 0, "drive", &sm, &am.mode_mapping)
+        state_ops::set_leg_mode(&mut state, 0, "drive", &sm, &am.mode_to_state)
             .expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 1, "transit", &sm, &am.mode_mapping)
+        state_ops::set_leg_mode(&mut state, 1, "transit", &sm, &am.mode_to_state)
             .expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 2, "walk", &sm, &am.mode_mapping)
+        state_ops::set_leg_mode(&mut state, 2, "walk", &sm, &am.mode_to_state)
             .expect("test invariant failed");
         let vertex_id = VertexId(0);
         let model = MultimodalLabelModel::new(MultimodalMapping::empty(), max_trip_legs);
@@ -116,7 +116,7 @@ mod test {
         let label = model
             .label_from_state(vertex_id, &state, &sm)
             .expect("test failed");
-        let result = label_ops::get_mode_sequence(&label, &am.mode_mapping).expect("test failed");
+        let result = label_ops::get_mode_sequence(&label, &am.mode_to_state).expect("test failed");
         assert_eq!(result, &["drive", "transit", "walk"]);
     }
 }

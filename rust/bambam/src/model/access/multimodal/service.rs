@@ -11,17 +11,17 @@ use crate::model::{
 
 pub struct MultimodalAccessService {
     pub config: MultimodalAccessConfig,
-    pub mode_mapping: Arc<MultimodalStateMapping>,
+    pub mode_to_state: Arc<MultimodalStateMapping>,
 }
 
 impl MultimodalAccessService {
     pub fn new(
         config: MultimodalAccessConfig,
     ) -> Result<MultimodalAccessService, AccessModelError> {
-        let mode_mapping = Arc::new(MultimodalMapping::new(&config.available_modes)?);
+        let mode_to_state = Arc::new(MultimodalMapping::new(&config.available_modes)?);
         let result = MultimodalAccessService {
             config,
-            mode_mapping,
+            mode_to_state,
         };
         Ok(result)
     }
@@ -36,14 +36,14 @@ impl AccessModelService for MultimodalAccessService {
                     self.config.this_mode
                 ))
             })?;
-        let mode_mapping = match config.available_modes {
+        let mode_to_state = match config.available_modes {
             Some(available_modes) => Arc::new(MultimodalMapping::new(&available_modes)?),
-            None => self.mode_mapping.clone(),
+            None => self.mode_to_state.clone(),
         };
         let model = MultimodalAccessModel::new(
             self.config.this_mode.clone(),
             self.config.max_trip_legs,
-            mode_mapping,
+            mode_to_state,
         );
         Ok(Arc::new(model))
     }

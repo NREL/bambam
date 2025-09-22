@@ -5,7 +5,7 @@ use crate::model::state::{MultimodalMapping, MultimodalStateMapping};
 /// use the configuration of this label model to retrieve the state's
 pub fn get_mode_sequence<'a>(
     label: &Label,
-    mode_mapping: &'a MultimodalStateMapping,
+    mode_to_state: &'a MultimodalStateMapping,
 ) -> Result<Vec<&'a str>, LabelModelError> {
     match label {
         Label::VertexWithU8StateVec {
@@ -24,7 +24,7 @@ pub fn get_mode_sequence<'a>(
                     }
                     Some(mode_u8) => {
                         let mode_i64: i64 = (*mode_u8).into();
-                        let mode = mode_mapping.get_categorical(mode_i64)?.ok_or_else(|| {
+                        let mode = mode_to_state.get_categorical(mode_i64)?.ok_or_else(|| {
                             LabelModelError::LabelModelError(format!(
                                 "mode label {mode_i64} not present in multimodal label mapping"
                             ))
