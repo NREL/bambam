@@ -21,6 +21,10 @@ pub struct MultimodalMapping<T, U> {
     label_to_cat: Vec<T>,
 }
 
+/// a common type of multimodal mapping which maps strings to i64 values.
+/// categories begin from zero. negative values denote an empty class label (None case).
+pub type MultimodalStateMapping = MultimodalMapping<String, i64>;
+
 /// A trait for types that can be used as categorical identifiers
 trait Categorical: Eq + std::hash::Hash + Clone + Debug {}
 

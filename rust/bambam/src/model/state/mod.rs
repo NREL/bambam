@@ -4,7 +4,7 @@ pub mod multimodal_state_ops;
 pub mod variable;
 
 pub use multimodal_mapping::MultimodalMapping;
-
+pub use multimodal_mapping::MultimodalStateMapping;
 /// trip legs are enumerated starting from 0 to support zero-based indexing arithmetic.
 pub type LegIdx = u64;
 

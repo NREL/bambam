@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use crate::model::state::{LegIdx, MultimodalMapping};
+use crate::model::state::{LegIdx, MultimodalMapping, MultimodalStateMapping};
 use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde_json::json;
 use uom::si::f64::{Length, Time};
@@ -63,7 +63,7 @@ pub fn get_existing_leg_mode<'a>(
     leg_idx: LegIdx,
     state_model: &StateModel,
     max_trip_legs: LegIdx,
-    mode_mapping: &'a MultimodalMapping<String, i64>,
+    mode_mapping: &'a MultimodalStateMapping,
 ) -> Result<&'a str, StateModelError> {
     let label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
     match label_opt {
@@ -105,7 +105,7 @@ pub fn get_leg_route_id<'a>(
     state: &[StateVariable],
     leg_idx: LegIdx,
     state_model: &StateModel,
-    route_id_mapping: &'a MultimodalMapping<String, i64>,
+    route_id_mapping: &'a MultimodalStateMapping,
 ) -> Result<Option<&'a String>, StateModelError> {
     let name = fieldname::leg_route_id_fieldname(leg_idx);
     let route_id_label = state_model.get_custom_i64(state, &name)?;
@@ -153,7 +153,7 @@ pub fn get_mode_sequence(
     state: &[StateVariable],
     state_model: &StateModel,
     max_trip_legs: LegIdx,
-    mode_mapping: &MultimodalMapping<String, i64>,
+    mode_mapping: &MultimodalStateMapping,
 ) -> Result<Vec<String>, StateModelError> {
     let mut modes: Vec<String> = vec![];
     let mut leg_idx = 0;
@@ -201,7 +201,7 @@ pub fn set_leg_mode(
     leg_idx: LegIdx,
     mode: &str,
     state_model: &StateModel,
-    mode_mapping: &MultimodalMapping<String, i64>,
+    mode_mapping: &MultimodalStateMapping,
 ) -> Result<(), StateModelError> {
     let mode_label = mode_mapping.get_label(mode).ok_or_else(|| {
         StateModelError::RuntimeError(format!("mode mapping has no entry for '{}' mode", mode))

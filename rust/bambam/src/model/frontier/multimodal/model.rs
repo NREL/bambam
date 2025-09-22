@@ -1,4 +1,4 @@
-use crate::model::state::MultimodalMapping;
+use crate::model::state::{MultimodalMapping, MultimodalStateMapping};
 use crate::model::{
     frontier::multimodal::MultimodalConstraint, state::multimodal_state_ops as state_ops,
 };
@@ -9,13 +9,23 @@ use routee_compass_core::model::{
 };
 
 pub struct MultimodalFrontierModel {
+    /// maps EdgeListIds to Modes
     edge_list_mapping: MultimodalMapping<String, usize>,
-    mode_mapping: MultimodalMapping<String, i64>,
+    /// maps state variables to Modes
+    mode_mapping: MultimodalStateMapping,
+    /// logic of frontier validation
     constraints: Vec<MultimodalConstraint>,
+    /// maximum number of trip legs allowed in a trip
     max_trip_legs: u64,
 }
 
 impl FrontierModel for MultimodalFrontierModel {
+    /// confirms that, upon reaching this edge,
+    ///   - we have not exceeded any mode-specific distance, time or energy limit
+    /// confirms that, if we add this edge,
+    ///   - we have not exceeded max trip legs
+    ///   - we have not exceeded max mode counts
+    ///   - our trip still matches any exact mode sequences
     fn valid_frontier(
         &self,
         edge: &Edge,

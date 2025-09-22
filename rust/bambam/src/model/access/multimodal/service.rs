@@ -6,11 +6,12 @@ use serde_json::Value;
 use crate::model::{
     access::multimodal::{MultimodalAccessConfig, MultimodalAccessModel, MultimodalAccessQuery},
     state::MultimodalMapping,
+    state::MultimodalStateMapping,
 };
 
 pub struct MultimodalAccessService {
     pub config: MultimodalAccessConfig,
-    pub mode_mapping: Arc<MultimodalMapping<String, i64>>,
+    pub mode_mapping: Arc<MultimodalStateMapping>,
 }
 
 impl MultimodalAccessService {

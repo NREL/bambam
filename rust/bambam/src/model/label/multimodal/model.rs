@@ -6,16 +6,18 @@ use routee_compass_core::model::{
     state::{StateModel, StateVariable},
 };
 
-use crate::model::state::{multimodal_state_ops as ops, LegIdx, MultimodalMapping};
+use crate::model::state::{
+    multimodal_state_ops as ops, LegIdx, MultimodalMapping, MultimodalStateMapping,
+};
 
 pub struct MultimodalLabelModel {
-    mode_mapping: MultimodalMapping<String, i64>,
+    mode_mapping: MultimodalStateMapping,
     max_trip_legs: LegIdx,
 }
 
 impl MultimodalLabelModel {
     pub fn new(
-        mode_mapping: MultimodalMapping<String, i64>,
+        mode_mapping: MultimodalStateMapping,
         max_trip_legs: LegIdx,
     ) -> MultimodalLabelModel {
         MultimodalLabelModel {

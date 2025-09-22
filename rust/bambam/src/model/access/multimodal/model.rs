@@ -1,5 +1,8 @@
 use crate::model::{
-    state::{fieldname, multimodal_state_ops as ops, variable, LegIdx, MultimodalMapping},
+    state::{
+        fieldname, multimodal_state_ops as ops, variable, LegIdx, MultimodalMapping,
+        MultimodalStateMapping,
+    },
     transit_old::gtfs_old::route,
 };
 use itertools::Itertools;
@@ -17,8 +20,8 @@ use uom::si::f64::{Length, Time};
 pub struct MultimodalAccessModel {
     pub mode: String,
     pub max_trip_legs: u64,
-    pub mode_mapping: Arc<MultimodalMapping<String, i64>>,
-    // pub route_id_mapping: Arc<MultimodalMapping<String, i64>>,
+    pub mode_mapping: Arc<MultimodalStateMapping>,
+    // pub route_id_mapping: Arc<MultimodalStateMapping>,
 }
 
 /// Handles any mode transition occurring by accessing a new edge.
@@ -91,8 +94,8 @@ impl MultimodalAccessModel {
     pub fn new(
         mode: String,
         max_trip_legs: u64,
-        mode_mapping: Arc<MultimodalMapping<String, i64>>,
-        // route_id_mapping: Arc<MultimodalMapping<String, i64>>,
+        mode_mapping: Arc<MultimodalStateMapping>,
+        // route_id_mapping: Arc<MultimodalStateMapping>,
     ) -> MultimodalAccessModel {
         Self {
             mode,
@@ -166,7 +169,7 @@ fn apply_mapping_for_serialization(
     state_json: &mut serde_json::Value,
     name: &str,
     leg_idx: LegIdx,
-    mapping: &MultimodalMapping<String, i64>,
+    mapping: &MultimodalStateMapping,
 ) -> Result<(), StateModelError> {
     if let Some(v) = state_json.get_mut(name) {
         let label = v.as_i64().ok_or_else(|| {

@@ -6,7 +6,7 @@ use routee_compass_core::model::traversal::{
 use serde_json::Value;
 
 use crate::model::{
-    state::MultimodalMapping,
+    state::{MultimodalMapping, MultimodalStateMapping},
     traversal::multimodal::{
         MultimodalTraversalConfig, MultimodalTraversalModel, MultimodalTraversalQuery,
     },
@@ -14,7 +14,7 @@ use crate::model::{
 
 pub struct MultimodalTraversalService {
     pub config: MultimodalTraversalConfig,
-    pub mode_mapping: Arc<MultimodalMapping<String, i64>>,
+    pub mode_mapping: Arc<MultimodalStateMapping>,
 }
 
 impl MultimodalTraversalService {

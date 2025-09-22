@@ -1,7 +1,7 @@
 use crate::model::{
     state::{
         fieldname, multimodal_state_ops, multimodal_state_ops as ops, variable, LegIdx,
-        MultimodalMapping,
+        MultimodalMapping, MultimodalStateMapping,
     },
     transit_old::gtfs_old::route,
 };
@@ -25,7 +25,7 @@ use uom::si::f64::{Length, Time};
 pub struct MultimodalTraversalModel {
     pub mode: String,
     pub max_trip_legs: u64,
-    pub mode_mapping: Arc<MultimodalMapping<String, i64>>,
+    pub mode_mapping: Arc<MultimodalStateMapping>,
 }
 
 /// Applies the multimodal leg + mode-specific accumulator updates during
@@ -131,7 +131,7 @@ impl MultimodalTraversalModel {
     pub fn new(
         mode: String,
         max_trip_legs: u64,
-        mode_mapping: Arc<MultimodalMapping<String, i64>>,
+        mode_mapping: Arc<MultimodalStateMapping>,
     ) -> MultimodalTraversalModel {
         Self {
             mode,
@@ -168,6 +168,7 @@ mod test {
     use super::MultimodalTraversalModel;
     use crate::model::state::{
         fieldname, multimodal_state_ops as ops, variable, LegIdx, MultimodalMapping,
+        MultimodalStateMapping,
     };
     use routee_compass_core::{
         model::{
@@ -347,7 +348,7 @@ mod test {
         state: &[StateVariable],
         state_model: &StateModel,
         max_trip_legs: u64,
-        mode_mapping: &MultimodalMapping<String, i64>,
+        mode_mapping: &MultimodalStateMapping,
     ) -> Result<(), String> {
         let active_leg_opt = ops::get_active_leg_idx(&state, &state_model)
             .expect("failure getting active leg index");

@@ -11,4 +11,6 @@ pub struct MultimodalFrontierConfig {
     pub constraints: HashMap<String, MultimodalConstraintConfig>,
     /// enumerates modes as integers in the state vector
     pub mode_mapping: Vec<String>,
+    /// modes that can be used on this trip
+    pub available_modes: Vec<String>,
 }

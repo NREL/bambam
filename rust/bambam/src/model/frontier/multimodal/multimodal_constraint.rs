@@ -6,6 +6,8 @@ use routee_compass_core::model::{
 use std::collections::{HashMap, HashSet};
 use uom::si::f64::Time;
 
+use crate::model::state::MultimodalStateMapping;
+
 pub enum MultimodalConstraint {
     AllowedModes(HashSet<String>),
     ModeCounts(HashMap<String, usize>),
@@ -19,6 +21,8 @@ impl MultimodalConstraint {
         edge_mode: &str,
         state: &[StateVariable],
         state_model: &StateModel,
+        mode_mapping: &MultimodalStateMapping,
+        max_trip_legs: u64,
     ) -> Result<bool, FrontierModelError> {
         match self {
             MultimodalConstraint::AllowedModes(items) => todo!(),
