@@ -25,6 +25,23 @@ pub fn get_active_leg_idx(
     }
 }
 
+/// inspect the current active leg mode for a trip
+pub fn get_active_leg_mode<'a>(
+    state: &[StateVariable],
+    state_model: &StateModel,
+    max_trip_legs: LegIdx,
+    mode_to_state: &'a MultimodalStateMapping,
+) -> Result<Option<&'a str>, StateModelError> {
+    match get_active_leg_idx(state, state_model)? {
+        None => Ok(None),
+        Some(leg_idx) => {
+            let mode =
+                get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_to_state)?;
+            Ok(Some(mode))
+        }
+    }
+}
+
 /// use the active leg index to count the number of trip legs in this state vector
 pub fn get_n_legs(
     state: &[StateVariable],
@@ -179,6 +196,7 @@ pub fn get_mode_sequence(
         let mode =
             get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_to_state)?;
         modes.push(mode.to_string());
+        leg_idx += 1;
     }
     Ok(modes)
 }
