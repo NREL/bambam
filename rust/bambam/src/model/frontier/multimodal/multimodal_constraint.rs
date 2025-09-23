@@ -36,13 +36,29 @@ impl MultimodalConstraint {
                 Ok(items.contains(edge_mode))
             }
             MultimodalConstraint::ModeCounts(limits) => {
-                let edge_mode = ops::get_edge_list_mode(edge, mode_to_edge_list)?;
                 let mut counts =
                     ops::get_mode_counts(state, state_model, max_trip_legs, mode_to_state)?;
-                counts
-                    .entry(edge_mode.clone())
-                    .and_modify(|cnt| *cnt += 1)
-                    .or_insert(1);
+
+                // simulate a mode transition if the incoming edge has a different mode than the trip's active mode
+                let edge_mode = ops::get_edge_list_mode(edge, mode_to_edge_list)?;
+                let active_mode = state_ops::get_active_leg_mode(
+                    state,
+                    state_model,
+                    max_trip_legs,
+                    mode_to_state,
+                )
+                .map_err(|e| {
+                    FrontierModelError::FrontierModelError(format!(
+                        "while applying mode count frontier model constraint, {e}"
+                    ))
+                })?;
+                if Some(edge_mode.as_str()) != active_mode {
+                    counts
+                        .entry(edge_mode.clone())
+                        .and_modify(|cnt| *cnt += 1)
+                        .or_insert(1);
+                }
+
                 Ok(ops::valid_mode_counts(&counts, limits))
             }
             MultimodalConstraint::MaxTripLegs(max_legs) => {
@@ -51,7 +67,8 @@ impl MultimodalConstraint {
                         (format!("while getting number of trip legs for this trip: {e}")),
                     )
                 })?;
-                Ok(n_legs <= *max_legs)
+                let is_valid = n_legs <= *max_legs;
+                Ok(is_valid)
             }
             MultimodalConstraint::MaxTime(limits) => {
                 ops::valid_mode_time(state, state_model, limits)
