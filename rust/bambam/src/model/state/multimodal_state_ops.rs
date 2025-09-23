@@ -175,11 +175,17 @@ pub fn get_mode_label_sequence(
     max_trip_legs: LegIdx,
 ) -> Result<Vec<i64>, StateModelError> {
     let mut labels: Vec<i64> = vec![];
-    let mut leg_idx = 0;
-    while let Some(label) = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)? {
-        labels.push(label);
-        leg_idx += 1;
+
+    for leg_idx in (0..max_trip_legs) {
+        let mode_label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
+        match mode_label_opt {
+            None => break,
+            Some(mode_label) => {
+                labels.push(mode_label);
+            }
+        }
     }
+
     Ok(labels)
 }
 

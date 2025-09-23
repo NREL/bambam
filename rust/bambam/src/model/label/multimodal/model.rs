@@ -62,14 +62,15 @@ impl LabelModel for MultimodalLabelModel {
 #[cfg(test)]
 mod test {
     use routee_compass_core::model::access::AccessModel;
+    use routee_compass_core::model::state::StateVariable;
     use routee_compass_core::model::{label::LabelModel, network::VertexId, state::StateModel};
 
     use crate::model::access::multimodal::MultimodalAccessModel;
     use crate::model::label::multimodal::{
         multimodal_label_ops as label_ops, MultimodalLabelModel,
     };
-    use crate::model::state::multimodal_state_ops as state_ops;
     use crate::model::state::MultimodalMapping;
+    use crate::model::state::{multimodal_state_ops as state_ops, MultimodalStateMapping};
     #[test]
     fn test_err_on_empty() {
         let access_model = MultimodalAccessModel::new_local("walk", 1, &["walk"], &[])
@@ -103,12 +104,14 @@ mod test {
         .expect("test invariant failed");
         let sm = StateModel::new(am.state_features());
         let mut state = sm.initial_state().expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 0, "drive", &sm, &am.mode_to_state)
-            .expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 1, "transit", &sm, &am.mode_to_state)
-            .expect("test invariant failed");
-        state_ops::set_leg_mode(&mut state, 2, "walk", &sm, &am.mode_to_state)
-            .expect("test invariant failed");
+        inject_trip_legs(
+            &["drive", "transit", "walk"],
+            &mut state,
+            &sm,
+            &am.mode_to_state,
+            max_trip_legs,
+        );
+
         let vertex_id = VertexId(0);
         let model = MultimodalLabelModel::new(MultimodalMapping::empty(), max_trip_legs);
 
@@ -118,5 +121,20 @@ mod test {
             .expect("test failed");
         let result = label_ops::get_mode_sequence(&label, &am.mode_to_state).expect("test failed");
         assert_eq!(result, &["drive", "transit", "walk"]);
+    }
+
+    fn inject_trip_legs(
+        legs: &[&str],
+        state: &mut [StateVariable],
+        state_model: &StateModel,
+        mode_to_state: &MultimodalStateMapping,
+        max_trip_legs: u64,
+    ) {
+        for (leg_idx, mode) in legs.iter().enumerate() {
+            state_ops::set_leg_mode(state, leg_idx as u64, mode, &state_model, &mode_to_state)
+                .expect("test invariant failed");
+            state_ops::increment_active_leg_idx(state, &state_model, max_trip_legs)
+                .expect("test invariant failed");
+        }
     }
 }
