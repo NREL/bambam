@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum MultimodalConstraintConfig {
+pub enum MultimodalFrontierConstraintConfig {
     AllowedModes(Vec<String>),
     ModeCounts(HashMap<String, NonZeroU64>),
     TripLegCount(NonZeroU64),
-    DistanceLimit(HashMap<String, DistanceTuple>),
-    TimeLimit(HashMap<String, TimeTuple>),
-    EnergyLimit(HashMap<String, EnergyTuple>),
+    // DistanceLimit(HashMap<String, DistanceTuple>),
+    // TimeLimit(HashMap<String, TimeTuple>),
+    // EnergyLimit(HashMap<String, EnergyTuple>),
     ExactSequences(Vec<Vec<String>>),
 }
 

@@ -1,10 +1,11 @@
 mod config;
+mod constraint;
+mod constraint_config;
 mod model;
-mod multimodal_constraint;
-mod multimodal_constraint_config;
 pub mod multimodal_frontier_ops;
+pub mod sequence_trie;
 mod service;
 
 pub use config::MultimodalFrontierConfig;
-pub use multimodal_constraint::MultimodalConstraint;
-pub use multimodal_constraint_config::MultimodalConstraintConfig;
+pub use constraint::MultimodalFrontierConstraint;
+pub use constraint_config::MultimodalFrontierConstraintConfig;

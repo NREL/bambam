@@ -1,6 +1,6 @@
 use crate::model::state::MultimodalMapping;
 
-use super::MultimodalConstraintConfig;
+use super::MultimodalFrontierConstraintConfig;
 use routee_compass_core::model::network::EdgeId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MultimodalFrontierConfig {
     /// constraints to apply when in this mode
-    pub constraints: HashMap<String, MultimodalConstraintConfig>,
+    pub constraints: HashMap<String, MultimodalFrontierConstraintConfig>,
     /// enumerates modes as integers in the state vector
     pub mode_to_state: Vec<String>,
     /// modes that can be used on this trip

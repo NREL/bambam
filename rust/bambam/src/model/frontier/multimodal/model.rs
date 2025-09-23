@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::model::frontier::multimodal::MultimodalConstraintConfig;
+use crate::model::frontier::multimodal::MultimodalFrontierConstraintConfig;
 use crate::model::state::{MultimodalMapping, MultimodalStateMapping};
 use crate::model::{
-    frontier::multimodal::MultimodalConstraint, state::multimodal_state_ops as state_ops,
+    frontier::multimodal::MultimodalFrontierConstraint, state::multimodal_state_ops as state_ops,
 };
 use routee_compass_core::model::{
     frontier::{FrontierModel, FrontierModelError},
@@ -17,7 +17,7 @@ pub struct MultimodalFrontierModel {
     /// maps state variables to Modes
     mode_to_state: Arc<MultimodalStateMapping>,
     /// logic of frontier validation
-    constraints: Arc<Vec<MultimodalConstraint>>,
+    constraints: Arc<Vec<MultimodalFrontierConstraint>>,
     /// maximum number of trip legs allowed in a trip
     max_trip_legs: u64,
 }
@@ -27,7 +27,7 @@ impl MultimodalFrontierModel {
         max_trip_legs: u64,
         mode_to_state: Arc<MultimodalStateMapping>,
         mode_to_edge_list: Arc<MultimodalMapping<String, usize>>,
-        constraints: Arc<Vec<MultimodalConstraint>>,
+        constraints: Arc<Vec<MultimodalFrontierConstraint>>,
     ) -> Self {
         Self {
             max_trip_legs,
@@ -43,7 +43,7 @@ impl MultimodalFrontierModel {
         max_trip_legs: u64,
         modes: &[&str],
         edge_lists: &[&str],
-        constraints: Vec<MultimodalConstraint>,
+        constraints: Vec<MultimodalFrontierConstraint>,
     ) -> Result<Self, FrontierModelError> {
         let mode_to_state =
             MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
@@ -113,7 +113,7 @@ impl FrontierModel for MultimodalFrontierModel {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use itertools::Itertools;
     use routee_compass_core::model::{
@@ -126,7 +126,10 @@ mod test {
 
     use crate::model::{
         access::multimodal::MultimodalAccessModel,
-        frontier::multimodal::{model::MultimodalFrontierModel, MultimodalConstraint},
+        frontier::multimodal::{
+            model::MultimodalFrontierModel, sequence_trie::SubSequenceTrie,
+            MultimodalFrontierConstraint,
+        },
         state::{multimodal_state_ops as state_ops, MultimodalStateMapping},
     };
 
@@ -135,7 +138,7 @@ mod test {
         // testing validitity of an initial state using constraint "max trip legs = 1"
         let max_trip_legs = 1;
         let (mam, mfm, state_model, state) = test_setup(
-            vec![MultimodalConstraint::MaxTripLegs(1)],
+            vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
             "walk",
             &["walk", "bike"],
             &[],
@@ -156,7 +159,7 @@ mod test {
         // testing validitity of a state with one leg using constraint "max trip legs = 2"
         let max_trip_legs = 2;
         let (mam, mfm, state_model, mut state) = test_setup(
-            vec![MultimodalConstraint::MaxTripLegs(1)],
+            vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
             "walk",
             &["walk", "bike"],
             &[],
@@ -183,7 +186,7 @@ mod test {
         // testing validitity of a state with two legs using constraint "max trip legs = 1"
         let max_trip_legs = 2;
         let (mam, mfm, state_model, mut state) = test_setup(
-            vec![MultimodalConstraint::MaxTripLegs(1)],
+            vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
             "walk",
             &["walk", "bike"],
             &[],
@@ -213,7 +216,7 @@ mod test {
         // our constraint is walk<=2, drive<=1. since this new edge has walk-mode, it will not increase the
         // number of trip legs, so it should be valid.
         let max_trip_legs = 5;
-        let mode_constraint = MultimodalConstraint::ModeCounts(HashMap::from([
+        let mode_constraint = MultimodalFrontierConstraint::ModeCounts(HashMap::from([
             ("walk".to_string(), 2),
             ("drive".to_string(), 1),
         ]));
@@ -249,7 +252,7 @@ mod test {
         // our constraint is walk<=2, drive<=1. since this new edge has drive-mode, it will increase the
         // number of trip legs, so it should be invalid.
         let max_trip_legs = 5;
-        let mode_constraint = MultimodalConstraint::ModeCounts(HashMap::from([
+        let mode_constraint = MultimodalFrontierConstraint::ModeCounts(HashMap::from([
             ("walk".to_string(), 2),
             ("drive".to_string(), 1),
         ]));
@@ -279,9 +282,181 @@ mod test {
         assert!(!is_valid);
     }
 
+    #[test]
+    fn test_valid_allowed_modes() {
+        // testing validitity of traversing a "walk" edge when the constraint allows only
+        // "walk" and "transit" modes. this should be valid.
+        let mode_constraint = MultimodalFrontierConstraint::AllowedModes(HashSet::from([
+            "walk".to_string(),
+            "transit".to_string(),
+        ]));
+        let max_trip_legs = 3;
+        let (mam, mfm, state_model, mut state) = test_setup(
+            vec![mode_constraint],
+            "walk",
+            &["walk", "bike", "drive", "tnc", "transit"],
+            &["drive", "walk", "bike", "transit"],
+            max_trip_legs,
+        );
+
+        // edge list one is a walk-mode edge list
+        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+
+        inject_trip_legs(
+            &["walk", "transit", "walk"],
+            &mut state,
+            &state_model,
+            &mam.mode_to_state,
+            max_trip_legs,
+        );
+
+        // test
+        let is_valid = mfm
+            .valid_frontier(&edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_invalid_allowed_modes() {
+        // testing validitity of traversing a "drive" edge when the constraint allows only
+        // "walk" and "transit" modes. this should be invalid.
+        let mode_constraint = MultimodalFrontierConstraint::AllowedModes(HashSet::from([
+            "walk".to_string(),
+            "transit".to_string(),
+        ]));
+        let max_trip_legs = 3;
+        let (mam, mfm, state_model, mut state) = test_setup(
+            vec![mode_constraint],
+            "walk",
+            &["walk", "bike", "drive", "tnc", "transit"],
+            &["drive", "walk", "bike", "transit"],
+            max_trip_legs,
+        );
+
+        // edge list one is a DRIVE-mode edge list
+        let edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+
+        inject_trip_legs(
+            &["walk", "transit", "walk"],
+            &mut state,
+            &state_model,
+            &mam.mode_to_state,
+            max_trip_legs,
+        );
+
+        // test
+        let is_valid = mfm
+            .valid_frontier(&edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(!is_valid);
+    }
+
+    #[test]
+    fn test_valid_subsequence_empty_state() {
+        // testing validitity of traversing a "walk" edge for an initial state where "walk"
+        // is a matching subsequence. should be valid.
+        let mut trie = SubSequenceTrie::new();
+        trie.insert_sequence(vec![
+            "walk".to_string(),
+            "transit".to_string(),
+            "walk".to_string(),
+        ]);
+        let mode_constraint = MultimodalFrontierConstraint::ExactSequences(trie);
+        let max_trip_legs = 3;
+        let (mam, mfm, state_model, mut state) = test_setup(
+            vec![mode_constraint],
+            "walk",
+            &["walk", "bike", "drive", "tnc", "transit"],
+            &["drive", "walk", "bike", "transit"],
+            max_trip_legs,
+        );
+
+        // edge list one is a walk-mode edge list
+        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+
+        // test
+        let is_valid = mfm
+            .valid_frontier(&edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_valid_subsequence() {
+        // testing validitity of traversing a "walk" edge for a "walk"->"transit" state where "walk"
+        // is a matching subsequence. should be valid.
+        let mut trie = SubSequenceTrie::new();
+        trie.insert_sequence(vec![
+            "walk".to_string(),
+            "transit".to_string(),
+            "walk".to_string(),
+        ]);
+        let mode_constraint = MultimodalFrontierConstraint::ExactSequences(trie);
+        let max_trip_legs = 3;
+        let (mam, mfm, state_model, mut state) = test_setup(
+            vec![mode_constraint],
+            "walk",
+            &["walk", "bike", "drive", "tnc", "transit"],
+            &["drive", "walk", "bike", "transit"],
+            max_trip_legs,
+        );
+
+        // edge list one is a walk-mode edge list
+        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+
+        inject_trip_legs(
+            &["walk", "transit"],
+            &mut state,
+            &state_model,
+            &mam.mode_to_state,
+            max_trip_legs,
+        );
+
+        // test
+        let is_valid = mfm
+            .valid_frontier(&edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_invalid_subsequence() {
+        // testing validitity of traversing a "walk" edge for a "walk"->"transit" state where "walk"->"transit"->"walk"
+        // is NOT a matching subsequence. should be invalid.
+        let mut trie = SubSequenceTrie::new();
+        trie.insert_sequence(vec!["walk".to_string(), "transit".to_string()]);
+        let mode_constraint = MultimodalFrontierConstraint::ExactSequences(trie);
+        let max_trip_legs = 3;
+        let (mam, mfm, state_model, mut state) = test_setup(
+            vec![mode_constraint],
+            "walk",
+            &["walk", "bike", "drive", "tnc", "transit"],
+            &["drive", "walk", "bike", "transit"],
+            max_trip_legs,
+        );
+
+        // edge list one is a walk-mode edge list
+        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+
+        inject_trip_legs(
+            &["walk", "transit"],
+            &mut state,
+            &state_model,
+            &mam.mode_to_state,
+            max_trip_legs,
+        );
+
+        // test
+        let is_valid = mfm
+            .valid_frontier(&edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(!is_valid);
+    }
+
     /// helper function to set up MultimodalFrontierModel test case assets
     fn test_setup(
-        constraints: Vec<MultimodalConstraint>,
+        constraints: Vec<MultimodalFrontierConstraint>,
         this_mode: &str,
         modes: &[&str],
         edge_list_modes: &[&str],

@@ -248,6 +248,25 @@ pub fn set_leg_mode(
     state_model.set_custom_i64(state, &name, mode_label)
 }
 
+/// sets the mode value for the given leg. performs mapping from Mode -> i64 which is
+/// the storage type for Mode in the state vector.
+pub fn set_leg_route_id(
+    state: &mut [StateVariable],
+    leg_idx: LegIdx,
+    route_id: &str,
+    state_model: &StateModel,
+    route_id_to_state: &MultimodalStateMapping,
+) -> Result<(), StateModelError> {
+    let route_id_label = route_id_to_state.get_label(route_id).ok_or_else(|| {
+        StateModelError::RuntimeError(format!(
+            "route_id mapping has no entry for '{}' route id",
+            route_id
+        ))
+    })?;
+    let name = fieldname::leg_route_id_fieldname(leg_idx);
+    state_model.set_custom_i64(state, &name, route_id_label)
+}
+
 /// validates leg_idx values, which must be in range [0, max_trip_legs)
 pub fn validate_leg_idx(leg_idx: LegIdx, max_trip_legs: LegIdx) -> Result<(), StateModelError> {
     if leg_idx >= max_trip_legs {
