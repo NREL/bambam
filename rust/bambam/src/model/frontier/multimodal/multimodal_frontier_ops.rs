@@ -19,7 +19,9 @@ pub fn get_edge_list_mode<'a>(
     mode_to_edge_list
         .get_categorical(edge.edge_list_id.0)
         .map_err(|e| {
-            FrontierModelError::FrontierModelError("failure getting edge list mode via edge list mode mapping".to_string())
+            FrontierModelError::FrontierModelError(
+                "failure getting edge list mode via edge list mode mapping".to_string(),
+            )
         })?
         .ok_or_else(|| {
             FrontierModelError::FrontierModelError(format!(
