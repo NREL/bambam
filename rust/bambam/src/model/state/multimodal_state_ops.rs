@@ -25,7 +25,8 @@ pub fn get_active_leg_idx(
     }
 }
 
-/// inspect the current active leg mode for a trip
+/// inspect the current active leg mode for a trip. if the trip
+/// has no leg, returns None.
 pub fn get_active_leg_mode<'a>(
     state: &[StateVariable],
     state_model: &StateModel,
