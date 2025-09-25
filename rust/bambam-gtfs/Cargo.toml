@@ -18,7 +18,6 @@ keywords = [
 categories = ["command-line-utilities", "science", "science::geo"]
 
 [dependencies]
-
 chrono = { workspace = true }
 clap = { workspace = true }
 config = { workspace = true }
@@ -34,12 +33,14 @@ itertools = { workspace = true }
 kdam = { workspace = true }
 log = { workspace = true }
 rayon = { workspace = true }
+routee-compass-core = { workspace = true }
 rstar = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 skiplist = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+uom = { workspace = true }
 wkb = { workspace = true }
 wkt = { workspace = true }
 zip = { workspace = true }

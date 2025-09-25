@@ -1,31 +1,140 @@
-use crate::schedule::{GtfsProvider, GtfsSummary};
-use clap::{Subcommand, ValueEnum};
+use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
+use crate::schedule::schedule_error::ScheduleError;
+use crate::schedule::{
+    process_bundle, GtfsProvider, GtfsSummary,
+    MissingStopLocationPolicy,
+};
+use chrono::NaiveDate;
+use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
 use itertools::Itertools;
+use kdam::{tqdm, Bar};
 use rayon::prelude::*;
+use routee_compass_core::model::map::{DistanceTolerance, SpatialIndex};
+use routee_compass_core::model::network::Vertex;
+use routee_compass_core::model::unit::DistanceUnit;
+use routee_compass_core::util::fs::read_utils;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::{collections::HashSet, fs::File, io::Write, path::Path, time::Duration};
 use wkt::ToWkt;
 
-#[derive(Debug, Clone, Serialize, Deserialize, ValueEnum, Subcommand)]
+#[derive(Debug, Clone, Serialize, Deserialize, Subcommand)]
 pub enum GtfsOperation {
     /// summarize attributes for the downloaded GTFS archives
-    Summary,
+    Summary {
+        #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
+        manifest_file: String,
+    },
     /// download all WKT shapes data from the GTFS archives
-    Shapes,
+    Shapes {
+        #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
+        manifest_file: String,
+    },
     /// download all of the GTFS archives
-    Download,
+    Download {
+        #[arg(long, default_value_t = 1)]
+        parallelism: usize,
+        #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
+        manifest_file: String,
+    },
+    /// Process bundle into EdgeLists
+    PreprocessBundle {
+        #[arg(long, default_value_t = 1)]
+        parallelism: usize,
+        #[arg(long, default_value_t=String::from("mdb-2245-202509111625.zip"))]
+        bundle_file: String,
+        #[arg(long)]
+        vertices_compass_filename: String,
+        #[arg(long)]
+        start_date: NaiveDate,
+        #[arg(long)]
+        end_date: NaiveDate,
+        #[arg(value_enum)]
+        missing_stop_location_policy: MissingStopLocationPolicy,
+        #[arg(value_enum)]
+        distance_calculation_policy: DistanceCalculationPolicy,
+    },
 }
 
 impl GtfsOperation {
-    pub fn run(&self, rows: &Vec<GtfsProvider>, parallelism: usize) {
+    pub fn run(&self) {
         match self {
-            GtfsOperation::Summary => summarize(rows),
-            GtfsOperation::Shapes => shapes(rows),
-            GtfsOperation::Download => download(rows, parallelism),
+            GtfsOperation::Summary { manifest_file } => {
+                summarize(&manifest_into_rows(manifest_file))
+            }
+            GtfsOperation::Shapes { manifest_file } => shapes(&manifest_into_rows(manifest_file)),
+            GtfsOperation::Download {
+                manifest_file,
+                parallelism,
+            } => download(&manifest_into_rows(manifest_file), *parallelism),
+            GtfsOperation::PreprocessBundle {
+                bundle_file,
+                vertices_compass_filename,
+                start_date,
+                end_date,
+                missing_stop_location_policy,
+                distance_calculation_policy,
+                ..
+            } => {
+                let spatial_index =
+                    load_vertices_and_create_spatial_index(vertices_compass_filename).unwrap();
+                process_bundle(
+                    bundle_file,
+                    1,
+                    start_date,
+                    end_date,
+                    spatial_index,
+                    missing_stop_location_policy,
+                    distance_calculation_policy,
+                )
+                .unwrap()
+            }
         }
     }
+}
+
+fn load_vertices_and_create_spatial_index(
+    vertices_compass_filename: &str,
+) -> Result<Arc<SpatialIndex>, ScheduleError> {
+    // load Compass Vertices, create spatial index
+    let bar_builder = Bar::builder().desc("read vertices file");
+    let vertices: Box<[Vertex]> = read_utils::from_csv(
+        &Path::new(vertices_compass_filename),
+        true,
+        Some(bar_builder),
+        None,
+    )
+    .map_err(|e| ScheduleError::FailedToCreateVertexIndexError(format!("{e}")))?;
+
+    Ok(Arc::new(SpatialIndex::new_vertex_oriented(
+        &vertices,
+        Some(DistanceTolerance {
+            distance: 200.0,
+            unit: DistanceUnit::Meters,
+        }),
+    )))
+}
+
+fn manifest_into_rows(manifest_file: &str) -> Vec<GtfsProvider> {
+    let path_buf = PathBuf::from(manifest_file);
+    let reader = csv::ReaderBuilder::new()
+        .from_path(path_buf.as_path())
+        .unwrap_or_else(|_| panic!("file {} not found", path_buf.to_str().unwrap_or_default()));
+    let row_iter = tqdm!(
+        reader.into_deserialize::<GtfsProvider>(),
+        desc = format!("reading {}", manifest_file)
+    );
+    let us_rows: Result<Vec<GtfsProvider>, _> = row_iter
+        .filter(|r| match r {
+            Ok(provider) => provider.country_code == *"US" && provider.data_type == "gtfs",
+            Err(_) => true,
+        })
+        .collect::<Result<Vec<_>, _>>();
+
+    us_rows.unwrap()
 }
 
 fn summarize(rows: &Vec<GtfsProvider>) {
