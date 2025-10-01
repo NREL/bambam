@@ -6,4 +6,8 @@ pub struct MultimodalTraversalQuery {
     /// allows, at query time, for users to modify the list of available modes for a search.
     /// if not provided, the [`super::MultimodalTraversalConfig`] value will be used.
     pub available_modes: Option<Vec<String>>,
+
+    /// allows, at query time, for users to modify the list of available route ids for a search.
+    /// if not provided, the [`super::MultimodalTraversalConfig`] value will be used.
+    pub available_route_ids: Option<Vec<String>>,
 }

@@ -8,6 +8,9 @@ pub const TRIP_ENROUTE_DELAY: &str = "trip_enroute_delay";
 /// are not incorporated into the search cost function.
 pub const TRIP_ARRIVAL_DELAY: &str = "trip_arrival_delay";
 
+/// during scheduled mode traversals, a record of the route used.
+pub const ROUTE_ID: &str = "route_id";
+
 /// used to penalize an edge. convention is to design this
 /// as one of the vehicle cost rates, via a "raw" interpretation
 /// (no cost conversion) and then to use "mul" (multiplicitive)
