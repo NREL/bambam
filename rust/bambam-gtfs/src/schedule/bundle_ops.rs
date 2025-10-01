@@ -41,7 +41,7 @@ pub fn process_bundle(
     output_directory: &Path,
     overwrite: bool,
 ) -> Result<(), ScheduleError> {
-    let gtfs = Gtfs::new(bundle_file).map_err(|e| ScheduleError::from(e))?;
+    let gtfs = Gtfs::new(bundle_file).map_err(ScheduleError::from)?;
     let gtfs_arc = Arc::new(gtfs);
 
     // Get ordered StopTimes, RouteID and start_dates for each trip that intersects the dates
@@ -51,8 +51,8 @@ pub fn process_bundle(
 
     for (trip_id, trip) in gtfs_arc.clone().trips.iter() {
         let trip_calendar = get_trip_calendar(trip, gtfs_arc.clone())?;
-        let trip_intersects = (trip_calendar.start_date.clone() < end_date.clone())
-            && (start_date.clone() < trip_calendar.end_date.clone());
+        let trip_intersects = (trip_calendar.start_date < *end_date)
+            && (*start_date < trip_calendar.end_date);
 
         if trip_intersects {
             trip_stop_times.insert(trip_id.clone(), get_ordered_stops(trip));
@@ -87,14 +87,10 @@ pub fn process_bundle(
             let dst_point: Point<f64>;
 
             // Since `stop_locations` is computed from `gtfs.stops`, this should never fail
-            let maybe_src = stop_locations.get(&src.stop.id).expect(&format!(
-                "Attempted to get location for non existing stop: {}",
-                src.stop.id
-            ));
-            let maybe_dst = stop_locations.get(&dst.stop.id).expect(&format!(
-                "Attempted to get location for non existing stop: {}",
-                dst.stop.id
-            ));
+            let maybe_src = stop_locations.get(&src.stop.id).unwrap_or_else(|| panic!("Attempted to get location for non existing stop: {}",
+                src.stop.id));
+            let maybe_dst = stop_locations.get(&dst.stop.id).unwrap_or_else(|| panic!("Attempted to get location for non existing stop: {}",
+                dst.stop.id));
 
             if let (Some(src_point_), Some(dst_point_)) = (maybe_src, maybe_dst) {
                 // If you can find both:
@@ -121,7 +117,7 @@ pub fn process_bundle(
             }
 
             // This only gets to run if all previous conditions are met
-            if !edges.contains_key(&(src_compass, dst_compass)) {
+            if let std::collections::hash_map::Entry::Vacant(e) = edges.entry((src_compass, dst_compass)) {
                 // Estimate distance
                 let distance: Length = match distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => compute_haversine(src_point, dst_point),
@@ -130,13 +126,13 @@ pub fn process_bundle(
                 };
 
                 let edge = Edge::new(
-                    edge_list_id.clone(),
+                    *edge_list_id,
                     edge_id,
                     src_compass,
                     dst_compass,
                     distance,
                 );
-                edges.insert((src_compass, dst_compass), edge);
+                e.insert(edge);
                 schedules.insert((src_compass, dst_compass), vec![]);
                 edge_id += 1;
             }
@@ -162,18 +158,14 @@ pub fn process_bundle(
                 .and_then(|datetime| {
                     datetime.checked_add_signed(Duration::seconds(raw_src_departure_time as i64))
                 })
-                .ok_or(ScheduleError::OtherError(format!(
-                    "Invalid Datetime from Date"
-                )))?;
+                .ok_or(ScheduleError::OtherError("Invalid Datetime from Date".to_string()))?;
 
             let dst_arrival_time = start_date
                 .and_hms_opt(0, 0, 0)
                 .and_then(|datetime| {
                     datetime.checked_add_signed(Duration::seconds(raw_dst_arrival_time as i64))
                 })
-                .ok_or(ScheduleError::OtherError(format!(
-                    "Invalid Datetime from Date"
-                )))?;
+                .ok_or(ScheduleError::OtherError("Invalid Datetime from Date".to_string()))?;
 
             let schedule = ScheduleConfig {
                 edge_id,
@@ -198,8 +190,8 @@ pub fn process_bundle(
     }
 
     // Write to files
-    let edges_filename = format!("edges-compass-{}.csv.gz", edge_list_id);
-    let schedules_filename = format!("edges-schedules-{}.csv.gz", edge_list_id);
+    let edges_filename = format!("edges-compass-{edge_list_id}.csv.gz");
+    let schedules_filename = format!("edges-schedules-{edge_list_id}.csv.gz");
     let mut edges_writer = create_writer(
         output_directory,
         &edges_filename,
@@ -216,11 +208,9 @@ pub fn process_bundle(
     );
 
     for k in edge_keys {
-        let edge = edges.get(k).ok_or(ScheduleError::OtherError(format!(
-            "Edge key not present in edges array"
-        )))?;
+        let edge = edges.get(k).ok_or(ScheduleError::OtherError("Edge key not present in edges array".to_string()))?;
         let schedule_vec: &Vec<ScheduleConfig> = schedules.get(k).ok_or(
-            ScheduleError::OtherError(format!("Edge key not present in schedules array")),
+            ScheduleError::OtherError("Edge key not present in schedules array".to_string()),
         )?;
 
         if let Some(ref mut writer) = edges_writer {
@@ -297,7 +287,7 @@ fn match_closest_graph_id(
 fn get_trip_calendar(trip: &Trip, gtfs: Arc<Gtfs>) -> Result<Box<Calendar>, ScheduleError> {
     let calendar = gtfs
         .get_calendar(&trip.service_id)
-        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{}", e)))?;
+        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{e}")))?;
 
     Ok(Box::from(calendar.clone()))
 }
@@ -362,7 +352,7 @@ mod test {
         let gtfs = Gtfs::new(
             test_bundle
                 .to_str()
-                .expect(&format!("Failed to interpret {:?} as string", test_bundle)),
+                .unwrap_or_else(|| panic!("Failed to interpret {test_bundle:?} as string")),
         )
         .expect("Test bundle not found in configuration/gtfs-test/gtfs-test.zip");
 

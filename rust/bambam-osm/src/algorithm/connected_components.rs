@@ -210,7 +210,7 @@ mod tests {
             .map(|n| {
                 let node_id = OsmNodeId(n.try_into().unwrap());
                 let mut node = OsmNodeData::default();
-                node.osmid = node_id.clone();
+                node.osmid = node_id;
                 let angle = 2.0 * std::f32::consts::PI * (n as f32) / (n_connected_nodes as f32);
                 let x = angle.cos();
                 let y = angle.sin();
