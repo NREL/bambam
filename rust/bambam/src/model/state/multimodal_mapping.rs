@@ -124,7 +124,7 @@ where
     U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug,
 {
     let zero = U::try_from(0).map_err(|_| {
-        StateModelError::BuildError(format!("could not create zero value for type"))
+        StateModelError::BuildError("could not create zero value for type".to_string())
     })?;
     Ok(u < zero)
 }
