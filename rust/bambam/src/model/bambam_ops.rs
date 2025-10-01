@@ -149,3 +149,4 @@ pub fn iterate_bins<'a>(
     })?;
     Ok(Box::new(bins_map.iter_mut()))
 }
+

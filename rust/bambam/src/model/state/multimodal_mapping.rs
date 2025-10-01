@@ -29,19 +29,22 @@ pub type MultimodalStateMapping = MultimodalMapping<String, i64>;
 trait Categorical: Eq + std::hash::Hash + Clone + Debug {}
 
 /// A trait for types that can be used as indices in the multimodal mapping
-trait IndexType: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug {}
+trait IndexType:
+    Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug
+{
+}
 
 // Blanket implementations for common types
 impl<T> Categorical for T where T: Eq + std::hash::Hash + Clone + Debug {}
 impl<U> IndexType for U where
-    U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug
+    U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug
 {
 }
 
 impl<T, U> MultimodalMapping<T, U>
 where
     T: Eq + std::hash::Hash + Clone + Debug,
-    U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug,
+    U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug,
 {
     /// create an empty mapping
     pub fn empty() -> Self {
@@ -106,22 +109,38 @@ where
 
     /// perform a label->categorical lookup.
     pub fn get_categorical(&self, label: U) -> Result<Option<&T>, StateModelError> {
-        let idx: usize = try_into_usize(label)?;
-        let result = self.label_to_cat.get(idx);
-        Ok(result)
+        if is_empty(label)? {
+            Ok(None)
+        } else {
+            let idx: usize = try_into_usize(label)?;
+            let result = self.label_to_cat.get(idx);
+            Ok(result)
+        }
     }
 }
 
-/// helper function to convert a U into a usize with error message result
+fn is_empty<U>(u: U) -> Result<bool, StateModelError>
+where
+    U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug,
+{
+    let zero = U::try_from(0).map_err(|_| {
+        StateModelError::BuildError(format!("could not create zero value for type"))
+    })?;
+    Ok(u < zero)
+}
+
+/// helper function to convert a U into a usize with error message result.
+/// handles the case where u is negative and treats that as an empty value.
 fn try_into_usize<U>(u: U) -> Result<usize, StateModelError>
 where
     U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug,
 {
-    u.try_into().map_err(|e| {
+    let as_usize = u.try_into().map_err(|e| {
         StateModelError::BuildError(format!(
             "could not convert Index {u:?} to a usize type, should implement TryInto<usize>"
         ))
-    })
+    })?;
+    Ok(as_usize)
 }
 
 /// helper function to convert a usize into a U with error message result

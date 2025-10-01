@@ -1,4 +1,5 @@
 use crate::model::{
+    bambam_state,
     state::{
         fieldname, multimodal_state_ops, multimodal_state_ops as ops, variable, LegIdx,
         MultimodalMapping, MultimodalStateMapping,
@@ -108,8 +109,9 @@ impl TraversalModel for MultimodalTraversalModel {
             self.max_trip_legs,
             &self.mode_to_state,
         )?;
-        let route_id_opt =
-            ops::get_leg_route_id(state, leg_idx, state_model, &self.route_id_to_state)?;
+
+        let route_id_label = state_model.get_custom_i64(state, bambam_state::ROUTE_ID)?;
+        let route_id_opt = self.route_id_to_state.get_categorical(route_id_label)?;
 
         let d_leg = fieldname::leg_distance_fieldname(leg_idx);
         let t_leg = fieldname::leg_time_fieldname(leg_idx);
@@ -234,7 +236,7 @@ mod test {
         let expected_len = {
             let active_leg = 1;
             let input_features = 2; // edge_time, trip_time
-            let leg_fields = 3;
+            let leg_fields = 4; // mode, distance, time, route_id
             let mode_fields = 2;
             active_leg
                 + input_features
@@ -246,11 +248,15 @@ mod test {
         // ASSERTION 2: confirm each leg's dist/time keys exist and values were set with zeroes
         for leg_idx in (0..max_trip_legs) {
             let dist = ops::get_leg_distance(&state, leg_idx, &state_model)
-                .expect(&format!("unable to get leg attribute for leg {leg_idx}"));
+                .expect(&format!("unable to get leg distance for leg {leg_idx}"));
             let time = ops::get_leg_time(&state, leg_idx, &state_model)
-                .expect(&format!("unable to get leg attribute for leg {leg_idx}"));
+                .expect(&format!("unable to get leg time for leg {leg_idx}"));
+            let route_id =
+                ops::get_leg_route_id(&state, leg_idx, &state_model, &tm.route_id_to_state)
+                    .expect(&format!("unable to get leg route_id for leg {leg_idx}"));
             assert_eq!(dist.value, 0.0);
             assert_eq!(time.value, 0.0);
+            assert_eq!(route_id, None);
         }
     }
 
