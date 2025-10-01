@@ -364,7 +364,7 @@ mod test {
                 .to_str()
                 .unwrap_or_else(|| panic!("Failed to interpret {test_bundle:?} as string")),
         )
-        .expect("Test bundle not found in configuration/gtfs-test/gtfs-test.zip");
+        .expect("Test bundle not found in boulder_co/ucb-gtfs.zip");
 
         // Check that all stops for all trips are in ascending order
         for (_, trip) in gtfs.trips {
