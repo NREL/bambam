@@ -244,7 +244,7 @@ pub fn process_bundle(
                 writer.serialize(schedule).map_err(|e| {
                     ScheduleError::OtherError(format!(
                         "Failed to write to schedules file {}: {}",
-                        String::from(&edges_filename),
+                        String::from(&schedules_filename),
                         e
                     ))
                 })?;
