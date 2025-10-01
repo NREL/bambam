@@ -173,7 +173,7 @@ pub fn process_bundle(
                 })
                 .ok_or(ScheduleError::OtherError(
                     "Invalid Datetime from Date".to_string(),
-                    .expect("Attempted to get route of non existing trip")
+                ))?;
 
             let schedule = ScheduleConfig {
                 edge_id,
