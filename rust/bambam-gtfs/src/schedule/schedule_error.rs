@@ -2,8 +2,8 @@ use routee_compass_core::model::map::MapError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ScheduleError {
-    #[error("Failed to parse gtfs bundle file into `Gtfs` struct: {source}")]
-    BundleReadError { source: gtfs_structures::Error },
+    #[error("Failed to parse gtfs bundle file into `Gtfs` struct: {0}")]
+    BundleReadError(#[from] gtfs_structures::Error), // { source: gtfs_structures::Error },
     #[error("Failed to match point with spatial index: {source}")]
     SpatialIndexMapError { source: MapError },
     #[error("Spatial index matched an edge instead of a vertex")]
@@ -17,5 +17,9 @@ pub enum ScheduleError {
     #[error("Failed to create vertex index: {0}")]
     FailedToCreateVertexIndexError(String),
     #[error("Cannot find calendar ID: {0}")]
-    InvalidCalendar(String),
+    InvalidCalendarError(String),
+    #[error("Invalid Edges and schedules keys")]
+    InvalidResultKeysError,
+    #[error("{0}")]
+    OtherError(String),
 }

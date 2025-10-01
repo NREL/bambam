@@ -1,9 +1,6 @@
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
-use crate::schedule::{
-    process_bundle, GtfsProvider, GtfsSummary,
-    MissingStopLocationPolicy,
-};
+use crate::schedule::{process_bundle, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
 use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
@@ -44,18 +41,26 @@ pub enum GtfsOperation {
     PreprocessBundle {
         #[arg(long, default_value_t = 1)]
         parallelism: usize,
-        #[arg(long, default_value_t=String::from("mdb-2245-202509111625.zip"))]
+        #[arg(long)]
+        edge_list_id: usize,
+        #[arg(long)]
         bundle_file: String,
+        #[arg(long)]
+        output_directory: String,
         #[arg(long)]
         vertices_compass_filename: String,
         #[arg(long)]
         start_date: NaiveDate,
         #[arg(long)]
         end_date: NaiveDate,
-        #[arg(value_enum)]
+        #[arg(long, default_value_t = 325.)]
+        vertex_match_tolerance: f64,
+        #[arg(value_enum, default_value_t=MissingStopLocationPolicy::Fail)]
         missing_stop_location_policy: MissingStopLocationPolicy,
-        #[arg(value_enum)]
+        #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
+        #[arg(long, default_value_t = true)]
+        overwrite: bool,
     },
 }
 
@@ -72,23 +77,29 @@ impl GtfsOperation {
             } => download(&manifest_into_rows(manifest_file), *parallelism),
             GtfsOperation::PreprocessBundle {
                 bundle_file,
+                edge_list_id,
                 vertices_compass_filename,
                 start_date,
                 end_date,
+                vertex_match_tolerance,
                 missing_stop_location_policy,
                 distance_calculation_policy,
-                ..
+                output_directory,
+                overwrite,
+                .. // Not using parallelism, yet
             } => {
                 let spatial_index =
-                    load_vertices_and_create_spatial_index(vertices_compass_filename).unwrap();
+                    load_vertices_and_create_spatial_index(vertices_compass_filename, *vertex_match_tolerance).unwrap();
                 process_bundle(
                     bundle_file,
-                    1,
+                    edge_list_id,
                     start_date,
                     end_date,
                     spatial_index,
                     missing_stop_location_policy,
                     distance_calculation_policy,
+                    Path::new(output_directory),
+                    *overwrite,
                 )
                 .unwrap()
             }
@@ -98,6 +109,7 @@ impl GtfsOperation {
 
 fn load_vertices_and_create_spatial_index(
     vertices_compass_filename: &str,
+    tolerance_meters: f64,
 ) -> Result<Arc<SpatialIndex>, ScheduleError> {
     // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
@@ -112,7 +124,7 @@ fn load_vertices_and_create_spatial_index(
     Ok(Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
         Some(DistanceTolerance {
-            distance: 200.0,
+            distance: tolerance_meters,
             unit: DistanceUnit::Meters,
         }),
     )))

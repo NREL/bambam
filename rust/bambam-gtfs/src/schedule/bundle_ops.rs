@@ -1,15 +1,20 @@
-use chrono::NaiveDate;
+use chrono::{Duration, NaiveDate, NaiveDateTime};
+use csv::QuoteStyle;
+use flate2::{write::GzEncoder, Compression};
 use geo::Point;
-use gtfs_structures::{Gtfs, Stop, StopTime, Trip};
+use gtfs_structures::{Calendar, Gtfs, Stop, StopTime, Trip};
 use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
-    network::Edge,
+    network::{Edge, EdgeConfig},
 };
+use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BinaryHeap, HashMap},
+    collections::{BinaryHeap, HashMap, HashSet},
+    fs::File,
+    path::Path,
     sync::Arc,
 };
-use uom::si::f64::{Length, Time};
+use uom::si::f64::Length;
 
 use crate::schedule::{
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
@@ -17,41 +22,47 @@ use crate::schedule::{
     MissingStopLocationPolicy,
 };
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ScheduleConfig {
+    edge_id: usize,
+    src_departure_time: NaiveDateTime,
+    dst_arrival_time: NaiveDateTime,
+    route_id: String,
+}
+
 pub fn process_bundle(
     bundle_file: &str,
-    edge_list_id: usize,
+    edge_list_id: &usize,
     start_date: &NaiveDate,
     end_date: &NaiveDate,
     spatial_index: Arc<SpatialIndex>,
     missing_stop_location_policy: &MissingStopLocationPolicy,
     distance_calculation_policy: &DistanceCalculationPolicy,
+    output_directory: &Path,
+    overwrite: bool,
 ) -> Result<(), ScheduleError> {
-    // TODO: Filter stops by start and end date
-
-    let gtfs = Gtfs::new(bundle_file).map_err(|e| ScheduleError::BundleReadError { source: e })?;
+    let gtfs = Gtfs::new(bundle_file).map_err(|e| ScheduleError::from(e))?;
     let gtfs_arc = Arc::new(gtfs);
 
+    // Get ordered StopTimes, RouteID and start_dates for each trip that intersects the dates
     let mut trip_stop_times: HashMap<String, Vec<StopTime>> = HashMap::new();
+    let mut trip_start_dates: HashMap<String, NaiveDate> = HashMap::new();
+    let mut trip_routes: HashMap<String, String> = HashMap::new();
+
     for (trip_id, trip) in gtfs_arc.clone().trips.iter() {
-        if trip_intersects_dates(trip, start_date, end_date, gtfs_arc.clone())?{
+        let trip_calendar = get_trip_calendar(trip, gtfs_arc.clone())?;
+        let trip_intersects = (trip_calendar.start_date.clone() < end_date.clone())
+            && (start_date.clone() < trip_calendar.end_date.clone());
+
+        if trip_intersects {
             trip_stop_times.insert(trip_id.clone(), get_ordered_stops(trip));
+            trip_routes.insert(trip_id.clone(), trip.route_id.to_owned());
+            trip_start_dates.insert(trip_id.clone(), trip_calendar.start_date);
         }
     }
 
-    // let trip_stop_times: HashMap<String, Vec<StopTime>> = gtfs_arc
-    //     .trips
-    //     .iter()
-    //     .map(|(trip_id, trip)|
-    //         if trip_intersects_dates(trip, start_date, end_date, gtfs_arc.clone()){
-    //             Some((trip_id.to_owned(), get_ordered_stops(trip)))
-    //         } else { None }
-    //     )
-    //     .collect::<Vec<Option<(String, Vec<StopTime>)>>>()
-    //     .into_iter().flatten()
-    //     .collect();
-
-    // Pre-compute location of all stops
-    // with `get_stop_location`, which returns the lat,lon
+    // Pre-compute lat,lon location of all stops
+    // with `get_stop_location` which returns the lat,lon
     // or the parent's lat,lon if available
     let stop_locations: HashMap<String, Option<Point<f64>>> = gtfs_arc
         .stops
@@ -67,15 +78,15 @@ pub fn process_bundle(
     // Construct edge lists
     let mut edge_id: usize = 0;
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
-    let mut schedules: HashMap<(usize, usize), Vec<Time>> = HashMap::new();
-    for (_trip_id, stop_times) in trip_stop_times {
+    let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
+    for (trip_id, stop_times) in trip_stop_times {
         for (src, dst) in stop_times.windows(2).map(|w| (&w[0], &w[1])) {
-            // A solution to the possibly missing stop location
             let src_compass: usize;
             let dst_compass: usize;
             let src_point: Point<f64>;
             let dst_point: Point<f64>;
 
+            // Since `stop_locations` is computed from `gtfs.stops`, this should never fail
             let maybe_src = stop_locations.get(&src.stop.id).expect(&format!(
                 "Attempted to get location for non existing stop: {}",
                 src.stop.id
@@ -85,13 +96,15 @@ pub fn process_bundle(
                 dst.stop.id
             ));
 
-            // This if let either identifies the vertices or it fails
             if let (Some(src_point_), Some(dst_point_)) = (maybe_src, maybe_dst) {
                 // If you can find both:
                 // Map to closest compass vertex
-                // TODO: What to do with missing lat,lon?
                 src_compass = match_closest_graph_id(src_point_, spatial_index.clone())?;
                 dst_compass = match_closest_graph_id(dst_point_, spatial_index.clone())?;
+
+                // These points are used to compute the distance
+                // Should we instead be using the graph node?
+                // For instance, what happens if src_compass == dst_compass?
                 src_point = src_point_.to_owned();
                 dst_point = dst_point_.to_owned();
             } else {
@@ -107,7 +120,7 @@ pub fn process_bundle(
                 }
             }
 
-            // This only gets run if all previous conditions are met
+            // This only gets to run if all previous conditions are met
             if !edges.contains_key(&(src_compass, dst_compass)) {
                 // Estimate distance
                 let distance: Length = match distance_calculation_policy {
@@ -116,27 +129,128 @@ pub fn process_bundle(
                     DistanceCalculationPolicy::Fallback => todo!(),
                 };
 
-                let edge = Edge::new(edge_list_id, edge_id, src_compass, dst_compass, distance);
+                let edge = Edge::new(
+                    edge_list_id.clone(),
+                    edge_id,
+                    src_compass,
+                    dst_compass,
+                    distance,
+                );
                 edges.insert((src_compass, dst_compass), edge);
+                schedules.insert((src_compass, dst_compass), vec![]);
                 edge_id += 1;
             }
 
             // Pick departure OR arrival time
-            let raw_departure_time = match (src.departure_time, src.arrival_time) {
+            let raw_src_departure_time = match (src.departure_time, src.arrival_time) {
                 (Some(departure), _) => Ok(departure),
                 (None, Some(arrival)) => Ok(arrival),
                 (None, None) => Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone())),
-            };
+            }?;
+            let raw_dst_arrival_time = match (dst.arrival_time, dst.departure_time) {
+                (Some(arrival), _) => Ok(arrival),
+                (None, Some(departure)) => Ok(departure),
+                (None, None) => Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone())),
+            }?;
 
-            // The deserialization of Gtfs is in non-negative seconds
-            let departure_time = Time::new::<uom::si::time::second>(raw_departure_time? as f64);
+            // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
+            let start_date = trip_start_dates
+                .get(&trip_id)
+                .expect("Attempted to get starting date of non existing trip");
+            let src_departure_time = start_date
+                .and_hms_opt(0, 0, 0)
+                .and_then(|datetime| {
+                    datetime.checked_add_signed(Duration::seconds(raw_src_departure_time as i64))
+                })
+                .ok_or(ScheduleError::OtherError(format!(
+                    "Invalid Datetime from Date"
+                )))?;
+
+            let dst_arrival_time = start_date
+                .and_hms_opt(0, 0, 0)
+                .and_then(|datetime| {
+                    datetime.checked_add_signed(Duration::seconds(raw_dst_arrival_time as i64))
+                })
+                .ok_or(ScheduleError::OtherError(format!(
+                    "Invalid Datetime from Date"
+                )))?;
+
+            let schedule = ScheduleConfig {
+                edge_id,
+                src_departure_time,
+                dst_arrival_time,
+                route_id: trip_routes
+                    .get(&trip_id)
+                    .expect("Attemted to get route of non existing trip")
+                    .to_owned(),
+            };
             schedules
                 .get_mut(&(src_compass, dst_compass))
                 .expect("Attempted to append to schedule for non existing edge")
-                .push(departure_time);
+                .push(schedule);
         }
     }
 
+    // Check consistent dictionary keys
+    let edge_keys: HashSet<_> = edges.keys().collect();
+    if edge_keys != schedules.keys().collect() {
+        return Err(ScheduleError::InvalidResultKeysError);
+    }
+
+    // Write to files
+    let edges_filename = format!("edges-compass-{}.csv.gz", edge_list_id);
+    let schedules_filename = format!("edges-schedules-{}.csv.gz", edge_list_id);
+    let mut edges_writer = create_writer(
+        output_directory,
+        &edges_filename,
+        true,
+        QuoteStyle::Necessary,
+        overwrite,
+    );
+    let mut schedules_writer = create_writer(
+        output_directory,
+        &schedules_filename,
+        true,
+        QuoteStyle::Necessary,
+        overwrite,
+    );
+
+    for k in edge_keys {
+        let edge = edges.get(k).ok_or(ScheduleError::OtherError(format!(
+            "Edge key not present in edges array"
+        )))?;
+        let schedule_vec: &Vec<ScheduleConfig> = schedules.get(k).ok_or(
+            ScheduleError::OtherError(format!("Edge key not present in schedules array")),
+        )?;
+
+        if let Some(ref mut writer) = edges_writer {
+            let edge_config = EdgeConfig {
+                edge_id: edge.edge_id,
+                src_vertex_id: edge.src_vertex_id,
+                dst_vertex_id: edge.dst_vertex_id,
+                distance: edge.distance.get::<uom::si::length::meter>(),
+            };
+            writer.serialize(edge_config).map_err(|e| {
+                ScheduleError::OtherError(format!(
+                    "Failed to write to edges file {}: {}",
+                    String::from(&edges_filename),
+                    e
+                ))
+            })?;
+        }
+
+        if let Some(ref mut writer) = schedules_writer {
+            for schedule in schedule_vec.iter() {
+                writer.serialize(schedule).map_err(|e| {
+                    ScheduleError::OtherError(format!(
+                        "Failed to write to schedules file {}: {}",
+                        String::from(&edges_filename),
+                        e
+                    ))
+                })?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -180,18 +294,12 @@ fn match_closest_graph_id(
     }
 }
 
-fn trip_intersects_dates(
-    trip: &Trip,
-    start_date: &NaiveDate,
-    end_date: &NaiveDate,
-    gtfs: Arc<Gtfs>,
-) -> Result<bool, ScheduleError> {
+fn get_trip_calendar(trip: &Trip, gtfs: Arc<Gtfs>) -> Result<Box<Calendar>, ScheduleError> {
     let calendar = gtfs
         .get_calendar(&trip.service_id)
-        .map_err(|e| ScheduleError::InvalidCalendar(format!("{}", e)))?;
+        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{}", e)))?;
 
-    Ok((calendar.start_date.clone() < end_date.clone())
-        && (start_date.clone() < calendar.end_date.clone()))
+    Ok(Box::from(calendar.clone()))
 }
 
 /// Returns an ordered (ascending) vector of [StopTime]. Internally uses [BinaryHeap] to sort. In order to return the
@@ -213,6 +321,29 @@ fn get_ordered_stops(trip: &Trip) -> Vec<StopTime> {
         .collect()
 }
 
+/// helper function to build a filewriter for writing either .csv.gz or
+/// .txt.gz files for compass datasets while respecting the user's overwrite
+/// preferences and properly formatting WKT outputs.
+fn create_writer(
+    directory: &Path,
+    filename: &str,
+    has_headers: bool,
+    quote_style: QuoteStyle,
+    overwrite: bool,
+) -> Option<csv::Writer<GzEncoder<File>>> {
+    let filepath = directory.join(filename);
+    if filepath.exists() && !overwrite {
+        return None;
+    }
+    let file = File::create(filepath).unwrap();
+    let buffer = GzEncoder::new(file, Compression::default());
+    let writer = csv::WriterBuilder::new()
+        .has_headers(has_headers)
+        .quote_style(quote_style)
+        .from_writer(buffer);
+    Some(writer)
+}
+
 #[cfg(test)]
 mod test {
     use crate::schedule::bundle_ops::get_ordered_stops;
@@ -225,9 +356,8 @@ mod test {
         let test_bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join("..")
-            .join("configuration")
-            .join("gtfs-test")
-            .join("gtfs-test.zip");
+            .join("boulder_co")
+            .join("ucb-gtfs.zip");
 
         let gtfs = Gtfs::new(
             test_bundle

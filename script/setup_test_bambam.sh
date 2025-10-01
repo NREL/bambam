@@ -6,6 +6,10 @@
 
 set -e
 
+
 # create a virtual environment
-echo "downloading denver_co scenario"
+echo "downloading boulder and denver scenarios"
 uv run --with osmnx --with "nrel.routee.compass[all]" script/setup_test_bambam.py
+
+echo "downloading University of Colorado Boulder GTFS archive"
+curl https://files.mobilitydatabase.org/mdb-181/mdb-181-202509240015/mdb-181-202509240015.zip -o boulder_co/ucb-gtfs.zip
