@@ -48,6 +48,7 @@ impl TraversalModel for MultimodalTraversalModel {
                 name: fieldname::EDGE_TIME.to_string(),
                 unit: None,
             },
+            variable::route_id_input_feature(),
             variable::active_leg_input_feature(),
         ];
         features.extend(leg_modes);
@@ -67,7 +68,7 @@ impl TraversalModel for MultimodalTraversalModel {
         });
         let leg_route_id = (0..self.max_trip_legs).map(|idx| {
             let name = fieldname::leg_route_id_fieldname(idx);
-            let config = variable::multimodal_route_id_variable_config();
+            let config = variable::route_id_variable_config();
             (name, config)
         });
 
