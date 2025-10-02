@@ -52,7 +52,6 @@ impl TraversalModel for MultimodalTraversalModel {
                 name: fieldname::EDGE_TIME.to_string(),
                 unit: None,
             },
-            variable::active_leg_input_feature(),
         ];
         if self.use_route_ids {
             features.push(variable::route_id_input_feature());
@@ -123,8 +122,7 @@ impl TraversalModel for MultimodalTraversalModel {
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, edge, _) = trajectory;
-        let leg_idx = state_ops::get_active_leg_idx(state, state_model)?
-            .ok_or_else(|| state_ops::error_inactive_state_traversal(state, state_model))?;
+
         ops::mode_switch(
             state,
             state_model,
@@ -132,6 +130,10 @@ impl TraversalModel for MultimodalTraversalModel {
             &self.mode_to_state,
             self.max_trip_legs,
         )?;
+
+        let leg_idx = state_ops::get_active_leg_idx(state, state_model)?
+            .ok_or_else(|| state_ops::error_inactive_state_traversal(state, state_model))?;
+
         ops::update_accumulators(
             state,
             state_model,
@@ -258,6 +260,7 @@ mod test {
             fieldname, multimodal_state_ops as state_ops, variable, LegIdx, MultimodalMapping,
             MultimodalStateMapping,
         },
+        traversal::multimodal::multimodal_traversal_ops,
     };
     use routee_compass_core::model::cost::{
         cost_model_service::CostModelService, CostModel, VehicleCostRate,
@@ -280,9 +283,10 @@ mod test {
     #[test]
     fn test_initialize_trip_access() {
         let test_mode = "walk";
-        let mmm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
+        let max_trip_legs = 1;
+        let mtm = MultimodalTraversalModel::new_local("walk", max_trip_legs, &["walk"], &[], true)
             .expect("test invariant failed, model constructor had error");
-        let state_model = StateModel::new(mmm.output_features());
+        let state_model = StateModel::new(mtm.output_features());
 
         let mut state = state_model
             .initial_state(None)
@@ -292,8 +296,21 @@ mod test {
         assert_active_leg(None, &state, &state_model).expect("assertion 1 failed");
 
         // ASSERTION 2: as we have no active leg index, the state vector should be in it's
-        // initial state. this should be a Vec of size 2 with both values set to 'EMPTY' (-1.0).
-        assert_eq!(state, vec![StateVariable(-1.0), StateVariable(-1.0)]);
+        // initial state (empty or zero-valued state on leg 1).
+        let leg_mode = state_ops::get_leg_mode_label(&state, 0, &state_model, max_trip_legs)
+            .expect("test failed: did not find leg mode for leg 0");
+        let leg_distance = state_ops::get_leg_distance(&state, 0, &state_model)
+            .expect("test failed: did not find leg distance for leg 0");
+        let leg_time = state_ops::get_leg_time(&state, 0, &state_model)
+            .expect("test failed: did not find leg time for leg 0");
+        let leg_route_id =
+            state_ops::get_leg_route_id(&state, 0, &state_model, &mtm.route_id_to_state)
+                .expect("test failed: did not find leg route id for leg 0");
+        assert_eq!(leg_mode, None);
+        assert_eq!(leg_distance.value, 0.0);
+        assert_eq!(leg_time.value, 0.0);
+        assert_eq!(leg_route_id, None);
+        assert_eq!(leg_distance.value, 0.0);
     }
 
     // in a scenario with walk and bike mode, using an AccessModel for walk mode,
@@ -302,17 +319,14 @@ mod test {
     #[test]
     fn test_start_trip_access() {
         let test_mode = "walk";
-        let mmm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
-            .expect("test invariant failed, model constructor had error");
-        let state_model = StateModel::new(mmm.output_features());
+        let max_trip_legs = 1;
+        let (mtm, test_tm, state_model, mut state) =
+            build_test_assets(&["walk"], &[], max_trip_legs, test_mode);
 
         let t1 = mock_trajectory(0, 0, 0);
-        let mut state = state_model
-            .initial_state(None)
-            .expect("test invariant failed: unable to create state");
         let mut tree = SearchTree::default();
 
-        mmm.traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &tree, &state_model)
+        mtm.traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &tree, &state_model)
             .expect("access failed");
 
         // ASSERTION 1: by accessing a traversal, we must have transitioned from our initial state
@@ -320,44 +334,32 @@ mod test {
         assert_active_leg(Some(0), &state, &state_model).expect("assertion 1 failed");
 
         // ASSERTION 2: the trip leg should be associated with the mode that the AccessModel sets.
-        assert_active_mode(Some(test_mode), &state, &state_model, 1, &mmm.mode_to_state)
+        assert_active_mode(Some(test_mode), &state, &state_model, 1, &mtm.mode_to_state)
             .expect("assertion 2 failed");
     }
 
     #[test]
     fn test_switch_trip_mode_access() {
-        // create an access model for two edge lists, "walk" and "bike" topology
+        // simulate two edge lists each with a mode-specific multimodal traversal model
         let max_trip_legs = 2;
-        let mmm_walk = MultimodalTraversalModel::new_local(
-            "walk",
-            max_trip_legs,
-            &["bike", "walk"],
-            &[],
-            true,
-        )
-        .expect("test invariant failed, model constructor had error");
-        let mmm_bike = MultimodalTraversalModel::new_local(
-            "bike",
-            max_trip_legs,
-            &["bike", "walk"],
-            &[],
-            true,
-        )
-        .expect("test invariant failed, model constructor had error");
-        let mut tree = SearchTree::default();
-        let lm = MultimodalLabelModel::new(mmm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
+        let (mtm_walk, test_walk, state_model, initial_state) =
+            build_test_assets(&["bike", "walk"], &[], max_trip_legs, "walk");
+        let (mtm_bike, test_bike, _, _) =
+            build_test_assets(&["bike", "walk"], &[], max_trip_legs, "bike");
+        let state_model = Arc::new(state_model);
 
-        // build state model and initial search state
+        // assuming we can use mtm_walk and mtm_bike fields interchangeably
         assert_eq!(
-            mmm_walk.output_features(),
-            mmm_bike.output_features(),
+            mtm_walk.output_features(),
+            mtm_bike.output_features(),
             "test invariant failed: models should have matching state features"
         );
-        let state_model = Arc::new(StateModel::new(mmm_walk.output_features()));
+
+        let mut tree = SearchTree::default();
+        let lm = MultimodalLabelModel::new(mtm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
+
+        // build state model and initial search state
         let cost_model = mock_cost_model(state_model.clone());
-        let initial_state = state_model
-            .initial_state(None)
-            .expect("test invariant failed: unable to create state");
 
         // access edge 2 in walk mode, access edge 3 in bike mode
         // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3) where
@@ -371,7 +373,7 @@ mod test {
             &tree,
             &initial_state,
             &state_model,
-            &mmm_walk,
+            test_walk.as_ref(),
             &cost_model,
         )
         .expect("failed to traverse walk edge");
@@ -383,7 +385,7 @@ mod test {
             &et1.result_state,
             &state_model,
             2,
-            &mmm_walk.mode_to_state.clone(),
+            &mtm_walk.mode_to_state.clone(),
         )
         .expect("assertion 1 failed");
 
@@ -403,10 +405,22 @@ mod test {
             &tree,
             &et1.result_state,
             &state_model,
-            &mmm_bike,
+            test_bike.as_ref(),
             &cost_model,
         )
         .expect("failed to traverse bike edge");
+
+        // as a head check, we can also inspect the serialized access state JSON in the logs
+        let mut state_json = state_model
+            .serialize_state(&et1.result_state, false)
+            .expect("state serialization failed");
+        mtm_walk
+            .serialize_mapping_values(&mut state_json, &et1.result_state, &state_model, false)
+            .expect("state serialization failed");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&state_json).unwrap_or_default()
+        );
 
         // ASSERTION 2: trip enters "bike" mode after accessing edge 2 on edge list 1
         assert_active_leg(Some(1), &et2.result_state, &state_model).expect("assertion 2 failed");
@@ -415,7 +429,7 @@ mod test {
             &et2.result_state,
             &state_model,
             2,
-            &mmm_bike.mode_to_state,
+            &mtm_bike.mode_to_state,
         )
         .expect("assertion 2 failed");
 
@@ -423,7 +437,7 @@ mod test {
         let mut state_json = state_model
             .serialize_state(&et2.result_state, false)
             .expect("state serialization failed");
-        mmm_walk
+        mtm_walk
             .serialize_mapping_values(&mut state_json, &et2.result_state, &state_model, false)
             .expect("state serialization failed");
         println!(
@@ -628,9 +642,6 @@ mod test {
         let test_tm = TestTraversalModel::new(tm.clone())
             .expect("test invariant failed, unable to produce a test model");
 
-        for f in test_tm.output_features() {
-            println!("{}: {}", f.0, f.1);
-        }
         let state_model = StateModel::new(test_tm.output_features());
 
         let mut state = state_model
@@ -664,12 +675,17 @@ mod test {
     }
 
     fn mock_cost_model(state_model: Arc<StateModel>) -> Arc<CostModel> {
+        let weights_mapping = state_model
+            .iter()
+            .map(|(n, _)| (n.to_string(), 1.0))
+            .collect::<HashMap<_, _>>();
+        let vehicle_rate_mapping = state_model
+            .iter()
+            .map(|(n, _)| (n.to_string(), VehicleCostRate::Raw))
+            .collect::<HashMap<_, _>>();
         let result = CostModel::new(
-            Arc::new(HashMap::from([("trip_time".to_string(), 1.0)])),
-            Arc::new(HashMap::from([(
-                "trip_time".to_string(),
-                VehicleCostRate::Raw,
-            )])),
+            Arc::new(weights_mapping),
+            Arc::new(vehicle_rate_mapping),
             Arc::new(HashMap::new()),
             routee_compass_core::model::cost::CostAggregation::Sum,
             state_model,

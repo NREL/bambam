@@ -66,7 +66,7 @@ pub fn multimodal_time_variable_config(output_unit: Option<TimeUnit>) -> StateVa
 /// creates configuration for route_id state variables
 pub fn route_id_input_feature() -> InputFeature {
     InputFeature::Custom {
-        name: "active_leg".to_string(),
+        name: "route_id".to_string(),
         unit: "signed_integer".to_string(),
     }
 }

@@ -15,8 +15,10 @@ pub fn mode_switch(
     mode_to_state: &MultimodalStateMapping,
     max_trip_legs: u64,
 ) -> Result<(), StateModelError> {
-    // grab the leg_idx and leg mode if it exists
-    let leg_and_mode_opt = match state_ops::get_active_leg_idx(state, state_model)? {
+    // grab the leg_idx and leg mode if it exists. allow None cases to flow through
+    // and handle error cases.
+    let leg_idx_opt = state_ops::get_active_leg_idx(state, state_model)?;
+    let leg_and_mode_opt = match leg_idx_opt {
         Some(leg_idx) => {
             let mode = state_ops::get_existing_leg_mode(
                 state,

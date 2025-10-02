@@ -26,7 +26,7 @@ impl MultimodalLabelModel {
         }
     }
 
-    pub const ERR_EMPTY: &str = "cannot built a multimodal search Label for a trip with no legs";
+    pub const ERR_EMPTY: &str = "cannot build a multimodal search Label for a trip with no legs";
 }
 
 impl LabelModel for MultimodalLabelModel {
@@ -48,14 +48,8 @@ impl LabelModel for MultimodalLabelModel {
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-        if mode_labels.is_empty() {
-            Err(LabelModelError::LabelModelError(
-                Self::ERR_EMPTY.to_string(),
-            ))
-        } else {
-            let label = Label::new_u8_state(vertex_id, &mode_labels)?;
-            Ok(label)
-        }
+        let label = Label::new_u8_state(vertex_id, &mode_labels)?;
+        Ok(label)
     }
 }
 
@@ -72,7 +66,7 @@ mod test {
     use crate::model::state::{multimodal_state_ops as state_ops, MultimodalStateMapping};
     use crate::model::traversal::multimodal::MultimodalTraversalModel;
     #[test]
-    fn test_err_on_empty() {
+    fn test_empty() {
         let mtm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
             .expect("test invariant failed");
         let state_model = StateModel::new(mtm.output_features());
@@ -82,15 +76,11 @@ mod test {
         let vertex_id = VertexId(0);
         let model = MultimodalLabelModel::new(MultimodalMapping::empty(), 1);
 
-        let result = model.label_from_state(vertex_id, &state, &state_model);
-
-        match result {
-            Err(e) => {
-                let e_msg = format!("{}", e);
-                assert_eq!(&e_msg, MultimodalLabelModel::ERR_EMPTY);
-            }
-            Ok(label) => panic!("test failed, should have error"),
-        }
+        let label = model
+            .label_from_state(vertex_id, &state, &state_model)
+            .expect("test failed");
+        let result = label_ops::get_mode_sequence(&label, &mtm.mode_to_state).expect("test failed");
+        assert!(result.is_empty());
     }
 
     #[test]
