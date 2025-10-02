@@ -23,7 +23,7 @@ pub fn mode_switch(
                 leg_idx,
                 state_model,
                 max_trip_legs,
-                &mode_to_state,
+                mode_to_state,
             )?;
             Some((leg_idx, mode))
         }
@@ -38,7 +38,7 @@ pub fn mode_switch(
             // no leg assigned or a change in mode -> add the new leg
             let next_leg_idx =
                 state_ops::increment_active_leg_idx(state, state_model, max_trip_legs)?;
-            state_ops::set_leg_mode(state, next_leg_idx, &mode, state_model, &mode_to_state)?;
+            state_ops::set_leg_mode(state, next_leg_idx, mode, state_model, mode_to_state)?;
         }
     };
     Ok(())
@@ -61,7 +61,7 @@ pub fn update_accumulators(
         leg_idx,
         state_model,
         max_trip_legs,
-        &mode_to_state,
+        mode_to_state,
     )?;
 
     let d_leg = fieldname::leg_distance_fieldname(leg_idx);
@@ -88,7 +88,7 @@ pub fn update_route_id(
     let route_id_opt = route_id_to_state.get_categorical(route_id_label)?;
     if let Some(route_id) = route_id_opt {
         let t_route = fieldname::leg_route_id_fieldname(leg_idx);
-        state_ops::set_leg_route_id(state, leg_idx, route_id, state_model, &route_id_to_state)?;
+        state_ops::set_leg_route_id(state, leg_idx, route_id, state_model, route_id_to_state)?;
     }
     Ok(())
 }

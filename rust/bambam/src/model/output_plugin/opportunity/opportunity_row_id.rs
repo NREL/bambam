@@ -73,7 +73,7 @@ impl OpportunityRowId {
             ))),
         }?;
 
-        let vertex = graph.get_vertex(&vertex_id).map_err(|e| {
+        let vertex = graph.get_vertex(vertex_id).map_err(|e| {
             OutputPluginError::OutputPluginFailed(format!("unknown vertex id '{vertex_id}'"))
         })?;
         let point = geo::Point::new(vertex.x(), vertex.y());
