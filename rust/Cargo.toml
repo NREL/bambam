@@ -9,9 +9,9 @@ bamcensus-core = { version = "0.1.0" }
 bamcensus-acs = { version = "0.1.0" }
 bamcensus = { version = "0.1.0" }
 bamcensus-lehd = { version = "0.1.0" }
-routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "5929c906d1c81f73d6e69c4907a39415709ab1cf" }
-routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "5929c906d1c81f73d6e69c4907a39415709ab1cf" }
-routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "5929c906d1c81f73d6e69c4907a39415709ab1cf" }
+routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "136f51ab9b88a4c0cf6e99834eca06b1eb27b6e0" }
+routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "136f51ab9b88a4c0cf6e99834eca06b1eb27b6e0" }
+routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "136f51ab9b88a4c0cf6e99834eca06b1eb27b6e0" }
 
 # third party
 arrow = { version = "55.0.0" }
@@ -56,4 +56,4 @@ toml = { version = "0.8.20" }
 uom = { version = "0.36.0", features = ["serde"] }
 wkb = "0.9.0"
 wkt = { version = "0.13.0", features = ["serde"] }
-zip = "2.1.3"
+zip = "5.1.1"
