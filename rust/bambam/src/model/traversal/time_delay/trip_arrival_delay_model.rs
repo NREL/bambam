@@ -1,9 +1,12 @@
 use super::TimeDelayLookup;
 use crate::model::bambam_state;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+    },
 };
 use std::sync::Arc;
 use uom::{si::f64::Time, ConstZero};
@@ -53,6 +56,7 @@ impl TraversalModel for TripArrivalDelayModel {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, _, destination) = trajectory;
@@ -63,6 +67,7 @@ impl TraversalModel for TripArrivalDelayModel {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, destination) = od;

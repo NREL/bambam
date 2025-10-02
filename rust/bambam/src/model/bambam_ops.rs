@@ -4,7 +4,7 @@ use super::{bambam_field, TimeBin};
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
-    algorithm::search::SearchTreeBranch,
+    algorithm::search::SearchTreeNode,
     model::{
         label::Label,
         network::VertexId,
@@ -20,7 +20,7 @@ use uom::{
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =
-    Box<dyn Iterator<Item = Result<(Label, &'a SearchTreeBranch), StateModelError>> + 'a>;
+    Box<dyn Iterator<Item = Result<(Label, &'a SearchTreeNode), StateModelError>> + 'a>;
 
 /// collects search tree branches that can be reached _as destinations_
 /// within the given time bin.
@@ -32,18 +32,23 @@ pub fn collect_destinations<'a>(
     match search_result.trees.first() {
         None => Box::new(std::iter::empty()),
         Some(tree) => {
-            let tree_destinations = tree.iter().filter_map(move |(label, branch)| {
-                let result_state = &branch.edge_traversal.result_state;
-                let within_bin = match &time_bin {
-                    Some(bin) => bin.state_time_within_bin(result_state, state_model),
-                    None => Ok(true),
-                };
-                match within_bin {
-                    Ok(true) => Some(Ok((label.clone(), branch))),
-                    Ok(false) => None,
-                    Err(e) => Some(Err(e)),
-                }
-            });
+            let tree_destinations =
+                tree.iter()
+                    .filter_map(move |(label, branch)| match branch.incoming_edge() {
+                        None => None,
+                        Some(et) => {
+                            let result_state = &et.result_state;
+                            let within_bin = match &time_bin {
+                                Some(bin) => bin.state_time_within_bin(result_state, state_model),
+                                None => Ok(true),
+                            };
+                            match within_bin {
+                                Ok(true) => Some(Ok((label.clone(), branch))),
+                                Ok(false) => None,
+                                Err(e) => Some(Err(e)),
+                            }
+                        }
+                    });
 
             Box::new(tree_destinations)
         }

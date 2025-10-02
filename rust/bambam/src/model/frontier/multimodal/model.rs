@@ -117,7 +117,6 @@ mod test {
 
     use itertools::Itertools;
     use routee_compass_core::model::{
-        access::AccessModel,
         frontier::FrontierModel,
         network::Edge,
         state::{StateModel, StateVariable},
@@ -474,7 +473,9 @@ mod test {
         let mfm =
             MultimodalFrontierModel::new_local(max_trip_legs, modes, edge_list_modes, constraints)
                 .expect("test invariant failed");
-        let state = state_model.initial_state().expect("test invariant failed");
+        let state = state_model
+            .initial_state(None)
+            .expect("test invariant failed");
 
         (mtm, mfm, state_model, state)
     }

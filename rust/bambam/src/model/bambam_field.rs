@@ -3,25 +3,10 @@
 //! # Examples
 //!
 //! ### Aggregate Data Rows
+//!
 //! ```json
 //! {
 //!   "opportunity_format": "aggregate",
-//!   "opportunity_totals": {},
-//!   "activity_types": [],
-//!   "opportunities": {
-//!     0: {
-//!       "counts": {},
-//!       "state": []
-//!     }
-//!   }
-//! }
-//! ```
-//!
-//! ### Disaggregate Data Rows
-//!
-//! ```json
-//! {
-//!   "opportunity_format": "disaggregate",
 //!   "opportunity_totals": {},
 //!   "activity_types": [],
 //!   "info": {
@@ -38,6 +23,21 @@
 //!         "time_bin": { .. },
 //!         "bin_runtime":
 //!       },
+//!     }
+//!   }
+//! }
+//! ```
+//!
+//! ### Disaggregate Data Rows
+//! ```json
+//! {
+//!   "opportunity_format": "disaggregate",
+//!   "opportunity_totals": {},
+//!   "activity_types": [],
+//!   "opportunities": {
+//!     "{EdgeListId}-{EdgeId}": {
+//!       "counts": {},
+//!       "state": []
 //!     }
 //!   }
 //! }
@@ -69,15 +69,22 @@ pub const OPPORTUNITY_PLUGIN_RUNTIME: &str = "opportunity_runtime";
 pub const OPPORTUNITY_BIN_RUNTIME: &str = "bin_runtime";
 
 pub mod get {
+    use itertools::Itertools;
     use routee_compass::plugin::output::OutputPluginError;
-    use routee_compass_core::model::state::StateVariable;
+    use routee_compass_core::model::{
+        network::{EdgeId, EdgeListId, VertexId},
+        state::StateVariable,
+    };
     use serde::de::DeserializeOwned;
     use serde_json::Value;
     use std::collections::HashMap;
 
-    use crate::model::output_plugin::{
-        isochrone::isochrone_output_format::IsochroneOutputFormat,
-        opportunity::{OpportunityFormat, OpportunityOrientation},
+    use crate::model::{
+        bambam_field::as_usize,
+        output_plugin::{
+            isochrone::isochrone_output_format::IsochroneOutputFormat,
+            opportunity::{OpportunityFormat, OpportunityOrientation},
+        },
     };
 
     pub fn mode(value: &Value) -> Result<String, OutputPluginError> {
@@ -102,6 +109,21 @@ pub mod get {
         value: &Value,
     ) -> Result<OpportunityOrientation, OutputPluginError> {
         get_from_value(super::OPPORTUNITY_ORIENTATION, value)
+    }
+    pub fn disaggregate_vertex_id(value: &str) -> Result<VertexId, OutputPluginError> {
+        let id: usize = super::as_usize(value)?;
+        Ok(VertexId(id))
+    }
+    pub fn disaggregate_edge_id(value: &str) -> Result<(EdgeListId, EdgeId), OutputPluginError> {
+        match value.split("-").collect_vec()[..] {
+            [] => Err(OutputPluginError::OutputPluginFailed("disaggregate edge identifier is empty".to_string())),
+            [edge_list_str, edge_str] => {
+                let edge_list_id = EdgeListId(as_usize(edge_list_str)?);
+                let edge_id = EdgeId(as_usize(edge_str)?);
+                Ok((edge_list_id, edge_id))
+            },
+            _ => Err(OutputPluginError::OutputPluginFailed(format!("disaggregate edge identifier is malformed, expected '<EdgeListId>-<EdgeId>', found '{value}'")))
+        }
     }
     pub fn totals(value: &Value) -> Result<HashMap<String, f64>, OutputPluginError> {
         get_from_value(super::OPPORTUNITY_TOTALS, value)
@@ -128,6 +150,8 @@ pub mod get {
         })
     }
 }
+
+mod set {}
 
 /// gets a deserialized value from a json object at some path. not compatible with json arrays.
 pub fn get_nested<T: DeserializeOwned>(json: &Value, path: &[&str]) -> Result<T, String> {
@@ -292,4 +316,12 @@ fn nested_error(action: &str, fields: Vec<&str>, failed_key: &str, object: &Valu
 fn type_error(fields: Vec<&str>, expected_type: String) -> String {
     let path = fields.join(".");
     format!("expected value at path {path} to be {expected_type}")
+}
+
+fn as_usize(value: &str) -> Result<usize, OutputPluginError> {
+    value.parse().map_err(|e| {
+        OutputPluginError::OutputPluginFailed(format!(
+            "unable to read oppportunity key '{value}' as a numeric value"
+        ))
+    })
 }

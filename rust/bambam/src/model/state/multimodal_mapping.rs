@@ -16,7 +16,8 @@ use std::{
 /// U: the type `U` is some hashable, numeric typw which can be built From<usize> so that it
 /// can be used to index a Vec<T>.
 ///
-pub struct MultimodalMapping<T, U> {
+#[derive(Clone, Debug)]
+pub struct MultimodalMapping<T: Clone + Debug, U: Clone + Debug> {
     cat_to_label: HashMap<T, U>,
     label_to_cat: Vec<T>,
 }

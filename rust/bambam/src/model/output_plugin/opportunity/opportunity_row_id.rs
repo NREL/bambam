@@ -3,11 +3,11 @@ use std::sync::Arc;
 use geo::{Centroid, Convert, LineString};
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
-    algorithm::search::{SearchInstance, SearchTreeBranch},
+    algorithm::search::{SearchInstance, SearchTreeNode},
     model::{
         label::Label,
         map::MapModel,
-        network::{EdgeId, Graph, VertexId},
+        network::{EdgeId, EdgeListId, Graph, VertexId},
     },
 };
 use rstar::{RTreeObject, AABB};
@@ -23,12 +23,17 @@ use crate::model::output_plugin::opportunity::{
 pub enum OpportunityRowId {
     OriginVertex(Label),
     DestinationVertex(Label),
-    Edge(EdgeId),
+    Edge(EdgeListId, EdgeId),
 }
 
 impl std::fmt::Display for OpportunityRowId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_usize())
+        let s = match self {
+            OpportunityRowId::OriginVertex(label) => label.to_string(),
+            OpportunityRowId::DestinationVertex(label) => label.to_string(),
+            OpportunityRowId::Edge(edge_list_id, edge_id) => format!("{edge_list_id}-{edge_id}"),
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -36,26 +41,22 @@ impl OpportunityRowId {
     /// create a new opportunity vector identifier based on the table orientation which denotes where opportunities are stored
     pub fn new(
         branch_label: &Label,
-        branch: &SearchTreeBranch,
+        branch: &SearchTreeNode,
         format: &OpportunityOrientation,
-    ) -> OpportunityRowId {
+    ) -> Result<OpportunityRowId, OutputPluginError> {
         use OpportunityOrientation as O;
         match format {
             // stored at the origin of the edge, corresponding with the branch origin id
-            O::OriginVertexOriented => Self::OriginVertex(branch_label.clone()),
+            O::OriginVertexOriented => Ok(Self::OriginVertex(branch_label.clone())),
             // stored at the destination of the edge at the branch's terminal vertex id
-            O::DestinationVertexOriented => Self::DestinationVertex(branch.terminal_label.clone()),
+            O::DestinationVertexOriented => Ok(Self::DestinationVertex(branch.label().clone())),
             // stored on the edge itself
-            O::EdgeOriented => Self::Edge(branch.edge_traversal.edge_id),
-        }
-    }
-
-    /// helper to get the underlying usize value from this index
-    pub fn as_usize(&self) -> usize {
-        match self {
-            OpportunityRowId::OriginVertex(v) => v.vertex_id().0,
-            OpportunityRowId::DestinationVertex(v) => v.vertex_id().0,
-            OpportunityRowId::Edge(e) => e.0,
+            O::EdgeOriented => {
+                match branch.incoming_edge() {
+                    None => Err(OutputPluginError::InternalError(String::from("while building EdgeOriented OpportunityRowId, was passed tree root, which has no corresponding edge"))),
+                    Some(et) => Ok(Self::Edge(et.edge_list_id, et.edge_id)),
+                }
+            }
         }
     }
 
@@ -67,7 +68,7 @@ impl OpportunityRowId {
         let vertex_id = match self {
             OpportunityRowId::OriginVertex(label) => Ok(label.vertex_id()),
             OpportunityRowId::DestinationVertex(label) => Ok(label.vertex_id()),
-            OpportunityRowId::Edge(edge_id) => Err(OutputPluginError::InternalError(String::from(
+            OpportunityRowId::Edge(..) => Err(OutputPluginError::InternalError(String::from(
                 "cannot get vertex point for edge",
             ))),
         }?;
@@ -84,15 +85,18 @@ impl OpportunityRowId {
         &self,
         map_model: Arc<MapModel>,
     ) -> Result<geo::LineString<f32>, OutputPluginError> {
-        let edge_id = match self {
-            OpportunityRowId::Edge(edge_id) => Ok(edge_id),
+        let (edge_list_id, edge_id) = match self {
+            OpportunityRowId::Edge(edge_list_id, edge_id) => Ok((edge_list_id, edge_id)),
             _ => Err(OutputPluginError::InternalError(String::from(
                 "cannot get edge linestring for vertex",
             ))),
         }?;
-        map_model.get(edge_id).cloned().map_err(|e| {
-            OutputPluginError::OutputPluginFailed(format!("unknown edge id '{edge_id}'"))
-        })
+        map_model
+            .get_linestring(edge_list_id, edge_id)
+            .cloned()
+            .map_err(|e| {
+                OutputPluginError::OutputPluginFailed(format!("unknown edge id '{edge_id}'"))
+            })
     }
 
     pub fn get_envelope_f64(
@@ -108,7 +112,7 @@ impl OpportunityRowId {
                 let point = self.get_vertex_point(si.graph.clone())?.convert();
                 Ok(point.envelope())
             }
-            OpportunityRowId::Edge(_) => {
+            OpportunityRowId::Edge(..) => {
                 let linestring = self.get_edge_linestring(si.map_model.clone())?.convert();
                 Ok(linestring.envelope())
             }
@@ -127,7 +131,7 @@ impl OpportunityRowId {
                 let centroid = point.centroid();
                 Ok(centroid)
             }
-            OpportunityRowId::Edge(_) => {
+            OpportunityRowId::Edge(..) => {
                 let linestring = self.get_edge_linestring(si.map_model.clone())?.convert();
                 let centroid = linestring.centroid().ok_or_else(|| {
                     OutputPluginError::OutputPluginFailed(format!(

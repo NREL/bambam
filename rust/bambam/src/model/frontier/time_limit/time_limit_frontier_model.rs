@@ -1,6 +1,6 @@
 use crate::model::{bambam_state, frontier::time_limit::TimeLimitConfig};
 use routee_compass_core::{
-    algorithm::search::{Direction, SearchTreeBranch},
+    algorithm::search::Direction,
     model::{
         frontier::{FrontierModel, FrontierModelError},
         network::{Edge, VertexId},

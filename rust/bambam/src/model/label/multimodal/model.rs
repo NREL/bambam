@@ -61,7 +61,6 @@ impl LabelModel for MultimodalLabelModel {
 
 #[cfg(test)]
 mod test {
-    use routee_compass_core::model::access::AccessModel;
     use routee_compass_core::model::state::StateVariable;
     use routee_compass_core::model::traversal::TraversalModel;
     use routee_compass_core::model::{label::LabelModel, network::VertexId, state::StateModel};
@@ -77,7 +76,9 @@ mod test {
         let mtm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
             .expect("test invariant failed");
         let state_model = StateModel::new(mtm.output_features());
-        let state = state_model.initial_state().expect("test invariant failed");
+        let state = state_model
+            .initial_state(None)
+            .expect("test invariant failed");
         let vertex_id = VertexId(0);
         let model = MultimodalLabelModel::new(MultimodalMapping::empty(), 1);
 
@@ -105,7 +106,7 @@ mod test {
         )
         .expect("test invariant failed");
         let sm = StateModel::new(am.output_features());
-        let mut state = sm.initial_state().expect("test invariant failed");
+        let mut state = sm.initial_state(None).expect("test invariant failed");
         inject_trip_legs(
             &["drive", "transit", "walk"],
             &mut state,

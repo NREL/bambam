@@ -8,12 +8,14 @@ use crate::model::{
     transit_old::gtfs_old::route,
 };
 use itertools::Itertools;
-use routee_compass_core::model::{
-    access::{AccessModel, AccessModelError},
-    label::Label,
-    network::{Edge, Vertex, VertexId},
-    state::{InputFeature, StateModel, StateModelError, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError},
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        label::Label,
+        network::{Edge, Vertex, VertexId},
+        state::{InputFeature, StateModel, StateModelError, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError},
+    },
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -117,6 +119,7 @@ impl TraversalModel for MultimodalTraversalModel {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, edge, _) = trajectory;
@@ -152,6 +155,7 @@ impl TraversalModel for MultimodalTraversalModel {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         // does not support A*-style estimation
@@ -247,21 +251,28 @@ impl MultimodalTraversalModel {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use super::MultimodalTraversalModel;
-    use crate::model::state::{
-        fieldname, multimodal_state_ops as state_ops, variable, LegIdx, MultimodalMapping,
-        MultimodalStateMapping,
+    use crate::model::{
+        label::multimodal::MultimodalLabelModel,
+        state::{
+            fieldname, multimodal_state_ops as state_ops, variable, LegIdx, MultimodalMapping,
+            MultimodalStateMapping,
+        },
+    };
+    use routee_compass_core::model::cost::{
+        cost_model_service::CostModelService, CostModel, VehicleCostRate,
     };
     use routee_compass_core::{
+        algorithm::search::{EdgeTraversal, SearchTree},
         model::{
+            label::LabelModel,
             network::{Edge, Vertex},
             state::{StateModel, StateVariable},
             traversal::TraversalModel,
         },
         testing::mock::traversal_model::TestTraversalModel,
     };
+    use std::{collections::HashMap, sync::Arc};
     use uom::si::f64::{Length, Time};
 
     // an initialized trip that has not begun should have active leg of None and
@@ -274,7 +285,7 @@ mod test {
         let state_model = StateModel::new(mmm.output_features());
 
         let mut state = state_model
-            .initial_state()
+            .initial_state(None)
             .expect("test invariant failed: unable to create state");
 
         // ASSERTION 1: there should be no active leg index, no trip has started.
@@ -282,10 +293,6 @@ mod test {
 
         // ASSERTION 2: as we have no active leg index, the state vector should be in it's
         // initial state. this should be a Vec of size 2 with both values set to 'EMPTY' (-1.0).
-        let expected = state_model
-            .initial_state()
-            .expect("test invariant failed: cannot build initial state");
-        assert_eq!(state, expected);
         assert_eq!(state, vec![StateVariable(-1.0), StateVariable(-1.0)]);
     }
 
@@ -301,10 +308,11 @@ mod test {
 
         let t1 = mock_trajectory(0, 0, 0);
         let mut state = state_model
-            .initial_state()
+            .initial_state(None)
             .expect("test invariant failed: unable to create state");
+        let mut tree = SearchTree::default();
 
-        mmm.traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &state_model)
+        mmm.traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &tree, &state_model)
             .expect("access failed");
 
         // ASSERTION 1: by accessing a traversal, we must have transitioned from our initial state
@@ -319,10 +327,25 @@ mod test {
     #[test]
     fn test_switch_trip_mode_access() {
         // create an access model for two edge lists, "walk" and "bike" topology
-        let mmm_walk = MultimodalTraversalModel::new_local("walk", 2, &["bike", "walk"], &[], true)
-            .expect("test invariant failed, model constructor had error");
-        let mmm_bike = MultimodalTraversalModel::new_local("bike", 2, &["bike", "walk"], &[], true)
-            .expect("test invariant failed, model constructor had error");
+        let max_trip_legs = 2;
+        let mmm_walk = MultimodalTraversalModel::new_local(
+            "walk",
+            max_trip_legs,
+            &["bike", "walk"],
+            &[],
+            true,
+        )
+        .expect("test invariant failed, model constructor had error");
+        let mmm_bike = MultimodalTraversalModel::new_local(
+            "bike",
+            max_trip_legs,
+            &["bike", "walk"],
+            &[],
+            true,
+        )
+        .expect("test invariant failed, model constructor had error");
+        let mut tree = SearchTree::default();
+        let lm = MultimodalLabelModel::new(mmm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
 
         // build state model and initial search state
         assert_eq!(
@@ -330,9 +353,10 @@ mod test {
             mmm_bike.output_features(),
             "test invariant failed: models should have matching state features"
         );
-        let state_model = StateModel::new(mmm_walk.output_features());
-        let mut state = state_model
-            .initial_state()
+        let state_model = Arc::new(StateModel::new(mmm_walk.output_features()));
+        let cost_model = mock_cost_model(state_model.clone());
+        let initial_state = state_model
+            .initial_state(None)
             .expect("test invariant failed: unable to create state");
 
         // access edge 2 in walk mode, access edge 3 in bike mode
@@ -340,30 +364,55 @@ mod test {
         //   - edge list 0 has edges 0 and 1, uses walk-mode access model
         //   - edge list 1 has edge 2, uses bike-mode access model
         let t1 = mock_trajectory(0, 0, 0);
-        let t2 = mock_trajectory(1, 1, 1);
+
+        // traverse walk edge
+        let et1 = EdgeTraversal::new_local(
+            (&t1.0, &t1.1, &t1.2),
+            &tree,
+            &initial_state,
+            &state_model,
+            &mmm_walk,
+            &cost_model,
+        )
+        .expect("failed to traverse walk edge");
 
         // ASSERTION 1: trip enters "walk" mode after accessing edge 1 on edge list 0
-        mmm_walk
-            .traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &state_model)
-            .expect("access failed");
-        assert_active_leg(Some(0), &state, &state_model).expect("assertion 1 failed");
+        assert_active_leg(Some(0), &et1.result_state, &state_model).expect("assertion 1 failed");
         assert_active_mode(
             Some("walk"),
-            &state,
+            &et1.result_state,
             &state_model,
             2,
-            &mmm_walk.mode_to_state,
+            &mmm_walk.mode_to_state.clone(),
         )
         .expect("assertion 1 failed");
 
+        // update tree with walk traversal
+        let t1_src = lm
+            .label_from_state(t1.0.vertex_id, &initial_state, &state_model)
+            .expect("invariant failed: unable to create label for vertex 1");
+        let t1_dst = lm
+            .label_from_state(t1.2.vertex_id, &et1.result_state, &state_model)
+            .expect("invariant failed: unable to create label for vertex 2");
+        tree.insert(t1_src, et1.clone(), t1_dst);
+
+        // traverse bike edge
+        let t2 = mock_trajectory(1, 1, 1);
+        let et2 = EdgeTraversal::new_local(
+            (&t2.0, &t2.1, &t2.2),
+            &tree,
+            &et1.result_state,
+            &state_model,
+            &mmm_bike,
+            &cost_model,
+        )
+        .expect("failed to traverse bike edge");
+
         // ASSERTION 2: trip enters "bike" mode after accessing edge 2 on edge list 1
-        mmm_bike
-            .traverse_edge((&t2.0, &t2.1, &t2.2), &mut state, &state_model)
-            .expect("access failed");
-        assert_active_leg(Some(1), &state, &state_model).expect("assertion 2 failed");
+        assert_active_leg(Some(1), &et2.result_state, &state_model).expect("assertion 2 failed");
         assert_active_mode(
             Some("bike"),
-            &state,
+            &et2.result_state,
             &state_model,
             2,
             &mmm_bike.mode_to_state,
@@ -372,10 +421,10 @@ mod test {
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
         let mut state_json = state_model
-            .serialize_state(&state, false)
+            .serialize_state(&et2.result_state, false)
             .expect("state serialization failed");
         mmm_walk
-            .serialize_mapping_values(&mut state_json, &state, &state_model, false)
+            .serialize_mapping_values(&mut state_json, &et2.result_state, &state_model, false)
             .expect("state serialization failed");
         println!(
             "{}",
@@ -387,10 +436,23 @@ mod test {
     fn test_switch_exceeds_max_legs() {
         // create an access model for two edge lists, "walk" and "bike" topology
         // but, here, we limit trip legs to 1, so our trip should not be able to transition to bike
-        let mmm_walk = MultimodalTraversalModel::new_local("walk", 1, &["bike", "walk"], &[], true)
-            .expect("test invariant failed, model constructor had error");
-        let mmm_bike = MultimodalTraversalModel::new_local("bike", 1, &["bike", "walk"], &[], true)
-            .expect("test invariant failed, model constructor had error");
+        let max_trip_legs = 1;
+        let mmm_walk = MultimodalTraversalModel::new_local(
+            "walk",
+            max_trip_legs,
+            &["bike", "walk"],
+            &[],
+            true,
+        )
+        .expect("test invariant failed, model constructor had error");
+        let mmm_bike = MultimodalTraversalModel::new_local(
+            "bike",
+            max_trip_legs,
+            &["bike", "walk"],
+            &[],
+            true,
+        )
+        .expect("test invariant failed, model constructor had error");
 
         // build state model and initial search state
         assert_eq!(
@@ -398,10 +460,13 @@ mod test {
             mmm_bike.output_features(),
             "test invariant failed: models should have matching state features"
         );
-        let state_model = StateModel::new(mmm_walk.output_features());
-        let mut state = state_model
-            .initial_state()
+        let state_model = Arc::new(StateModel::new(mmm_walk.output_features()));
+        let cost_model = mock_cost_model(state_model.clone());
+        let initial_state = state_model
+            .initial_state(None)
             .expect("test invariant failed: unable to create state");
+        let mut tree = SearchTree::default();
+        let lm = MultimodalLabelModel::new(mmm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
 
         // the two trajectories concatenate together into the sequence
         // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3)
@@ -412,15 +477,37 @@ mod test {
         let t2 = mock_trajectory(1, 1, 1);
 
         // establish the trip state on "walk"-mode travel
-        mmm_walk
-            .traverse_edge((&t1.0, &t1.1, &t1.2), &mut state, &state_model)
-            .expect("access failed");
+        let et1 = EdgeTraversal::new_local(
+            (&t1.0, &t1.1, &t1.2),
+            &tree,
+            &initial_state,
+            &state_model,
+            &mmm_walk,
+            &cost_model,
+        )
+        .expect("failed to traverse walk edge");
+
+        // update tree with walk traversal
+        let t1_src = lm
+            .label_from_state(t1.0.vertex_id, &initial_state, &state_model)
+            .expect("invariant failed: unable to create label for vertex 1");
+        let t1_dst = lm
+            .label_from_state(t1.2.vertex_id, &et1.result_state, &state_model)
+            .expect("invariant failed: unable to create label for vertex 2");
+        tree.insert(t1_src, et1.clone(), t1_dst);
 
         // ASSERTION 1: trip tries to enter "bike" mode after accessing edge 2 on edge list 1,
         // but this should result in an error, as we have restricted the max number of trip legs to 1.
-        let result = mmm_bike.traverse_edge((&t2.0, &t2.1, &t2.2), &mut state, &state_model);
+        let result = EdgeTraversal::new_local(
+            (&t2.0, &t2.1, &t2.2),
+            &tree,
+            &et1.result_state,
+            &state_model,
+            &mmm_walk,
+            &cost_model,
+        );
         match result {
-            Ok(()) => panic!("assertion 1 failed"),
+            Ok(_) => panic!("assertion 2 failed, should have been an error"),
             Err(e) => assert!(format!("{e}").contains("invalid leg id 1 >= max leg id 1")),
         }
     }
@@ -474,6 +561,7 @@ mod test {
         let this_mode = "walk";
         let (tm, test_tm, state_model, mut state) =
             build_test_assets(&available_modes, &[], max_trip_legs, this_mode);
+        let tree = SearchTree::default();
 
         // mock up some edge_dist, edge_time values
         let distance = Length::new::<uom::si::length::mile>(3.14159);
@@ -489,7 +577,7 @@ mod test {
         let t = mock_trajectory(0, 0, 0);
 
         test_tm
-            .traverse_edge((&t.0, &t.1, &t.2), &mut state, &state_model)
+            .traverse_edge((&t.0, &t.1, &t.2), &mut state, &tree, &state_model)
             .expect("failed to traverse edge");
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
@@ -546,7 +634,7 @@ mod test {
         let state_model = StateModel::new(test_tm.output_features());
 
         let mut state = state_model
-            .initial_state()
+            .initial_state(None)
             .expect("test invariant failed: state model could not create initial state");
         (tm, test_tm, state_model, state)
     }
@@ -573,6 +661,21 @@ mod test {
             ),
             Vertex::new(v2, x2, 0.0),
         )
+    }
+
+    fn mock_cost_model(state_model: Arc<StateModel>) -> Arc<CostModel> {
+        let result = CostModel::new(
+            Arc::new(HashMap::from([("trip_time".to_string(), 1.0)])),
+            Arc::new(HashMap::from([(
+                "trip_time".to_string(),
+                VehicleCostRate::Raw,
+            )])),
+            Arc::new(HashMap::new()),
+            routee_compass_core::model::cost::CostAggregation::Sum,
+            state_model,
+        )
+        .expect("test invariant failed: unable to build cost model");
+        Arc::new(result)
     }
 
     fn assert_active_leg(
