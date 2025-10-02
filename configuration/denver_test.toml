@@ -56,35 +56,12 @@ type = "time"
 time_unit = "minutes"
 
 [[search.traversal.models]]
-type = "multimodal"
-this_mode = "drive"
-available_modes = ["drive"]
-max_trip_legs = 1
-
-# use a time-optimal routing strategy
-[cost]
-weights = { trip_time = 1.0 }
-vehicle_rates = { trip_time = { type = "raw" } }
-# weights = { trip_time = 1.0, penalty_factor = 1.0 }
-# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "sum"
-
-[search.access]
-type = "combined"
-
-[[search.access.access_models]]
-type = "multimodal"
-this_mode = "drive"
-available_modes = ["drive"]
-max_trip_legs = 1
-
-[[search.access.access_models]]
 type = "turn_delay"
 edge_heading_input_file = "../denver_co/edges-headings-enumerated.csv.gz"
-[search.access.access_models.turn_delay_model]
+[search.traversal.models.turn_delay_model]
 type = "tabular_discrete"
 time_unit = "seconds"
-[search.access.access_models.turn_delay_model.table]
+[search.traversal.models.turn_delay_model.table]
 no_turn = 0.0
 slight_right = 0.5
 right = 1.0
@@ -93,6 +70,22 @@ slight_left = 1.0
 left = 2.5
 sharp_left = 3.5
 u_turn = 9.5
+
+[[search.traversal.models]]
+type = "multimodal"
+this_mode = "drive"
+available_modes = ["drive"]
+available_route_ids = []
+max_trip_legs = 1
+use_route_ids = false
+
+# use a time-optimal routing strategy
+[cost]
+weights = { trip_time = 1.0 }
+vehicle_rates = { trip_time = { type = "raw" } }
+# weights = { trip_time = 1.0, penalty_factor = 1.0 }
+# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
+cost_aggregation = "sum"
 
 [search.frontier]
 type = "combined"
