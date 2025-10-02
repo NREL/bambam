@@ -123,6 +123,7 @@ impl TraversalModel for MultimodalTraversalModel {
     ) -> Result<(), TraversalModelError> {
         let (_, edge, _) = trajectory;
 
+        // first, apply any mode switching for using this edge
         ops::mode_switch(
             state,
             state_model,
@@ -131,9 +132,9 @@ impl TraversalModel for MultimodalTraversalModel {
             self.max_trip_legs,
         )?;
 
+        // update multimodal mode + leg state
         let leg_idx = state_ops::get_active_leg_idx(state, state_model)?
             .ok_or_else(|| state_ops::error_inactive_state_traversal(state, state_model))?;
-
         ops::update_accumulators(
             state,
             state_model,
@@ -410,18 +411,6 @@ mod test {
         )
         .expect("failed to traverse bike edge");
 
-        // as a head check, we can also inspect the serialized access state JSON in the logs
-        let mut state_json = state_model
-            .serialize_state(&et1.result_state, false)
-            .expect("state serialization failed");
-        mtm_walk
-            .serialize_mapping_values(&mut state_json, &et1.result_state, &state_model, false)
-            .expect("state serialization failed");
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&state_json).unwrap_or_default()
-        );
-
         // ASSERTION 2: trip enters "bike" mode after accessing edge 2 on edge list 1
         assert_active_leg(Some(1), &et2.result_state, &state_model).expect("assertion 2 failed");
         assert_active_mode(
@@ -432,18 +421,6 @@ mod test {
             &mtm_bike.mode_to_state,
         )
         .expect("assertion 2 failed");
-
-        // as a head check, we can also inspect the serialized access state JSON in the logs
-        let mut state_json = state_model
-            .serialize_state(&et2.result_state, false)
-            .expect("state serialization failed");
-        mtm_walk
-            .serialize_mapping_values(&mut state_json, &et2.result_state, &state_model, false)
-            .expect("state serialization failed");
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&state_json).unwrap_or_default()
-        );
     }
 
     #[test]
@@ -451,36 +428,21 @@ mod test {
         // create an access model for two edge lists, "walk" and "bike" topology
         // but, here, we limit trip legs to 1, so our trip should not be able to transition to bike
         let max_trip_legs = 1;
-        let mmm_walk = MultimodalTraversalModel::new_local(
-            "walk",
-            max_trip_legs,
-            &["bike", "walk"],
-            &[],
-            true,
-        )
-        .expect("test invariant failed, model constructor had error");
-        let mmm_bike = MultimodalTraversalModel::new_local(
-            "bike",
-            max_trip_legs,
-            &["bike", "walk"],
-            &[],
-            true,
-        )
-        .expect("test invariant failed, model constructor had error");
+        let (mtm_walk, test_walk, state_model, initial_state) =
+            build_test_assets(&["bike", "walk"], &[], max_trip_legs, "walk");
+        let (mtm_bike, test_bike, _, _) =
+            build_test_assets(&["bike", "walk"], &[], max_trip_legs, "bike");
+        let state_model = Arc::new(state_model);
 
         // build state model and initial search state
         assert_eq!(
-            mmm_walk.output_features(),
-            mmm_bike.output_features(),
+            mtm_walk.output_features(),
+            mtm_bike.output_features(),
             "test invariant failed: models should have matching state features"
         );
-        let state_model = Arc::new(StateModel::new(mmm_walk.output_features()));
         let cost_model = mock_cost_model(state_model.clone());
-        let initial_state = state_model
-            .initial_state(None)
-            .expect("test invariant failed: unable to create state");
         let mut tree = SearchTree::default();
-        let lm = MultimodalLabelModel::new(mmm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
+        let lm = MultimodalLabelModel::new(mtm_walk.mode_to_state.as_ref().clone(), max_trip_legs);
 
         // the two trajectories concatenate together into the sequence
         // (0) -[0]-> (1) -[1]-> (2) -[2]-> (3)
@@ -496,7 +458,7 @@ mod test {
             &tree,
             &initial_state,
             &state_model,
-            &mmm_walk,
+            test_walk.as_ref(),
             &cost_model,
         )
         .expect("failed to traverse walk edge");
@@ -517,11 +479,11 @@ mod test {
             &tree,
             &et1.result_state,
             &state_model,
-            &mmm_walk,
+            test_bike.as_ref(),
             &cost_model,
         );
         match result {
-            Ok(_) => panic!("assertion 2 failed, should have been an error"),
+            Ok(e) => panic!("assertion 2 failed, should have been an error"),
             Err(e) => assert!(format!("{e}").contains("invalid leg id 1 >= max leg id 1")),
         }
     }
