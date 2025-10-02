@@ -16,6 +16,7 @@ pub struct MultimodalTraversalService {
     pub config: MultimodalTraversalConfig,
     pub mode_to_state: Arc<MultimodalStateMapping>,
     pub route_id_to_state: Arc<MultimodalStateMapping>,
+    pub use_route_ids: bool,
 }
 
 impl MultimodalTraversalService {
@@ -24,10 +25,12 @@ impl MultimodalTraversalService {
     ) -> Result<MultimodalTraversalService, TraversalModelError> {
         let mode_to_state = Arc::new(MultimodalMapping::new(&config.available_modes)?);
         let route_id_to_state = Arc::new(MultimodalMapping::new(&config.available_route_ids)?);
+        let use_route_ids = config.use_route_ids.unwrap_or(true);
         let result = MultimodalTraversalService {
             config,
             mode_to_state,
             route_id_to_state,
+            use_route_ids,
         };
         Ok(result)
     }
@@ -49,6 +52,7 @@ impl TraversalModelService for MultimodalTraversalService {
             self.config.max_trip_legs,
             mode_to_state,
             route_id_to_state,
+            self.use_route_ids,
         );
         Ok(Arc::new(model))
     }

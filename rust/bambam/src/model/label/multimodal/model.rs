@@ -63,19 +63,20 @@ impl LabelModel for MultimodalLabelModel {
 mod test {
     use routee_compass_core::model::access::AccessModel;
     use routee_compass_core::model::state::StateVariable;
+    use routee_compass_core::model::traversal::TraversalModel;
     use routee_compass_core::model::{label::LabelModel, network::VertexId, state::StateModel};
 
-    use crate::model::access::multimodal::MultimodalAccessModel;
     use crate::model::label::multimodal::{
         multimodal_label_ops as label_ops, MultimodalLabelModel,
     };
     use crate::model::state::MultimodalMapping;
     use crate::model::state::{multimodal_state_ops as state_ops, MultimodalStateMapping};
+    use crate::model::traversal::multimodal::MultimodalTraversalModel;
     #[test]
     fn test_err_on_empty() {
-        let access_model = MultimodalAccessModel::new_local("walk", 1, &["walk"], &[])
+        let mtm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
             .expect("test invariant failed");
-        let state_model = StateModel::new(access_model.state_features());
+        let state_model = StateModel::new(mtm.output_features());
         let state = state_model.initial_state().expect("test invariant failed");
         let vertex_id = VertexId(0);
         let model = MultimodalLabelModel::new(MultimodalMapping::empty(), 1);
@@ -95,14 +96,15 @@ mod test {
     fn test_store_leg_sequence_in_label() {
         // SETUP: assign a state with sequence ["drive", "transit", "walk"]
         let max_trip_legs = 3;
-        let am = MultimodalAccessModel::new_local(
+        let am = MultimodalTraversalModel::new_local(
             "drive",
             max_trip_legs,
             &["walk", "bike", "drive", "tnc", "transit"],
             &[],
+            true,
         )
         .expect("test invariant failed");
-        let sm = StateModel::new(am.state_features());
+        let sm = StateModel::new(am.output_features());
         let mut state = sm.initial_state().expect("test invariant failed");
         inject_trip_legs(
             &["drive", "transit", "walk"],

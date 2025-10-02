@@ -121,16 +121,17 @@ mod test {
         frontier::FrontierModel,
         network::Edge,
         state::{StateModel, StateVariable},
+        traversal::TraversalModel,
     };
     use uom::si::f64::Length;
 
     use crate::model::{
-        access::multimodal::MultimodalAccessModel,
         frontier::multimodal::{
             model::MultimodalFrontierModel, sequence_trie::SubSequenceTrie,
             MultimodalFrontierConstraint,
         },
         state::{multimodal_state_ops as state_ops, MultimodalStateMapping},
+        traversal::multimodal::MultimodalTraversalModel,
     };
 
     #[test]
@@ -462,20 +463,20 @@ mod test {
         edge_list_modes: &[&str],
         max_trip_legs: u64,
     ) -> (
-        MultimodalAccessModel,
+        MultimodalTraversalModel,
         MultimodalFrontierModel,
         StateModel,
         Vec<StateVariable>,
     ) {
-        let mam = MultimodalAccessModel::new_local(this_mode, max_trip_legs, modes, &[])
+        let mtm = MultimodalTraversalModel::new_local(this_mode, max_trip_legs, modes, &[], true)
             .expect("test invariant failed");
-        let state_model = StateModel::new(mam.state_features());
+        let state_model = StateModel::new(mtm.output_features());
         let mfm =
             MultimodalFrontierModel::new_local(max_trip_legs, modes, edge_list_modes, constraints)
                 .expect("test invariant failed");
         let state = state_model.initial_state().expect("test invariant failed");
 
-        (mam, mfm, state_model, state)
+        (mtm, mfm, state_model, state)
     }
 
     fn inject_trip_legs(

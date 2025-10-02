@@ -1,6 +1,7 @@
 mod builder;
 mod config;
 mod model;
+mod multimodal_traversal_ops;
 mod query;
 mod service;
 
