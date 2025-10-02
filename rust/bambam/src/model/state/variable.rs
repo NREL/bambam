@@ -23,7 +23,7 @@ pub fn active_leg_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "ActiveLeg".to_string(),
         value: EMPTY,
-        accumulator: false,
+        accumulator: true,
     }
 }
 
@@ -39,7 +39,7 @@ pub fn leg_mode_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "Mode".to_string(),
         value: EMPTY,
-        accumulator: false,
+        accumulator: true,
     }
 }
 
@@ -76,6 +76,6 @@ pub fn route_id_variable_config() -> StateVariableConfig {
     StateVariableConfig::Custom {
         custom_type: "RouteId".to_string(),
         value: EMPTY,
-        accumulator: false,
+        accumulator: true,
     }
 }
