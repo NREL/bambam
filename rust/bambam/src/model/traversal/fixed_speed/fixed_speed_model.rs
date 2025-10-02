@@ -1,4 +1,4 @@
-use crate::model::traversal::fixed_speed::FixedSpeedConfig;
+use crate::model::{bambam_state, traversal::fixed_speed::FixedSpeedConfig};
 use chrono::format::Fixed;
 use routee_compass_core::{
     algorithm::search::SearchTree,
@@ -25,11 +25,10 @@ pub struct FixedSpeedModel {
 impl FixedSpeedModel {
     pub fn new(config: Arc<FixedSpeedConfig>) -> FixedSpeedModel {
         let speed = config.speed_unit.to_uom(config.speed);
-        let fieldname = format!("{}_speed", config.name);
         FixedSpeedModel {
             config: config.clone(),
             speed,
-            fieldname,
+            fieldname: bambam_state::EDGE_SPEED.to_string(),
         }
     }
 }
