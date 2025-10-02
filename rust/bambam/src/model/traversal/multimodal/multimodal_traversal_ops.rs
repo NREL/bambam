@@ -11,7 +11,7 @@ use uom::si::f64::{Length, Time};
 pub fn mode_switch(
     state: &mut [StateVariable],
     state_model: &StateModel,
-    mode: &str,
+    prev_mode: &str,
     mode_to_state: &MultimodalStateMapping,
     max_trip_legs: u64,
 ) -> Result<(), StateModelError> {
@@ -33,14 +33,14 @@ pub fn mode_switch(
     };
 
     match leg_and_mode_opt {
-        Some((_, mode)) if mode == mode => {
+        Some((_, leg_mode)) if leg_mode == prev_mode => {
             // leg exists but no change in mode -> return early
         }
         _ => {
             // no leg assigned or a change in mode -> add the new leg
             let next_leg_idx =
                 state_ops::increment_active_leg_idx(state, state_model, max_trip_legs)?;
-            state_ops::set_leg_mode(state, next_leg_idx, mode, state_model, mode_to_state)?;
+            state_ops::set_leg_mode(state, next_leg_idx, prev_mode, state_model, mode_to_state)?;
         }
     };
     Ok(())
