@@ -106,7 +106,7 @@ mod tests {
             Err(_) => true, // default
         };
         let temp_directory = "src/test/tmp";
-        let pbf_file = "src/test/liechtenstein-250908.osm.pbf";
+        let pbf_file = "src/test/liechtenstein-250101.osm.pbf";
         let extent_file = "src/test/schaan_liechtenstein.txt";
         let config_file = "src/test/test_osm_import.toml";
         let conf = crate::App::Pbf {
