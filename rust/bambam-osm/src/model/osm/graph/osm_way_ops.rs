@@ -246,8 +246,7 @@ mod tests {
                 let diff_from_expected = 45.0 - result;
                 assert!(
                     diff_from_expected < 0.001,
-                    "value {} should be within 0.001 of 45.0",
-                    result
+                    "value {result} should be within 0.001 of 45.0"
                 );
             }
             Ok(None) => panic!("should parse valid speed"),
@@ -263,8 +262,7 @@ mod tests {
                 let diff_from_expected = 45.0 - result;
                 assert!(
                     diff_from_expected < 0.001,
-                    "value {} should be within 0.001 of 45.0",
-                    result
+                    "value {result} should be within 0.001 of 45.0"
                 );
             }
             Ok(None) => panic!("should parse valid speed"),
@@ -280,8 +278,7 @@ mod tests {
                 let diff_from_expected = 5.0 - result;
                 assert!(
                     diff_from_expected < 0.001,
-                    "value {} should be within 0.001 of 5.0",
-                    result
+                    "value {result} should be within 0.001 of 5.0"
                 );
             }
             Ok(None) => panic!("should parse valid speed"),
