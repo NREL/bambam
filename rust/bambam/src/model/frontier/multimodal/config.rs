@@ -1,7 +1,4 @@
-use crate::model::state::MultimodalMapping;
-
 use super::MultimodalFrontierConstraintConfig;
-use routee_compass_core::model::network::EdgeId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
