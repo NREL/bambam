@@ -82,7 +82,6 @@ impl FrontierModel for MultimodalFrontierModel {
         for constraint in self.engine.constraints.iter() {
             let valid = constraint.valid_frontier(
                 edge,
-                &self.engine.mode,
                 state,
                 state_model,
                 &self.engine.mode_to_state,
@@ -218,9 +217,6 @@ mod test {
             max_trip_legs,
         );
 
-        // edge list one is a walk-mode edge list
-        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-
         inject_trip_legs(
             &["walk", "drive", "walk"],
             &mut state,
@@ -229,7 +225,15 @@ mod test {
             max_trip_legs,
         );
 
-        // test
+        // test adding another walk edge to this trip leg, which does not increase the mode counts for walk.
+        let walk_edge_list = 0;
+        let edge = Edge::new(
+            walk_edge_list,
+            0,
+            0,
+            1,
+            Length::new::<uom::si::length::meter>(1000.0),
+        );
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -254,18 +258,16 @@ mod test {
             max_trip_legs,
         );
 
-        // edge list one is a DRIVE-mode edge list
-        let edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-
         inject_trip_legs(
-            &["walk", "drive", "walk"],
+            &["walk", "bike", "walk", "drive"],
             &mut state,
             &state_model,
             &mam.mode_to_state,
             max_trip_legs,
         );
 
-        // test
+        // test accessing another walk-mode link, which would increase the number of walk-mode legs to 3
+        let edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -289,9 +291,6 @@ mod test {
             max_trip_legs,
         );
 
-        // edge list one is a walk-mode edge list
-        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-
         inject_trip_legs(
             &["walk", "transit", "walk"],
             &mut state,
@@ -300,7 +299,15 @@ mod test {
             max_trip_legs,
         );
 
-        // test
+        // test appending one more walk-mode edge, which will not modify the existing trip legs
+        let walk_edge_list = 0;
+        let edge = Edge::new(
+            walk_edge_list,
+            0,
+            0,
+            1,
+            Length::new::<uom::si::length::meter>(1000.0),
+        );
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -315,7 +322,7 @@ mod test {
             "walk".to_string(),
             "transit".to_string(),
         ]));
-        let max_trip_legs = 3;
+        let max_trip_legs = 4;
         let (mam, mfm, state_model, mut state) = test_setup(
             vec![mode_constraint],
             "walk",
@@ -323,9 +330,6 @@ mod test {
             &[],
             max_trip_legs,
         );
-
-        // edge list one is a DRIVE-mode edge list
-        let edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
 
         inject_trip_legs(
             &["walk", "transit", "walk"],
@@ -335,7 +339,15 @@ mod test {
             max_trip_legs,
         );
 
-        // test
+        // test a drive-mode traversal, which is not an allowed mode
+        let drive_edge_list = 2;
+        let edge = Edge::new(
+            drive_edge_list,
+            0,
+            0,
+            1,
+            Length::new::<uom::si::length::meter>(1000.0),
+        );
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -362,10 +374,15 @@ mod test {
             max_trip_legs,
         );
 
-        // edge list one is a walk-mode edge list
-        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-
-        // test
+        // test adding a walk edge to a state with no trip legs
+        let walk_edge_list = 0;
+        let edge = Edge::new(
+            walk_edge_list,
+            0,
+            0,
+            1,
+            Length::new::<uom::si::length::meter>(1000.0),
+        );
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -392,9 +409,6 @@ mod test {
             max_trip_legs,
         );
 
-        // edge list one is a walk-mode edge list
-        let edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-
         inject_trip_legs(
             &["walk", "transit"],
             &mut state,
@@ -403,7 +417,15 @@ mod test {
             max_trip_legs,
         );
 
-        // test
+        // test traversing a walk-mode edge list. "walk" -> "transit" -> "walk" is a valid sequence.
+        let walk_edge_list = 0;
+        let edge = Edge::new(
+            walk_edge_list,
+            0,
+            0,
+            1,
+            Length::new::<uom::si::length::meter>(1000.0),
+        );
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");

@@ -14,10 +14,16 @@ use uom::si::f64::Time;
 /// helper to get the edge list mode for an edge
 pub fn get_edge_list_mode<'a>(
     edge: &Edge,
-    mode_to_edge_list: &'a MultimodalMapping<String, usize>,
+    mode_to_edge_list: &'a MultimodalStateMapping,
 ) -> Result<&'a String, FrontierModelError> {
+    let label: i64 = edge.edge_list_id.0.try_into().map_err(|e| {
+        FrontierModelError::FrontierModelError(format!(
+            "failed to convert edge list id '{}' to i64: {e}",
+            edge.edge_list_id
+        ))
+    })?;
     mode_to_edge_list
-        .get_categorical(edge.edge_list_id.0)
+        .get_categorical(label)
         .map_err(|e| {
             FrontierModelError::FrontierModelError(
                 "failure getting edge list mode via edge list mode mapping".to_string(),
