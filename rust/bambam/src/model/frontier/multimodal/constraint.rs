@@ -37,7 +37,7 @@ impl MultimodalFrontierConstraint {
         max_trip_legs: u64,
     ) -> Result<bool, FrontierModelError> {
         use MultimodalFrontierConstraint as MFC;
-        let edge_mode = ops::get_edge_list_mode(edge, &mode_to_state)?;
+        let edge_mode = ops::get_edge_list_mode(edge, mode_to_state)?;
 
         match self {
             MFC::AllowedModes(items) => {
