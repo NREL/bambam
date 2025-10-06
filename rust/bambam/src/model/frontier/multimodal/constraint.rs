@@ -115,12 +115,12 @@ impl TryFrom<&MultimodalFrontierConstraintConfig> for MultimodalFrontierConstrai
     fn try_from(value: &MultimodalFrontierConstraintConfig) -> Result<Self, Self::Error> {
         use MultimodalFrontierConstraintConfig as MFCC;
         match value {
-            MFCC::AllowedModes(items) => {
-                let modes = items.iter().cloned().collect::<HashSet<_>>();
+            MFCC::AllowedModes { allowed_modes } => {
+                let modes = allowed_modes.iter().cloned().collect::<HashSet<_>>();
                 Ok(Self::AllowedModes(modes))
             }
-            MFCC::ModeCounts(items) => {
-                let counts = items
+            MFCC::ModeCounts { mode_counts } => {
+                let counts = mode_counts
                     .iter()
                     .map(|(k, v)| {
                         let v_usize: usize = v.get().try_into().map_err(|e| {
@@ -133,17 +133,17 @@ impl TryFrom<&MultimodalFrontierConstraintConfig> for MultimodalFrontierConstrai
                     .collect::<Result<HashMap<_, _>, _>>()?;
                 Ok(Self::ModeCounts(counts))
             }
-            MFCC::TripLegCount(max) => {
-                let max_usize: usize = max.get().try_into().map_err(|e| {
+            MFCC::TripLegCount { trip_leg_count } => {
+                let max_usize: usize = trip_leg_count.get().try_into().map_err(|e| {
                     FrontierModelError::FrontierModelError(format!(
                         "while reading max trip leg limit: {e}"
                     ))
                 })?;
                 Ok(Self::MaxTripLegs(max_usize))
             }
-            MFCC::ExactSequences(items) => {
+            MFCC::ExactSequences { exact_sequences } => {
                 let mut trie = SubSequenceTrie::new();
-                for seq in items.iter() {
+                for seq in exact_sequences.iter() {
                     trie.insert_sequence(seq.clone());
                 }
                 Ok(Self::ExactSequences(trie))

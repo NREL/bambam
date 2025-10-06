@@ -85,6 +85,14 @@ type = "a*"
 type = "solution_size"
 limit = 200_000
 
+# use a time-optimal routing strategy
+[cost]
+weights = { trip_time = 1.0 }
+vehicle_rates = { trip_time = { type = "raw" } }
+# weights = { trip_time = 1.0, penalty_factor = 1.0 }
+# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
+cost_aggregation = "sum"
+
 [search.traversal]
 type = "combined"
 
@@ -137,14 +145,6 @@ available_route_ids = []
 max_trip_legs = 1
 use_route_ids = false
 
-# use a time-optimal routing strategy
-[cost]
-weights = { trip_time = 1.0 }
-vehicle_rates = { trip_time = { type = "raw" } }
-# weights = { trip_time = 1.0, penalty_factor = 1.0 }
-# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "sum"
-
 [search.frontier]
 type = "combined"
 
@@ -152,9 +152,16 @@ type = "combined"
 type = "road_class"
 road_class_input_file = "../denver_co/edges-road-class-enumerated.txt.gz"
 
-# [[search.frontier.models]]
-# type = "turn_restriction"
-# turn_restriction_input_file = "../denver_co/edges-turn-restrictions.csv.gz"
+[[search.frontier.models]]
+type = "multimodal"
+constraints = [
+    { allowed_modes = ["walk"]},
+]
+mode = "walk"
+available_modes = ["walk"]
+available_route_ids = []
+max_trip_legs = 1
+use_route_ids = false
 
 [[search.frontier.models]]
 type = "time_limit"

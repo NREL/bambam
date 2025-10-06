@@ -1,3 +1,4 @@
+use crate::model::frontier::multimodal::MultimodalFrontierBuilder;
 use crate::model::frontier::time_limit::TimeLimitFrontierBuilder;
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin::GridGeometryInputPlugin;
 use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builder::GridGeometryInputPluginBuilder;
@@ -32,6 +33,10 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
         Rc::new(MultimodalTraversalBuilder {}),
     );
 
+    builders.add_frontier_model(
+        "multimodal".to_string(),
+        Rc::new(MultimodalFrontierBuilder {}),
+    );
     builders.add_frontier_model(
         String::from("time_limit"),
         Rc::new(TimeLimitFrontierBuilder {}),
