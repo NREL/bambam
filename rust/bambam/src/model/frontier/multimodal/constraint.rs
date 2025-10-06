@@ -14,6 +14,7 @@ use routee_compass_core::model::{
 use std::collections::{HashMap, HashSet};
 use uom::si::f64::Time;
 
+#[derive(Debug)]
 /// types of constraints to limit exponential search expansion in multimodal scenarios.
 ///
 /// only deals with constraints associated with multimodal metadata, since metric-based
@@ -30,24 +31,20 @@ impl MultimodalFrontierConstraint {
     pub fn valid_frontier(
         &self,
         edge: &Edge,
+        edge_mode: &str,
         state: &[StateVariable],
         state_model: &StateModel,
         mode_to_state: &MultimodalStateMapping,
-        mode_to_edge_list: &MultimodalMapping<String, usize>,
         max_trip_legs: u64,
     ) -> Result<bool, FrontierModelError> {
         use MultimodalFrontierConstraint as MFC;
         match self {
-            MFC::AllowedModes(items) => {
-                let edge_mode = ops::get_edge_list_mode(edge, mode_to_edge_list)?;
-                Ok(items.contains(edge_mode))
-            }
+            MFC::AllowedModes(items) => Ok(items.contains(edge_mode)),
             MFC::ModeCounts(limits) => {
                 let mut counts =
                     ops::get_mode_counts(state, state_model, max_trip_legs, mode_to_state)?;
 
                 // simulate a mode transition if the incoming edge has a different mode than the trip's active mode
-                let edge_mode = ops::get_edge_list_mode(edge, mode_to_edge_list)?;
                 let active_mode = state_ops::get_active_leg_mode(
                     state,
                     state_model,
@@ -59,9 +56,9 @@ impl MultimodalFrontierConstraint {
                         "while applying mode count frontier model constraint, {e}"
                     ))
                 })?;
-                if Some(edge_mode.as_str()) != active_mode {
+                if Some(edge_mode) != active_mode {
                     counts
-                        .entry(edge_mode.clone())
+                        .entry(edge_mode.to_string())
                         .and_modify(|cnt| *cnt += 1)
                         .or_insert(1);
                 }
@@ -87,7 +84,6 @@ impl MultimodalFrontierConstraint {
                         })?;
 
                 // simulate a mode transition if the incoming edge has a different mode than the trip's active mode
-                let edge_mode = ops::get_edge_list_mode(edge, mode_to_edge_list)?;
                 let active_mode = state_ops::get_active_leg_mode(
                     state,
                     state_model,
@@ -99,8 +95,8 @@ impl MultimodalFrontierConstraint {
                         "while applying mode count frontier model constraint, {e}"
                     ))
                 })?;
-                if Some(edge_mode.as_str()) != active_mode {
-                    modes.push(edge_mode.clone());
+                if Some(edge_mode) != active_mode {
+                    modes.push(edge_mode.to_string());
                 }
                 let is_match = trie.contains(&modes);
                 Ok(is_match)

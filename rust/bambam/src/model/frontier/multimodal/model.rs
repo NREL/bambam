@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::model::frontier::multimodal::MultimodalFrontierConstraintConfig;
+use crate::model::frontier::multimodal::{
+    MultimodalFrontierConstraintConfig, MultimodalFrontierEngine,
+};
 use crate::model::state::{MultimodalMapping, MultimodalStateMapping};
 use crate::model::{
     frontier::multimodal::MultimodalFrontierConstraint, state::multimodal_state_ops as state_ops,
@@ -12,65 +14,53 @@ use routee_compass_core::model::{
 };
 
 pub struct MultimodalFrontierModel {
-    /// maps EdgeListIds to Modes
-    mode_to_edge_list: Arc<MultimodalMapping<String, usize>>,
-    /// maps state variables to Modes
-    mode_to_state: Arc<MultimodalStateMapping>,
-    /// logic of frontier validation
-    constraints: Arc<Vec<MultimodalFrontierConstraint>>,
-    /// maximum number of trip legs allowed in a trip
-    max_trip_legs: u64,
+    pub engine: Arc<MultimodalFrontierEngine>,
 }
 
 impl MultimodalFrontierModel {
-    pub fn new(
-        max_trip_legs: u64,
-        mode_to_state: Arc<MultimodalStateMapping>,
-        mode_to_edge_list: Arc<MultimodalMapping<String, usize>>,
-        constraints: Arc<Vec<MultimodalFrontierConstraint>>,
-    ) -> Self {
-        Self {
-            max_trip_legs,
-            mode_to_state,
-            mode_to_edge_list,
-            constraints,
-        }
+    pub fn new(engine: Arc<MultimodalFrontierEngine>) -> Self {
+        Self { engine }
     }
 
     /// builds a new [`MultimodalFrontierModel`] from its data dependencies only.
     /// used in synchronous contexts like scripting or testing.
     pub fn new_local(
-        max_trip_legs: u64,
-        modes: &[&str],
-        edge_lists: &[&str],
+        mode: &str,
         constraints: Vec<MultimodalFrontierConstraint>,
+        modes: &[&str],
+        route_ids: &[&str],
+        max_trip_legs: u64,
+        use_route_ids: bool,
     ) -> Result<Self, FrontierModelError> {
         let mode_to_state =
             MultimodalMapping::new(&modes.iter().map(|s| s.to_string()).collect::<Vec<String>>())
                 .map_err(|e| {
                 FrontierModelError::BuildError(format!(
-                    "while building MultimodalFrontierModel, failure constructing mode mapping: {e}"
+                    "while building local MultimodalFrontierModel, failure constructing mode mapping: {e}"
                 ))
             })?;
 
-        let mode_to_edge_list = MultimodalMapping::new(
-            &edge_lists
+        let route_id_to_state = MultimodalMapping::new(
+            &route_ids
                 .iter()
                 .map(|s| s.to_string())
                 .collect::<Vec<String>>(),
         )
         .map_err(|e| {
             FrontierModelError::BuildError(format!(
-                "while building MultimodalFrontierModel, failure constructing mode mapping: {e}"
+                "while building local MultimodalFrontierModel, failure constructing route id mapping: {e}"
             ))
         })?;
-
-        let mmm = Self::new(
+        let engine = MultimodalFrontierEngine {
+            mode: mode.to_string(),
+            constraints,
+            mode_to_state: Arc::new(mode_to_state),
+            route_id_to_state: Arc::new(route_id_to_state),
             max_trip_legs,
-            Arc::new(mode_to_state),
-            Arc::new(mode_to_edge_list),
-            Arc::new(constraints),
-        );
+            use_route_ids,
+        };
+
+        let mmm = MultimodalFrontierModel::new(Arc::new(engine));
         Ok(mmm)
     }
 }
@@ -89,14 +79,14 @@ impl FrontierModel for MultimodalFrontierModel {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<bool, FrontierModelError> {
-        for constraint in self.constraints.iter() {
+        for constraint in self.engine.constraints.iter() {
             let valid = constraint.valid_frontier(
                 edge,
+                &self.engine.mode,
                 state,
                 state_model,
-                &self.mode_to_state,
-                &self.mode_to_edge_list,
-                self.max_trip_legs,
+                &self.engine.mode_to_state,
+                self.engine.max_trip_legs,
             )?;
             if !valid {
                 return Ok(false);
@@ -224,7 +214,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -260,7 +250,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -295,7 +285,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -330,7 +320,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -368,7 +358,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -398,7 +388,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -432,7 +422,7 @@ mod test {
             vec![mode_constraint],
             "walk",
             &["walk", "bike", "drive", "tnc", "transit"],
-            &["drive", "walk", "bike", "transit"],
+            &[],
             max_trip_legs,
         );
 
@@ -459,7 +449,7 @@ mod test {
         constraints: Vec<MultimodalFrontierConstraint>,
         this_mode: &str,
         modes: &[&str],
-        edge_list_modes: &[&str],
+        route_ids: &[&str],
         max_trip_legs: u64,
     ) -> (
         MultimodalTraversalModel,
@@ -470,9 +460,15 @@ mod test {
         let mtm = MultimodalTraversalModel::new_local(this_mode, max_trip_legs, modes, &[], true)
             .expect("test invariant failed");
         let state_model = StateModel::new(mtm.output_features());
-        let mfm =
-            MultimodalFrontierModel::new_local(max_trip_legs, modes, edge_list_modes, constraints)
-                .expect("test invariant failed");
+        let mfm = MultimodalFrontierModel::new_local(
+            this_mode,
+            constraints,
+            modes,
+            route_ids,
+            max_trip_legs,
+            true,
+        )
+        .expect("test invariant failed");
         let state = state_model
             .initial_state(None)
             .expect("test invariant failed");
