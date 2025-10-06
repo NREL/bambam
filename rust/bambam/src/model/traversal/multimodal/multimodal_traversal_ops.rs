@@ -89,7 +89,6 @@ pub fn update_route_id(
     let route_id_label = state_model.get_custom_i64(state, bambam_state::ROUTE_ID)?;
     let route_id_opt = route_id_to_state.get_categorical(route_id_label)?;
     if let Some(route_id) = route_id_opt {
-        let t_route = fieldname::leg_route_id_fieldname(leg_idx);
         state_ops::set_leg_route_id(state, leg_idx, route_id, state_model, route_id_to_state)?;
     }
     Ok(())
