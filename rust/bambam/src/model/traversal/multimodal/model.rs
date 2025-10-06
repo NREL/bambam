@@ -261,7 +261,6 @@ mod test {
             fieldname, multimodal_state_ops as state_ops, variable, LegIdx, MultimodalMapping,
             MultimodalStateMapping,
         },
-        traversal::multimodal::multimodal_traversal_ops,
     };
     use routee_compass_core::model::cost::{
         cost_model_service::CostModelService, CostModel, VehicleCostRate,
