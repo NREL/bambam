@@ -3,6 +3,7 @@ resolver = "2"
 members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-omf"]
 
 # Patch section to override any version-based dependencies with git revisions
+# see [https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#working-with-an-unpublished-minor-version]
 [patch.crates-io]
 routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "136f51ab9b88a4c0cf6e99834eca06b1eb27b6e0" }
 routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "136f51ab9b88a4c0cf6e99834eca06b1eb27b6e0" }
