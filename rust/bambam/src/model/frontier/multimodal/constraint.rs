@@ -70,11 +70,27 @@ impl MultimodalFrontierConstraint {
                 Ok(ops::valid_mode_counts(&counts, limits))
             }
             MFC::MaxTripLegs(max_legs) => {
-                let n_legs = state_ops::get_n_legs(state, state_model).map_err(|e| {
+                // simulate a mode transition if the incoming edge has a different mode than the trip's active mode
+                let active_mode = state_ops::get_active_leg_mode(
+                    state,
+                    state_model,
+                    max_trip_legs,
+                    mode_to_state,
+                )
+                .map_err(|e| {
+                    FrontierModelError::FrontierModelError(format!(
+                        "while applying mode count frontier model constraint, {e}"
+                    ))
+                })?;
+                let n_existing_legs = state_ops::get_n_legs(state, state_model).map_err(|e| {
                     FrontierModelError::FrontierModelError(
                         (format!("while getting number of trip legs for this trip: {e}")),
                     )
                 })?;
+                let n_legs = match active_mode {
+                    Some(active_mode) if active_mode != edge_mode => n_existing_legs + 1,
+                    _ => 0,
+                };
                 let is_valid = n_legs <= *max_legs;
                 Ok(is_valid)
             }

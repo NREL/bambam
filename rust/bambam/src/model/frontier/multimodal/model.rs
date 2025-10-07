@@ -618,13 +618,8 @@ mod test {
         let modes = [
             "walk", "bike", "drive", "tnc", "transit", "eBike", "eVTOL", "airplane", "ferry",
         ];
-        let (mam, mfm, state_model, state) = test_setup(
-            vec![mode_constraint],
-            "walk",
-            &["walk", "bike"],
-            &[],
-            max_trip_legs,
-        );
+        let (mam, mfm, state_model, state) =
+            test_setup(vec![mode_constraint], "walk", &modes, &[], max_trip_legs);
 
         for edge_list_id in (0..modes.len()) {
             let edge = Edge::new(
@@ -872,7 +867,7 @@ mod test {
     #[test]
     fn test_max_trip_legs_would_exceed_limit() {
         // Test transition from valid state to invalid state when adding a new mode
-        let max_trip_legs = 2;
+        let max_trip_legs = 1;
         let (mam, mfm, state_model, mut state) = test_setup(
             vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
             "walk",
