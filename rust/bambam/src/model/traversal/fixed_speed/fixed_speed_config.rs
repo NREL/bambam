@@ -1,4 +1,4 @@
-use crate::model::{fieldname, traversal::fixed_speed::FixedSpeedModel};
+use crate::model::{bambam_state, traversal::fixed_speed::FixedSpeedModel};
 use routee_compass_core::model::{
     network::{Edge, Vertex},
     state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
@@ -10,8 +10,7 @@ use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FixedSpeedConfig {
-    /// name of mode associated with this type of travel. used to assign the
-    /// state vector value via the pattern "{name}_speed".
+    /// name of mode associated with this type of travel.
     pub name: String,
     /// fixed speed to apply
     pub speed: f64,

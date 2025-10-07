@@ -1,13 +1,10 @@
 use crate::model::output_plugin::{
-    bambam_field as field,
-    isochrone::{
-        isochrone_output_format::{self, IsochroneOutputFormat},
-        time_bin::TimeBin,
-    },
+    isochrone::isochrone_output_format::{self, IsochroneOutputFormat},
     opportunity::{
         DestinationOpportunity, OpportunityFormat, OpportunityOrientation, OpportunityRecord,
     },
 };
+use crate::model::{bambam_field, TimeBin};
 use geo::{orient, Geometry};
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
@@ -38,8 +35,9 @@ pub fn new_aggregated<'a>(
     input: &'a Value,
     activity_types: &'a [String],
 ) -> Result<OpportunityIterator<'a>, OutputPluginError> {
-    let isochrone_format = field::get::isochrone_format(input)?;
-    let bin_iter = field::time_bins_iter(input).map_err(OutputPluginError::OutputPluginFailed)?;
+    let isochrone_format = bambam_field::get::isochrone_format(input)?;
+    let bin_iter =
+        bambam_field::time_bins_iter(input).map_err(OutputPluginError::OutputPluginFailed)?;
 
     let source: Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>> =
         Box::new(bin_iter.flat_map(move |bin_result| match bin_result {
@@ -58,7 +56,7 @@ fn deserialize_geometry(
     bin_value: &Value,
     isochrone_format: &IsochroneOutputFormat,
 ) -> Result<Geometry<f32>, OutputPluginError> {
-    let geometry_json = bin_value.get(field::ISOCHRONE).ok_or_else(|| {
+    let geometry_json = bin_value.get(bambam_field::ISOCHRONE).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(String::from("missing isochrone for time bin"))
     })?;
     let geometry = isochrone_format.deserialize_geometry(geometry_json)?;
@@ -70,7 +68,7 @@ fn disaggregated_row_iterator<'a>(
     activity_types: &'a [String],
     si: &'a SearchInstance,
 ) -> Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>> + 'a> {
-    let opportunities_result = value.get(field::OPPORTUNITIES).ok_or_else(|| {
+    let opportunities_result = value.get(bambam_field::OPPORTUNITIES).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(String::from("missing opportunities for row"))
     });
     let opportunities_json = match opportunities_result {
@@ -89,41 +87,54 @@ fn disaggregated_row_iterator<'a>(
 
     let result = opportunities_obj.iter().flat_map(|(k, v)| {
         // each opportunity could have come from a different opportunity source, so we get the orientation here.
-        let opportunity_orientation = match field::get::opportunity_orientation(v) {
+        let opportunity_orientation = match bambam_field::get::opportunity_orientation(v) {
             Ok(o) => o,
-            Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
-        };
-        // the identifier is a serialized EdgeId or VertexId
-        let id_result: Result<usize, _> = k.parse().map_err(|e| OutputPluginError::InternalError(format!("disaggregate opportunity should be stored alongside numeric graph element identifier, an integer, but found {k}")));
-        let id = match id_result {
-            Ok(i) => i,
-            Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
-        };
-
-        // the associated geometry is a Vertex coordinate or an Edge LineString, which we can grab from the map or graph
-        let geometry_result = geometry_from_map(id, &opportunity_orientation, si.graph.clone(), si.map_model.clone());
-        let geometry = match geometry_result {
-            Ok(g) => g,
-            Err(e) => return Box::new(std::iter::once(Err(e))) as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>,
-        };
-
-        // pull the values (counts, state) from the JSON
-        let row_result: Result<DestinationOpportunity, _> = serde_json::from_value(v.clone()).map_err(|e| OutputPluginError::OutputPluginFailed(format!("disaggregate opportunity '{id}' has unexpected shape: {e}")));
-        let row = match row_result {
-            Ok(r) => r,
             Err(e) => {
                 return Box::new(std::iter::once(Err(e)))
+                    as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>
             }
         };
 
+        // the associated geometry is a Vertex coordinate or an Edge LineString, which we can grab from the map or graph
+        let geometry_result = geometry_from_map(
+            k,
+            &opportunity_orientation,
+            si.graph.clone(),
+            si.map_model.clone(),
+        );
+        let geometry = match geometry_result {
+            Ok(g) => g,
+            Err(e) => {
+                return Box::new(std::iter::once(Err(e)))
+                    as Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>>>
+            }
+        };
+
+        // pull the values (counts, state) from the JSON
+        let row_result: Result<DestinationOpportunity, _> = serde_json::from_value(v.clone())
+            .map_err(|e| {
+                OutputPluginError::OutputPluginFailed(format!(
+                    "disaggregate opportunity '{k}' has unexpected shape: {e}"
+                ))
+            });
+        let row = match row_result {
+            Ok(r) => r,
+            Err(e) => return Box::new(std::iter::once(Err(e))),
+        };
+
         // deserialize the opportunity counts stored on this row
-        let inner_result = activity_types.iter().zip(row.counts).map(move |(act, count)| Ok(OpportunityRecord::Disaggregate {
-                id: k.clone(),
-                opportunity_orientation,
-                activity_type: act.clone(),
-                geometry: geometry.clone(),
-                state: row.state.clone(),
-            }));
+        let inner_result = activity_types
+            .iter()
+            .zip(row.counts)
+            .map(move |(act, count)| {
+                Ok(OpportunityRecord::Disaggregate {
+                    id: k.clone(),
+                    opportunity_orientation,
+                    activity_type: act.clone(),
+                    geometry: geometry.clone(),
+                    state: row.state.clone(),
+                })
+            });
         Box::new(inner_result)
     });
     Box::new(result)
@@ -135,7 +146,7 @@ fn aggregated_row_iterator<'a>(
     activity_types: &'a [String],
     isochrone_format: &IsochroneOutputFormat,
 ) -> Box<dyn Iterator<Item = Result<OpportunityRecord, OutputPluginError>> + 'a> {
-    let geometry_json_result = value.get(field::ISOCHRONE).ok_or_else(|| {
+    let geometry_json_result = value.get(bambam_field::ISOCHRONE).ok_or_else(|| {
         OutputPluginError::OutputPluginFailed(format!(
             "missing isochrone for time bin {}",
             time_bin.max_time
@@ -153,7 +164,7 @@ fn aggregated_row_iterator<'a>(
         Err(e) => return Box::new(std::iter::once(Err(e))),
     };
 
-    let opportunities_result = value.get(field::OPPORTUNITIES).ok_or_else(|| {
+    let opportunities_result = value.get(bambam_field::OPPORTUNITIES).ok_or_else(|| {
         let keys = match value.as_object() {
             Some(o) => o.keys().map(|k| k.to_string()).join(", "),
             None => String::from("internal error! response is not a JSON Object"),
@@ -202,7 +213,7 @@ fn deserialize_row<'a>(
 }
 
 fn geometry_from_map(
-    id: usize,
+    id: &str,
     orientation: &OpportunityOrientation,
     graph: Arc<Graph>,
     map_model: Arc<MapModel>,
@@ -210,7 +221,8 @@ fn geometry_from_map(
     use OpportunityOrientation as O;
     match orientation {
         O::OriginVertexOriented | O::DestinationVertexOriented => {
-            let vertex = graph.get_vertex(&VertexId(id)).map_err(|e| {
+            let vertex_id = bambam_field::get::disaggregate_vertex_id(id)?;
+            let vertex = graph.get_vertex(&vertex_id).map_err(|e| {
                 OutputPluginError::OutputPluginFailed(format!(
                     "vertex-oriented disaggregate opportunity has unknown vertex_id '{id}'"
                 ))
@@ -221,11 +233,14 @@ fn geometry_from_map(
             )))
         }
         O::EdgeOriented => {
-            let linestring = map_model.get(&EdgeId(id)).map_err(|e| {
-                OutputPluginError::OutputPluginFailed(format!(
-                    "edge-oriented disaggregate opportunity has unknown edge_id '{id}'"
-                ))
-            })?;
+            let (edge_list_id, edge_id) = bambam_field::get::disaggregate_edge_id(id)?;
+            let linestring = map_model
+                .get_linestring(&edge_list_id, &edge_id)
+                .map_err(|e| {
+                    OutputPluginError::OutputPluginFailed(format!(
+                        "edge-oriented disaggregate opportunity has unknown edge_id '{id}'"
+                    ))
+                })?;
             Ok(geo::Geometry::LineString(linestring.clone()))
         }
     }

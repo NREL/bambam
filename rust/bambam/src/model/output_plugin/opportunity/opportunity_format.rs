@@ -1,5 +1,4 @@
-use crate::model::output_plugin::bambam_field as field;
-use crate::model::output_plugin::bambam_field::{OPP_FMT_AGGREGATE, OPP_FMT_DISAGGREGATE};
+use crate::model::bambam_field;
 use crate::model::output_plugin::opportunity::{
     DestinationOpportunity, OpportunityRecord, OpportunityRowId,
 };
@@ -23,8 +22,8 @@ pub enum OpportunityFormat {
 impl std::fmt::Display for OpportunityFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let key = match self {
-            OpportunityFormat::Aggregate => OPP_FMT_AGGREGATE,
-            OpportunityFormat::Disaggregate => OPP_FMT_DISAGGREGATE,
+            OpportunityFormat::Aggregate => bambam_field::OPP_FMT_AGGREGATE,
+            OpportunityFormat::Disaggregate => bambam_field::OPP_FMT_DISAGGREGATE,
         };
         write!(f, "{key}")
     }

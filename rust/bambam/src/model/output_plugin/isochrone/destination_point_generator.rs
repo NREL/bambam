@@ -4,7 +4,7 @@ use routee_compass::{
     plugin::{output::OutputPluginError, PluginError},
 };
 use routee_compass_core::{
-    algorithm::search::SearchTreeBranch,
+    algorithm::search::SearchTreeNode,
     model::{
         label::Label,
         map::MapModel,
@@ -96,19 +96,22 @@ impl TryFrom<&DestinationPointGeneratorConfig> for DestinationPointGenerator {
 impl DestinationPointGenerator {
     pub fn generate_destination_points(
         &self,
-        destinations: &[(Label, &SearchTreeBranch)],
+        destinations: &[(Label, &SearchTreeNode)],
         map_model: Arc<MapModel>,
     ) -> Result<MultiPoint<f32>, OutputPluginError> {
         let mut result: Vec<Point<f32>> = Vec::new();
         for (_label, branch) in destinations.iter() {
-            let edge_id = branch.edge_traversal.edge_id;
-            let linestring = map_model.get(&edge_id).map_err(|e| {
-                OutputPluginError::OutputPluginFailed(format!(
-                    "failure generating destination points: {e}"
-                ))
-            })?;
-            let points = self.linestring_to_points(edge_id, linestring)?;
-            result.extend(points);
+            if let Some(e) = branch.incoming_edge() {
+                let linestring = map_model
+                    .get_linestring(&e.edge_list_id, &e.edge_id)
+                    .map_err(|e| {
+                        OutputPluginError::OutputPluginFailed(format!(
+                            "failure generating destination points: {e}"
+                        ))
+                    })?;
+                let points = self.linestring_to_points(e.edge_id, linestring)?;
+                result.extend(points);
+            }
         }
 
         let mp = MultiPoint::new(result);

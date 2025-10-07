@@ -1,21 +1,26 @@
-use super::{bambam_field, isochrone::time_bin::TimeBin};
+use crate::model::bambam_state;
+
+use super::{bambam_field, TimeBin};
 use geo::{line_measures::LengthMeasurable, Haversine, InterpolatableLine, LineString, Point};
 use routee_compass::{app::search::SearchAppResult, plugin::PluginError};
 use routee_compass_core::{
-    algorithm::search::SearchTreeBranch,
+    algorithm::search::SearchTreeNode,
     model::{
         label::Label,
         network::VertexId,
-        state::{StateModel, StateModelError},
+        state::{StateModel, StateModelError, StateVariable},
         unit::{AsF64, DistanceUnit},
     },
 };
 use std::{borrow::Cow, collections::HashMap};
-use uom::si::f64::Length;
+use uom::{
+    si::f64::{Length, Time},
+    ConstZero,
+};
 use wkt::ToWkt;
 
 pub type DestinationsIter<'a> =
-    Box<dyn Iterator<Item = Result<(Label, &'a SearchTreeBranch), StateModelError>> + 'a>;
+    Box<dyn Iterator<Item = Result<(Label, &'a SearchTreeNode), StateModelError>> + 'a>;
 
 /// collects search tree branches that can be reached _as destinations_
 /// within the given time bin.
@@ -27,18 +32,23 @@ pub fn collect_destinations<'a>(
     match search_result.trees.first() {
         None => Box::new(std::iter::empty()),
         Some(tree) => {
-            let tree_destinations = tree.iter().filter_map(move |(label, branch)| {
-                let result_state = &branch.edge_traversal.result_state;
-                let within_bin = match &time_bin {
-                    Some(bin) => bin.state_time_within_bin(result_state, state_model),
-                    None => Ok(true),
-                };
-                match within_bin {
-                    Ok(true) => Some(Ok((label.clone(), branch))),
-                    Ok(false) => None,
-                    Err(e) => Some(Err(e)),
-                }
-            });
+            let tree_destinations =
+                tree.iter()
+                    .filter_map(move |(label, branch)| match branch.incoming_edge() {
+                        None => None,
+                        Some(et) => {
+                            let result_state = &et.result_state;
+                            let within_bin = match &time_bin {
+                                Some(bin) => bin.state_time_within_bin(result_state, state_model),
+                                None => Ok(true),
+                            };
+                            match within_bin {
+                                Ok(true) => Some(Ok((label.clone(), branch))),
+                                Ok(false) => None,
+                                Err(e) => Some(Err(e)),
+                            }
+                        }
+                    });
 
             Box::new(tree_destinations)
         }
@@ -108,6 +118,22 @@ pub fn accumulate_global_opps(
         }
     }
     Ok(result)
+}
+
+/// helper that combines the arrival delay with the traversal time to produce
+/// the time to reach this point and call it a destination.
+pub fn get_reachability_time(
+    state: &[StateVariable],
+    state_model: &StateModel,
+) -> Result<Time, StateModelError> {
+    let trip_time = state_model.get_time(state, bambam_state::TRIP_TIME)?;
+    let has_delay = state_model.contains_key(&bambam_state::TRIP_ARRIVAL_DELAY.to_string());
+    let arrival_delay = if has_delay {
+        state_model.get_time(state, bambam_state::TRIP_ARRIVAL_DELAY)?
+    } else {
+        Time::ZERO
+    };
+    Ok(trip_time + arrival_delay)
 }
 
 /// steps through each bin's output section for mutable updates

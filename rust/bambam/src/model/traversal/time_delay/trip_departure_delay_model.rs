@@ -1,10 +1,13 @@
-use crate::model::fieldname;
+use crate::model::bambam_state;
 
 use super::TimeDelayLookup;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+    },
 };
 use std::sync::Arc;
 use uom::{
@@ -45,7 +48,7 @@ impl TraversalModel for TripDepartureDelayModel {
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![
             (
-                fieldname::TRIP_TIME.to_string(),
+                bambam_state::TRIP_TIME.to_string(),
                 StateVariableConfig::Time {
                     initial: Time::ZERO,
                     output_unit: Some(self.0.config.time_unit),
@@ -53,7 +56,7 @@ impl TraversalModel for TripDepartureDelayModel {
                 },
             ),
             (
-                fieldname::TRIP_ENROUTE_DELAY.to_string(),
+                bambam_state::TRIP_ENROUTE_DELAY.to_string(),
                 StateVariableConfig::Time {
                     initial: Time::ZERO,
                     output_unit: Some(self.0.config.time_unit),
@@ -67,6 +70,7 @@ impl TraversalModel for TripDepartureDelayModel {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (origin, _, _) = trajectory;
@@ -77,6 +81,7 @@ impl TraversalModel for TripDepartureDelayModel {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (origin, _) = od;
@@ -91,13 +96,13 @@ fn add_delay_time(
     state_model: &StateModel,
     lookup: Arc<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
-    let distance = state_model.get_distance(state, fieldname::TRIP_DISTANCE)?;
+    let distance = state_model.get_distance(state, bambam_state::TRIP_DISTANCE)?;
     if distance == Length::ZERO {
         return Ok(());
     }
     if let Some(delay) = lookup.get_delay_for_vertex(origin) {
-        state_model.set_time(state, fieldname::TRIP_ENROUTE_DELAY, &delay)?;
-        state_model.add_time(state, fieldname::TRIP_TIME, &delay)?;
+        state_model.set_time(state, bambam_state::TRIP_ENROUTE_DELAY, &delay)?;
+        state_model.add_time(state, bambam_state::TRIP_TIME, &delay)?;
     }
     Ok(())
 }

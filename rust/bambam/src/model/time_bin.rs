@@ -1,4 +1,4 @@
-use crate::model::bambam_state_ops;
+use super::bambam_ops;
 use routee_compass_core::model::{
     state::{StateModel, StateModelError, StateVariable},
     unit::{AsF64, TimeUnit},
@@ -42,7 +42,7 @@ impl TimeBin {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<bool, StateModelError> {
-        let time = bambam_state_ops::get_reachability_time(state, state_model)?;
+        let time = bambam_ops::get_reachability_time(state, state_model)?;
         let minutes = time.get::<uom::si::time::minute>() as u64;
         let within_bin = self.min_time <= minutes && minutes < self.max_time;
         Ok(within_bin)

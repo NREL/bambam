@@ -1,15 +1,15 @@
 use super::{
     opportunity_orientation::OpportunityOrientation, opportunity_spatial_row::OpportunitySpatialRow,
 };
-use crate::model::output_plugin::{
-    mep_output_ops::DestinationsIter,
-    opportunity::{opportunity_row_id::OpportunityRowId, DestinationOpportunity},
+use crate::model::bambam_ops::DestinationsIter;
+use crate::model::output_plugin::opportunity::{
+    opportunity_row_id::OpportunityRowId, DestinationOpportunity,
 };
 use geo::Convert;
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
-    algorithm::search::{SearchInstance, SearchTreeBranch},
+    algorithm::search::{SearchInstance, SearchTreeNode},
     model::{label::Label, network::VertexId},
 };
 use rstar::{RTree, RTreeObject};
@@ -120,14 +120,16 @@ impl OpportunityModel {
                 Ok((src, branch)) => {
                     let row = self.collect_destination_opportunities(&src, branch, si)?;
                     for (id, opps) in row.into_iter() {
-                        let state = branch.edge_traversal.result_state.clone();
-                        let row = DestinationOpportunity {
-                            counts: opps,
-                            state,
-                        };
-                        // "overwrite" behavior on duplicate opportunity keys here by
-                        // implicitly suppressing the Some(_) case.
-                        let _ = found.insert(id, row);
+                        if let Some(et) = branch.incoming_edge() {
+                            let state = et.result_state.clone();
+                            let row = DestinationOpportunity {
+                                counts: opps,
+                                state,
+                            };
+                            // "overwrite" behavior on duplicate opportunity keys here by
+                            // implicitly suppressing the Some(_) case.
+                            let _ = found.insert(id, row);
+                        }
                     }
                 }
             }
@@ -149,7 +151,7 @@ impl OpportunityModel {
     fn collect_destination_opportunities(
         &self,
         origin_label: &Label,
-        search_tree_branch: &SearchTreeBranch,
+        search_tree_branch: &SearchTreeNode,
         si: &SearchInstance,
     ) -> Result<Vec<(OpportunityRowId, Vec<f64>)>, OutputPluginError> {
         match self {
@@ -162,8 +164,19 @@ impl OpportunityModel {
                     origin_label,
                     search_tree_branch,
                     opportunity_orientation,
-                );
-                let index = opp_row.as_usize();
+                )?;
+
+                // at this time, only vertex-oriented opportunities are supported (refactor needed due to EdgeLists)
+                let index = match &opp_row {
+                    OpportunityRowId::OriginVertex(label) => label.vertex_id().0,
+                    OpportunityRowId::DestinationVertex(label) => label.vertex_id().0,
+                    OpportunityRowId::Edge(edge_list_id, edge_id) => {
+                        return Err(OutputPluginError::InternalError(
+                            "edge-oriented opportunities not yet implemented".to_string(),
+                        ))
+                    }
+                };
+
                 let result = activity_counts
                     .get(index)
                     .map(|opps| (opp_row, opps.clone()))
@@ -185,7 +198,7 @@ impl OpportunityModel {
                     origin_label,
                     search_tree_branch,
                     opportunity_orientation,
-                );
+                )?;
 
                 // search for the intersecting polygonal opportunity or nearest point opportunity
                 let spatial_row = if *polygonal {

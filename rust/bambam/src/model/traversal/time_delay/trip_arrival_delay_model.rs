@@ -1,9 +1,12 @@
 use super::TimeDelayLookup;
-use crate::model::fieldname;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+use crate::model::bambam_state;
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+    },
 };
 use std::sync::Arc;
 use uom::{si::f64::Time, ConstZero};
@@ -40,7 +43,7 @@ impl TraversalModel for TripArrivalDelayModel {
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
-            fieldname::TRIP_ARRIVAL_DELAY.to_string(),
+            bambam_state::TRIP_ARRIVAL_DELAY.to_string(),
             StateVariableConfig::Time {
                 initial: Time::ZERO,
                 output_unit: Some(self.0.config.time_unit),
@@ -53,6 +56,7 @@ impl TraversalModel for TripArrivalDelayModel {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, _, destination) = trajectory;
@@ -63,6 +67,7 @@ impl TraversalModel for TripArrivalDelayModel {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (_, destination) = od;
@@ -78,7 +83,7 @@ fn add_delay_time(
     lookup: Arc<TimeDelayLookup>,
 ) -> Result<(), TraversalModelError> {
     if let Some(delay) = lookup.get_delay_for_vertex(destination) {
-        state_model.set_time(state, fieldname::TRIP_ARRIVAL_DELAY, &delay)?;
+        state_model.set_time(state, bambam_state::TRIP_ARRIVAL_DELAY, &delay)?;
     }
     Ok(())
 }

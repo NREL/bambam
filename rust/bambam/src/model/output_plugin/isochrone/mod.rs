@@ -6,7 +6,6 @@ pub mod isochrone_output_format;
 pub mod isochrone_output_plugin;
 pub mod isochrone_output_plugin_builder;
 mod isochrone_output_plugin_config;
-pub mod time_bin;
 pub mod time_bin_type;
 
 pub use destination_point_generator_config::DestinationPointGeneratorConfig;

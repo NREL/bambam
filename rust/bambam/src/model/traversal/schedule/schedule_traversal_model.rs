@@ -1,10 +1,13 @@
-use super::{super::super::bambam_state_ops, schedule_traversal_engine::ScheduleTraversalEngine};
-use crate::model::fieldname;
+use super::schedule_traversal_engine::ScheduleTraversalEngine;
+use crate::model::bambam_state;
 use chrono::{DateTime, Utc};
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    state::{CustomVariableConfig, InputFeature, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError},
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{CustomVariableConfig, InputFeature, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError},
+    },
 };
 use std::sync::Arc;
 
@@ -29,7 +32,7 @@ impl TraversalModel for ScheduleTraversalModel {
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
         vec![(
-            String::from(fieldname::ROUTE_ID),
+            String::from("route_id"),
             StateVariableConfig::Custom {
                 custom_type: String::from("RouteId"),
                 value: CustomVariableConfig::SignedInteger {
@@ -44,6 +47,7 @@ impl TraversalModel for ScheduleTraversalModel {
         &self,
         _trajectory: (&Vertex, &Edge, &Vertex),
         _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         _state_model: &routee_compass_core::model::state::StateModel,
     ) -> Result<(), TraversalModelError> {
         todo!()
@@ -53,6 +57,7 @@ impl TraversalModel for ScheduleTraversalModel {
         &self,
         _od: (&Vertex, &Vertex),
         _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
         _state_model: &routee_compass_core::model::state::StateModel,
     ) -> Result<(), TraversalModelError> {
         todo!()

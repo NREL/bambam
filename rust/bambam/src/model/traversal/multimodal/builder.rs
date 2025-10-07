@@ -1,26 +1,26 @@
+use std::sync::Arc;
+
 use routee_compass_core::model::traversal::{
     TraversalModelBuilder, TraversalModelError, TraversalModelService,
 };
-use std::sync::Arc;
+use serde_json::Value;
 
-use crate::model::traversal::multimodal::{
-    multimodal_traversal_service::MultimodalTraversalService, MultimodalTraversalConfig,
-};
+use crate::model::traversal::multimodal::{MultimodalTraversalConfig, MultimodalTraversalService};
 
 pub struct MultimodalTraversalBuilder {}
 
 impl TraversalModelBuilder for MultimodalTraversalBuilder {
     fn build(
         &self,
-        parameters: &serde_json::Value,
+        parameters: &Value,
     ) -> Result<Arc<dyn TraversalModelService>, TraversalModelError> {
         let config: MultimodalTraversalConfig = serde_json::from_value(parameters.clone())
             .map_err(|e| {
                 TraversalModelError::BuildError(format!(
-                    "failed to read multimodal traversal configuration object, line {}, col {}: {e}", e.line(), e.column()
+                    "failure while reading multimodal traversal configuration: {e}"
                 ))
             })?;
-        let service = MultimodalTraversalService::new(Arc::new(config));
-        Ok(Arc::new(service))
+        let model = Arc::new(MultimodalTraversalService::new(config)?);
+        Ok(model)
     }
 }
