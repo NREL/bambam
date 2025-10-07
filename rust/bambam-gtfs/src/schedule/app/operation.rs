@@ -8,14 +8,14 @@ use gtfs_structures::Gtfs;
 use itertools::Itertools;
 use kdam::{tqdm, Bar};
 use rayon::prelude::*;
-use routee_compass_core::model::map::{DistanceTolerance, SpatialIndex};
+use routee_compass_core::model::map::SpatialIndex;
 use routee_compass_core::model::network::Vertex;
-use routee_compass_core::model::unit::DistanceUnit;
 use routee_compass_core::util::fs::read_utils;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{collections::HashSet, fs::File, io::Write, path::Path, time::Duration};
+use uom::si::f64::Length;
 use wkt::ToWkt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Subcommand)]
@@ -120,13 +120,10 @@ fn load_vertices_and_create_spatial_index(
         None,
     )
     .map_err(|e| ScheduleError::FailedToCreateVertexIndexError(format!("{e}")))?;
-
+    let tol: Length = uom::si::f64::Length::new::<uom::si::length::meter>(tolerance_meters);
     Ok(Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
-        Some(DistanceTolerance {
-            distance: tolerance_meters,
-            unit: DistanceUnit::Meters,
-        }),
+        Some(tol),
     )))
 }
 
