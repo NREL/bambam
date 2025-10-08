@@ -90,11 +90,11 @@ impl GtfsOperation {
     pub fn run(&self) {
         match self {
             GtfsOperation::Summary { manifest_file, data_type, country_code } => {
-                let rows = manifest_into_rows(manifest_file, Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type)).expect("failed reading manifest");
                 summarize(&rows)
             }
             GtfsOperation::Shapes { manifest_file, country_code, data_type } => {
-                let rows = manifest_into_rows(manifest_file, Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type)).expect("failed reading manifest");
                 shapes(&rows)
             },
             GtfsOperation::Download {
@@ -103,7 +103,7 @@ impl GtfsOperation {
                 data_type,
                 country_code
             } => {
-                let rows = manifest_into_rows(manifest_file,Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                let rows = manifest_into_rows(manifest_file,Some(country_code), Some(data_type)).expect("failed reading manifest");
                 download(&rows, *parallelism)
             },
             GtfsOperation::PreprocessBundle {
