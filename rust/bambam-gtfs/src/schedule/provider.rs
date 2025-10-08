@@ -27,8 +27,8 @@ impl GtfsProvider {
         ]
         .iter()
         .flatten()
-        .join("_");
-        format!("{name}.zip")
+        .join("-");
+        format!("{name}.zip").replace(" ", "_")
     }
 }
 
