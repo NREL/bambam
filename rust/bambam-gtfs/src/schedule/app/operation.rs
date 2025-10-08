@@ -4,8 +4,8 @@
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
-use chrono::NaiveDate;
-use clap::{value_parser, Subcommand};
+use chrono::{NaiveDate, ParseError};
+use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
 use itertools::Itertools;
@@ -78,10 +78,10 @@ pub enum GtfsOperation {
         #[arg(long)]
         vertices_compass_filename: String,
 
-        #[arg(long, value_parser = value_parser!(NaiveDate))]
+        #[arg(long, value_parser = parse_datetime)]
         start_date: NaiveDate,
 
-        #[arg(long, value_parser = value_parser!(NaiveDate))]
+        #[arg(long, value_parser = parse_datetime)]
         end_date: NaiveDate,
 
         #[arg(long, default_value_t = 325.)]
@@ -96,6 +96,10 @@ pub enum GtfsOperation {
         #[arg(long, default_value_t = true)]
         overwrite: bool,
     },
+}
+
+fn parse_datetime(s: &str) -> Result<NaiveDate, ParseError> {
+    s.parse::<NaiveDate>()
 }
 
 impl GtfsOperation {
