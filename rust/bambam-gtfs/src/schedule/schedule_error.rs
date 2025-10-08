@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use routee_compass_core::model::map::MapError;
 
 #[derive(thiserror::Error, Debug)]
@@ -22,4 +23,11 @@ pub enum ScheduleError {
     InvalidResultKeysError,
     #[error("{0}")]
     OtherError(String),
+    #[error("errors encountered during batch bundle processing: {0}")]
+    BatchProcessingError(String),
+}
+
+pub fn batch_processing_error(errors: &[ScheduleError]) -> ScheduleError {
+    let concatenated = errors.iter().map(|e| e.to_string()).join("\n  ");
+    ScheduleError::BatchProcessingError(format!("[\n  {concatenated}\n]"))
 }

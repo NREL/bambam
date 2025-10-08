@@ -3,7 +3,7 @@
 //! information on the mobility database catalog listing.
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
-use crate::schedule::{process_bundle, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
+use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
 use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
@@ -61,26 +61,38 @@ pub enum GtfsOperation {
     },
     /// Process bundle into EdgeLists
     PreprocessBundle {
+        /// a single GTFS archive or a directory of GTFS archives
+        #[arg(long)]
+        input: String,
+        /// in this case of a single input file, this sets the edge list id for that input.
+        /// for a directory input, sets the starting edge list id.
+        #[arg(long)]
+        starting_edge_list_id: usize,
+
         #[arg(long, default_value_t = 1)]
         parallelism: usize,
-        #[arg(long)]
-        edge_list_id: usize,
-        #[arg(long)]
-        bundle_file: String,
+
         #[arg(long)]
         output_directory: String,
+
         #[arg(long)]
         vertices_compass_filename: String,
+
         #[arg(long)]
         start_date: NaiveDate,
+
         #[arg(long)]
         end_date: NaiveDate,
+
         #[arg(long, default_value_t = 325.)]
         vertex_match_tolerance: f64,
+
         #[arg(value_enum, default_value_t=MissingStopLocationPolicy::Fail)]
         missing_stop_location_policy: MissingStopLocationPolicy,
+
         #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
+
         #[arg(long, default_value_t = true)]
         overwrite: bool,
     },
@@ -89,26 +101,37 @@ pub enum GtfsOperation {
 impl GtfsOperation {
     pub fn run(&self) {
         match self {
-            GtfsOperation::Summary { manifest_file, data_type, country_code } => {
-                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type)).expect("failed reading manifest");
+            GtfsOperation::Summary {
+                manifest_file,
+                data_type,
+                country_code,
+            } => {
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
                 summarize(&rows)
             }
-            GtfsOperation::Shapes { manifest_file, country_code, data_type } => {
-                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type)).expect("failed reading manifest");
+            GtfsOperation::Shapes {
+                manifest_file,
+                country_code,
+                data_type,
+            } => {
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
                 shapes(&rows)
-            },
+            }
             GtfsOperation::Download {
                 manifest_file,
                 parallelism,
                 data_type,
-                country_code
+                country_code,
             } => {
-                let rows = manifest_into_rows(manifest_file,Some(country_code), Some(data_type)).expect("failed reading manifest");
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
                 download(&rows, *parallelism)
-            },
+            }
             GtfsOperation::PreprocessBundle {
-                bundle_file,
-                edge_list_id,
+                input,
+                starting_edge_list_id,
                 vertices_compass_filename,
                 start_date,
                 end_date,
@@ -117,22 +140,46 @@ impl GtfsOperation {
                 distance_calculation_policy,
                 output_directory,
                 overwrite,
-                .. // Not using parallelism, yet
+                parallelism,
             } => {
-                let spatial_index =
-                    load_vertices_and_create_spatial_index(vertices_compass_filename, *vertex_match_tolerance).unwrap();
-                process_bundle(
-                    bundle_file,
-                    edge_list_id,
-                    start_date,
-                    end_date,
-                    spatial_index,
-                    missing_stop_location_policy,
-                    distance_calculation_policy,
-                    Path::new(output_directory),
-                    *overwrite,
+                let spatial_index = load_vertices_and_create_spatial_index(
+                    vertices_compass_filename,
+                    *vertex_match_tolerance,
                 )
-                .unwrap()
+                .expect("failed reading vertices and building spatial index");
+                let input_path = Path::new(input);
+                if input_path.is_dir() {
+                    bundle_ops::process_bundles(
+                        input_path,
+                        starting_edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index,
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        Path::new(output_directory),
+                        *overwrite,
+                        *parallelism,
+                    )
+                    .expect(&format!(
+                        "failed running GTFS processing operation for directory {input}"
+                    ))
+                } else {
+                    bundle_ops::process_bundle(
+                        input,
+                        starting_edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index,
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        Path::new(output_directory),
+                        *overwrite,
+                    )
+                    .expect(&format!(
+                        "failed running GTFS processing operation for input {input}"
+                    ))
+                }
             }
         }
     }

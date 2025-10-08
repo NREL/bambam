@@ -3,6 +3,8 @@ use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::Point;
 use gtfs_structures::{Calendar, Gtfs, Stop, StopTime, Trip};
+use itertools::Itertools;
+use rayon::prelude::*;
 use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
     network::{Edge, EdgeConfig},
@@ -17,6 +19,7 @@ use std::{
 use uom::si::f64::Length;
 
 use crate::schedule::{
+    batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     schedule_error::ScheduleError,
     MissingStopLocationPolicy,
@@ -30,6 +33,72 @@ struct ScheduleConfig {
     route_id: String,
 }
 
+pub fn process_bundles(
+    bundle_directory_path: &Path,
+    start_edge_list_id: &usize,
+    start_date: &NaiveDate,
+    end_date: &NaiveDate,
+    spatial_index: Arc<SpatialIndex>,
+    missing_stop_location_policy: &MissingStopLocationPolicy,
+    distance_calculation_policy: &DistanceCalculationPolicy,
+    output_directory: &Path,
+    overwrite: bool,
+    parallelism: usize,
+) -> Result<(), ScheduleError> {
+    let archive_paths = bundle_directory_path
+        .read_dir()
+        .map_err(|e| ScheduleError::OtherError(format!("failure reading directory: {e}")))?
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| ScheduleError::OtherError(format!("failure reading directory: {e}")))?;
+    let chunk_size = archive_paths.len() / parallelism;
+    let errors: Vec<ScheduleError> = archive_paths
+        .iter()
+        .enumerate()
+        .collect_vec()
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            chunk
+                .into_iter()
+                .map(|(edge_list_offset, dir_entry)| {
+                    let path = dir_entry.path();
+                    let bundle_file = path.to_str().ok_or_else(|| {
+                        ScheduleError::OtherError(format!(
+                            "unable to convert directory entry into string: {dir_entry:?}"
+                        ))
+                    })?;
+                    let edge_list_id = *start_edge_list_id + edge_list_offset;
+                    process_bundle(
+                        bundle_file,
+                        &edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index.clone(),
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        output_directory,
+                        overwrite,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .collect_vec_list()
+        .into_iter()
+        .flat_map(|chunk| {
+            chunk.into_iter().flat_map(|r| match r {
+                Ok(_) => None,
+                Err(e) => Some(e),
+            })
+        })
+        .collect_vec();
+
+    if errors.len() > 0 {
+        Err(batch_processing_error(&errors))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn process_bundle(
     bundle_file: &str,
     edge_list_id: &usize,
@@ -41,6 +110,8 @@ pub fn process_bundle(
     output_directory: &Path,
     overwrite: bool,
 ) -> Result<(), ScheduleError> {
+    // TODO: GtfsProvider to JSON file output
+
     let gtfs = Gtfs::new(bundle_file).map_err(ScheduleError::from)?;
     let gtfs_arc = Arc::new(gtfs);
 
@@ -52,7 +123,7 @@ pub fn process_bundle(
     for (trip_id, trip) in gtfs_arc.clone().trips.iter() {
         let trip_calendar = get_trip_calendar(trip, gtfs_arc.clone())?;
         let trip_intersects =
-            (trip_calendar.start_date < *end_date) && (*start_date < trip_calendar.end_date);
+            (trip_calendar.start_date <= *end_date) && (*start_date <= trip_calendar.end_date);
 
         if trip_intersects {
             trip_stop_times.insert(trip_id.clone(), get_ordered_stops(trip));
