@@ -5,7 +5,7 @@ use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
 use chrono::NaiveDate;
-use clap::Subcommand;
+use clap::{value_parser, Subcommand};
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
 use itertools::Itertools;
@@ -78,10 +78,10 @@ pub enum GtfsOperation {
         #[arg(long)]
         vertices_compass_filename: String,
 
-        #[arg(long)]
+        #[arg(long, value_parser = value_parser!(NaiveDate))]
         start_date: NaiveDate,
 
-        #[arg(long)]
+        #[arg(long, value_parser = value_parser!(NaiveDate))]
         end_date: NaiveDate,
 
         #[arg(long, default_value_t = 325.)]
@@ -161,7 +161,9 @@ impl GtfsOperation {
                         *overwrite,
                         *parallelism,
                     )
-                    .unwrap_or_else(|_| panic!("failed running GTFS processing operation for directory {input}"))
+                    .unwrap_or_else(|_| {
+                        panic!("failed running GTFS processing operation for directory {input}")
+                    })
                 } else {
                     bundle_ops::process_bundle(
                         input,
@@ -174,7 +176,9 @@ impl GtfsOperation {
                         Path::new(output_directory),
                         *overwrite,
                     )
-                    .unwrap_or_else(|_| panic!("failed running GTFS processing operation for input {input}"))
+                    .unwrap_or_else(|_| {
+                        panic!("failed running GTFS processing operation for input {input}")
+                    })
                 }
             }
         }
