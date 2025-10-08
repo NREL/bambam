@@ -9,7 +9,7 @@ use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
 use itertools::Itertools;
-use kdam::{tqdm, Bar};
+use kdam::Bar;
 use rayon::prelude::*;
 use routee_compass_core::model::map::SpatialIndex;
 use routee_compass_core::model::network::Vertex;
