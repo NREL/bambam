@@ -78,10 +78,10 @@ pub enum GtfsOperation {
         #[arg(long)]
         vertices_compass_filename: String,
 
-        #[arg(long, value_parser = parse_datetime)]
+        #[arg(long, value_parser = parse_naive_date)]
         start_date: NaiveDate,
 
-        #[arg(long, value_parser = parse_datetime)]
+        #[arg(long, value_parser = parse_naive_date)]
         end_date: NaiveDate,
 
         #[arg(long, default_value_t = 325.)]
@@ -98,8 +98,12 @@ pub enum GtfsOperation {
     },
 }
 
-fn parse_datetime(s: &str) -> Result<NaiveDate, ParseError> {
-    s.parse::<NaiveDate>()
+/// helper function for date deserialization in clap
+fn parse_naive_date(s: &str) -> Result<NaiveDate, String> {
+    let fmt = "%m-%d-%Y";
+    NaiveDate::parse_from_str(s, fmt).map_err(|e| {
+        format!("failed reading date value '{s}'. required format: '{fmt}'. error: {e}")
+    })
 }
 
 impl GtfsOperation {
