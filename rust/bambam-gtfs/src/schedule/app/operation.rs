@@ -1,3 +1,6 @@
+//! GTFS archive pre-processing scripts for bambam-gtfs transit modeling.
+//! see [https://github.com/MobilityData/mobility-database-catalogs] for
+//! information on the mobility database catalog listing.
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{process_bundle, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
@@ -22,18 +25,37 @@ use wkt::ToWkt;
 pub enum GtfsOperation {
     /// summarize attributes for the downloaded GTFS archives
     Summary {
+        /// file containing a list of GTFS arcives
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
     },
     /// download all WKT shapes data from the GTFS archives
     Shapes {
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
     },
     /// download all of the GTFS archives
     Download {
         #[arg(long, default_value_t = 1)]
         parallelism: usize,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
     },
@@ -67,14 +89,23 @@ pub enum GtfsOperation {
 impl GtfsOperation {
     pub fn run(&self) {
         match self {
-            GtfsOperation::Summary { manifest_file } => {
-                summarize(&manifest_into_rows(manifest_file))
+            GtfsOperation::Summary { manifest_file, data_type, country_code } => {
+                let rows = manifest_into_rows(manifest_file, Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                summarize(&rows)
             }
-            GtfsOperation::Shapes { manifest_file } => shapes(&manifest_into_rows(manifest_file)),
+            GtfsOperation::Shapes { manifest_file, country_code, data_type } => {
+                let rows = manifest_into_rows(manifest_file, Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                shapes(&rows)
+            },
             GtfsOperation::Download {
                 manifest_file,
                 parallelism,
-            } => download(&manifest_into_rows(manifest_file), *parallelism),
+                data_type,
+                country_code
+            } => {
+                let rows = manifest_into_rows(manifest_file,Some(&country_code), Some(&data_type)).expect("failed reading manifest");
+                download(&rows, *parallelism)
+            },
             GtfsOperation::PreprocessBundle {
                 bundle_file,
                 edge_list_id,
@@ -127,23 +158,47 @@ fn load_vertices_and_create_spatial_index(
     )))
 }
 
-fn manifest_into_rows(manifest_file: &str) -> Vec<GtfsProvider> {
+/// reads rows from a GTFS manifest in the format of Mobility Data Catalog
+/// see [https://github.com/MobilityData/mobility-database-catalogs].
+///
+/// # Arguments
+///
+/// * `country_code` - optional country to filter by
+/// * `data_type` - optional data type to filter by
+fn manifest_into_rows(
+    manifest_file: &str,
+    country_code: Option<&str>,
+    data_type: Option<&str>,
+) -> Result<Vec<GtfsProvider>, ScheduleError> {
     let path_buf = PathBuf::from(manifest_file);
     let reader = csv::ReaderBuilder::new()
         .from_path(path_buf.as_path())
-        .unwrap_or_else(|_| panic!("file {} not found", path_buf.to_str().unwrap_or_default()));
+        .map_err(|e| {
+            let filename = path_buf.to_str().unwrap_or_default();
+            ScheduleError::OtherError(format!("failure reading '{filename}': {e}"))
+        })?;
     let row_iter = tqdm!(
         reader.into_deserialize::<GtfsProvider>(),
         desc = format!("reading {}", manifest_file)
     );
-    let us_rows: Result<Vec<GtfsProvider>, _> = row_iter
-        .filter(|r| match r {
-            Ok(provider) => provider.country_code == *"US" && provider.data_type == "gtfs",
-            Err(_) => true,
+    let rows = row_iter
+        .map(|r| {
+            r.map_err(|e| {
+                ScheduleError::OtherError(format!("failure reading GTFS manifest row: {e}"))
+            })
         })
-        .collect::<Result<Vec<_>, _>>();
+        .collect::<Result<Vec<GtfsProvider>, ScheduleError>>()?;
+    let us_rows: Vec<GtfsProvider> = rows
+        .into_iter()
+        .filter(|r| match (country_code, data_type) {
+            (None, None) => true,
+            (None, Some(dt)) => r.data_type.as_str() == dt,
+            (Some(cc), None) => r.country_code.as_str() == cc,
+            (Some(cc), Some(dt)) => r.country_code.as_str() == cc && r.data_type.as_str() == dt,
+        })
+        .collect_vec();
 
-    us_rows.unwrap()
+    Ok(us_rows)
 }
 
 fn summarize(rows: &Vec<GtfsProvider>) {
