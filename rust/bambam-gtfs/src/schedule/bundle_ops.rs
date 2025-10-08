@@ -102,9 +102,7 @@ pub fn process_bundles(
         })
         .collect_vec_list()
         .into_iter()
-        .flat_map(|chunk| {
-            chunk.into_iter().flat_map(|r| r.err())
-        })
+        .flat_map(|chunk| chunk.into_iter().flat_map(|r| r.err()))
         .collect_vec();
 
     eprintln!(); // end progress bar
