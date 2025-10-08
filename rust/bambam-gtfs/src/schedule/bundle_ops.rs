@@ -51,7 +51,6 @@ pub fn process_bundles(
     let archive_paths = bundle_directory_path
         .read_dir()
         .map_err(|e| ScheduleError::OtherError(format!("failure reading directory: {e}")))?
-        .into_iter()
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| ScheduleError::OtherError(format!("failure reading directory: {e}")))?;
     let chunk_size = archive_paths.len() / parallelism;
@@ -75,7 +74,7 @@ pub fn process_bundles(
         .par_chunks(chunk_size)
         .map(|chunk| {
             chunk
-                .into_iter()
+                .iter()
                 .map(|(edge_list_offset, dir_entry)| {
                     if let Ok(mut bar) = bar.clone().lock() {
                         let _ = bar.update(1);
@@ -104,16 +103,13 @@ pub fn process_bundles(
         .collect_vec_list()
         .into_iter()
         .flat_map(|chunk| {
-            chunk.into_iter().flat_map(|r| match r {
-                Ok(_) => None,
-                Err(e) => Some(e),
-            })
+            chunk.into_iter().flat_map(|r| r.err())
         })
         .collect_vec();
 
     eprintln!(); // end progress bar
 
-    if errors.len() > 0 {
+    if !errors.is_empty() {
         Err(batch_processing_error(&errors))
     } else {
         Ok(())

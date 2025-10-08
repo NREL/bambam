@@ -161,9 +161,7 @@ impl GtfsOperation {
                         *overwrite,
                         *parallelism,
                     )
-                    .expect(&format!(
-                        "failed running GTFS processing operation for directory {input}"
-                    ))
+                    .unwrap_or_else(|_| panic!("failed running GTFS processing operation for directory {input}"))
                 } else {
                     bundle_ops::process_bundle(
                         input,
@@ -176,9 +174,7 @@ impl GtfsOperation {
                         Path::new(output_directory),
                         *overwrite,
                     )
-                    .expect(&format!(
-                        "failed running GTFS processing operation for input {input}"
-                    ))
+                    .unwrap_or_else(|_| panic!("failed running GTFS processing operation for input {input}"))
                 }
             }
         }
