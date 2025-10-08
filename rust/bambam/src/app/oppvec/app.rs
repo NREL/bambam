@@ -46,10 +46,7 @@ pub fn run(
     .map_err(|e| format!("{e}"))?;
     let spatial_index = Arc::new(SpatialIndex::new_vertex_oriented(
         &vertices,
-        Some(DistanceTolerance {
-            distance: 200.0,
-            unit: DistanceUnit::Meters,
-        }),
+        Some(uom::si::f64::Length::new::<uom::si::length::meter>(200.0)),
     ));
 
     // load opportunity data, build activity types lookup

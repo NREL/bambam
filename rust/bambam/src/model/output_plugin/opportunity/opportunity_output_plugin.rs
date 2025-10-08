@@ -4,7 +4,7 @@ use super::opportunity_format::OpportunityFormat;
 use super::opportunity_model::OpportunityModel;
 use super::opportunity_model_config::OpportunityModelConfig;
 use crate::model::output_plugin::opportunity::OpportunityPluginConfig;
-use crate::model::output_plugin::{bambam_field as field, mep_output_ops};
+use crate::model::{bambam_field, bambam_ops};
 use itertools::Itertools;
 use routee_compass::app::{compass::CompassAppError, search::SearchAppResult};
 use routee_compass::plugin::output::OutputPlugin;
@@ -36,10 +36,10 @@ impl OutputPlugin for OpportunityOutputPlugin {
         let (app_result, si) = match result {
             Ok((r, si)) => (r, si),
             Err(e) => {
-                field::insert_nested_with_parents(
+                bambam_field::insert_nested_with_parents(
                     output,
-                    &[field::INFO],
-                    field::OPPORTUNITY_PLUGIN_RUNTIME,
+                    &[bambam_field::INFO],
+                    bambam_field::OPPORTUNITY_PLUGIN_RUNTIME,
                     json![Duration::ZERO.hhmmss()],
                     true,
                 )
@@ -49,9 +49,9 @@ impl OutputPlugin for OpportunityOutputPlugin {
         };
 
         // write down model and global info
-        output[field::OPPORTUNITY_FORMAT] = json![self.opportunity_format.to_string()];
-        output[field::ACTIVITY_TYPES] = json![self.model.activity_types()];
-        output[field::OPPORTUNITY_TOTALS] = json![self.totals];
+        output[bambam_field::OPPORTUNITY_FORMAT] = json![self.opportunity_format.to_string()];
+        output[bambam_field::ACTIVITY_TYPES] = json![self.model.activity_types()];
+        output[bambam_field::OPPORTUNITY_TOTALS] = json![self.totals];
 
         // we use only destinations that changed from the last time bin, so we do "walk"
         // the previous TimeBin.min_time during iteration
@@ -66,10 +66,10 @@ impl OutputPlugin for OpportunityOutputPlugin {
 
         // write the plugin runtime
         let dur = Instant::now().duration_since(start_time);
-        field::insert_nested_with_parents(
+        bambam_field::insert_nested_with_parents(
             output,
-            &[field::INFO],
-            field::OPPORTUNITY_PLUGIN_RUNTIME,
+            &[bambam_field::INFO],
+            bambam_field::OPPORTUNITY_PLUGIN_RUNTIME,
             json![dur.hhmmss()],
             false,
         )
@@ -108,15 +108,14 @@ fn process_disaggregate_opportunities(
     instance: &SearchInstance,
     plugin: &OpportunityOutputPlugin,
 ) -> Result<(), OutputPluginError> {
-    let destinations_iter =
-        mep_output_ops::collect_destinations(result, None, &instance.state_model);
+    let destinations_iter = bambam_ops::collect_destinations(result, None, &instance.state_model);
     let opps = plugin
         .model
         .collect_trip_opportunities(destinations_iter, instance)?;
     let opportunities_json = plugin
         .opportunity_format
         .serialize_opportunities(&opps, &plugin.model.activity_types())?;
-    output[field::OPPORTUNITIES] = opportunities_json;
+    output[bambam_field::OPPORTUNITIES] = opportunities_json;
     Ok(())
 }
 
@@ -128,14 +127,15 @@ fn process_aggregate_opportunities(
     instance: &SearchInstance,
     plugin: &OpportunityOutputPlugin,
 ) -> Result<(), OutputPluginError> {
-    let bins = field::get_time_bins(output).map_err(OutputPluginError::OutputPluginFailed)?;
+    let bins =
+        bambam_field::get_time_bins(output).map_err(OutputPluginError::OutputPluginFailed)?;
 
     for time_bin in bins {
         let start_time = Instant::now();
 
         // collect all opportunities from destinations within this time bin as a JSON object
         let destinations_iter =
-            mep_output_ops::collect_destinations(result, Some(&time_bin), &instance.state_model);
+            bambam_ops::collect_destinations(result, Some(&time_bin), &instance.state_model);
         let destination_opportunities = plugin
             .model
             .collect_trip_opportunities(destinations_iter, instance)?;
@@ -145,10 +145,10 @@ fn process_aggregate_opportunities(
 
         // write opportunities
         let time_bin_key = time_bin.key();
-        field::insert_nested_with_parents(
+        bambam_field::insert_nested_with_parents(
             output,
-            &[field::TIME_BINS, &time_bin_key],
-            field::OPPORTUNITIES,
+            &[bambam_field::TIME_BINS, &time_bin_key],
+            bambam_field::OPPORTUNITIES,
             opportunities_json,
             false,
         )
@@ -156,10 +156,10 @@ fn process_aggregate_opportunities(
 
         // write runtime
         let runtime = Instant::now().duration_since(start_time);
-        field::insert_nested_with_parents(
+        bambam_field::insert_nested_with_parents(
             output,
-            &[field::TIME_BINS, &time_bin_key, field::INFO],
-            field::OPPORTUNITY_BIN_RUNTIME,
+            &[bambam_field::TIME_BINS, &time_bin_key, bambam_field::INFO],
+            bambam_field::OPPORTUNITY_BIN_RUNTIME,
             json![runtime.hhmmss()],
             false,
         )

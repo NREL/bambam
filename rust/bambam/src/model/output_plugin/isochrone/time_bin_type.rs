@@ -1,4 +1,4 @@
-use super::time_bin::TimeBin;
+use crate::model::TimeBin;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 

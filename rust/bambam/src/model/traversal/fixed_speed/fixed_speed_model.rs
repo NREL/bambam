@@ -1,10 +1,13 @@
-use crate::model::traversal::fixed_speed::FixedSpeedConfig;
+use crate::model::{bambam_state, traversal::fixed_speed::FixedSpeedConfig};
 use chrono::format::Fixed;
-use routee_compass_core::model::{
-    network::{Edge, Vertex},
-    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError, TraversalModelService},
-    unit::SpeedUnit,
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError, TraversalModelService},
+        unit::SpeedUnit,
+    },
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -22,11 +25,10 @@ pub struct FixedSpeedModel {
 impl FixedSpeedModel {
     pub fn new(config: Arc<FixedSpeedConfig>) -> FixedSpeedModel {
         let speed = config.speed_unit.to_uom(config.speed);
-        let fieldname = format!("{}_speed", config.name);
         FixedSpeedModel {
             config: config.clone(),
             speed,
-            fieldname,
+            fieldname: bambam_state::EDGE_SPEED.to_string(),
         }
     }
 }
@@ -65,6 +67,7 @@ impl TraversalModel for FixedSpeedModel {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         state_model.set_speed(state, &self.fieldname, &self.speed)?;
@@ -75,6 +78,7 @@ impl TraversalModel for FixedSpeedModel {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         state_model.set_speed(state, &self.fieldname, &self.speed)?;

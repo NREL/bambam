@@ -184,7 +184,7 @@ mod test {
         let polygon = Polygon::new(LineString::from(exterior_coords), vec![]);
         match deserialize_validate_extent_str(poly_str) {
             Ok(p) => assert_eq!(p, geo::Geometry::Polygon(polygon)),
-            Err(e) => panic!("failed due to: {}", e),
+            Err(e) => panic!("failed due to: {e}"),
         }
     }
 

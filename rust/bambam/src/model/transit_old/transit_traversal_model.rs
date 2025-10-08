@@ -1,12 +1,14 @@
 use std::{collections::HashMap, sync::Arc};
 
 use gtfs_structures::{Gtfs, RawGtfs};
-use routee_compass_core::model::{
-    access::{AccessModel, AccessModelError},
-    map::MapModel,
-    network::{Edge, EdgeId, Graph, Vertex, VertexId},
-    state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
-    traversal::{TraversalModel, TraversalModelError},
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        map::MapModel,
+        network::{Edge, EdgeId, Graph, Vertex, VertexId},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError},
+    },
 };
 use rstar::RTree;
 
@@ -79,6 +81,7 @@ impl TraversalModel for TransitTraversalModel<'_> {
         &self,
         trajectory: (&Vertex, &Edge, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         let (src, edge, dst) = trajectory;
@@ -115,26 +118,9 @@ impl TraversalModel for TransitTraversalModel<'_> {
         &self,
         od: (&Vertex, &Vertex),
         state: &mut Vec<StateVariable>,
+        tree: &SearchTree,
         state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        todo!()
-    }
-}
-
-impl AccessModel for TransitTraversalModel<'_> {
-    fn state_features(&self) -> Vec<(String, StateVariableConfig)> {
-        vec![
-            transit_state_feature::transit_network_id(),
-            transit_state_feature::trip_id_enumeration(),
-        ]
-    }
-
-    fn access_edge(
-        &self,
-        traversal: (&Vertex, &Edge, &Vertex, &Edge, &Vertex),
-        state: &mut Vec<StateVariable>,
-        state_model: &StateModel,
-    ) -> Result<(), AccessModelError> {
         todo!()
     }
 }

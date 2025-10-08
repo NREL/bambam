@@ -1,5 +1,69 @@
-parallelism = 6
-response_persistence_policy = "persist_response_from_memory"
+[system]
+parallelism = 1
+response_persistence_policy = "persist_response_in_memory"
+
+# [system.response_output_policy]
+# type = "combined"
+
+# [[system.response_output_policy.policies]]
+# type = "file"
+# filename = "result.csv"
+# [system.response_output_policy.policies.format]
+# type = "csv"
+# sorted = true
+# [system.response_output_policy.policies.format.mapping]
+# grid_id = "request.grid_id"
+# lon = "request.origin_x"
+# lat = "request.origin_y"
+# mode = "request.mode"
+# runtime = "search_app_runtime"
+# ram_mb = "search_result_size_mib"
+
+# opps_entertainment_total = "opportunity_totals.entertainment"
+# opps_retail_total = "opportunity_totals.retail"
+# opps_healthcare_total = "opportunity_totals.healthcare"
+# opps_services_total = "opportunity_totals.services"
+# opps_food_total = "opportunity_totals.food"
+# opps_jobs_total = "opportunity_totals.jobs"
+
+# opps_entertainment_10 = "bin.10.opportunities.entertainment"
+# opps_retail_10 = "bin.10.opportunities.retail"
+# opps_healthcare_10 = "bin.10.opportunities.healthcare"
+# opps_services_10 = "bin.10.opportunities.services"
+# opps_food_10 = "bin.10.opportunities.food"
+# opps_jobs_10 = "bin.10.opportunities.jobs"
+# opps_entertainment_20 = "bin.20.opportunities.entertainment"
+# opps_retail_20 = "bin.20.opportunities.retail"
+# opps_healthcare_20 = "bin.20.opportunities.healthcare"
+# opps_services_20 = "bin.20.opportunities.services"
+# opps_food_20 = "bin.20.opportunities.food"
+# opps_jobs_20 = "bin.20.opportunities.jobs"
+# opps_entertainment_30 = "bin.30.opportunities.entertainment"
+# opps_retail_30 = "bin.30.opportunities.retail"
+# opps_healthcare_30 = "bin.30.opportunities.healthcare"
+# opps_services_30 = "bin.30.opportunities.services"
+# opps_food_30 = "bin.30.opportunities.food"
+# opps_jobs_30 = "bin.30.opportunities.jobs"
+# opps_entertainment_40 = "bin.40.opportunities.entertainment"
+# opps_retail_40 = "bin.40.opportunities.retail"
+# opps_healthcare_40 = "bin.40.opportunities.healthcare"
+# opps_services_40 = "bin.40.opportunities.services"
+# opps_food_40 = "bin.40.opportunities.food"
+# opps_jobs_40 = "bin.40.opportunities.jobs"
+
+# isochrone_10 = "bin.10.isochrone"
+# isochrone_20 = "bin.20.isochrone"
+# isochrone_30 = "bin.30.isochrone"
+# isochrone_40 = "bin.40.isochrone"
+
+# mep = { sum = ["bin.10.mep.entertainment", "bin.10.mep.food", "bin.10.mep.healthcare", "bin.10.mep.jobs", "bin.10.mep.retail", "bin.10.mep.services", "bin.20.mep.entertainment", "bin.20.mep.food", "bin.20.mep.healthcare", "bin.20.mep.jobs", "bin.20.mep.retail", "bin.20.mep.services", "bin.30.mep.entertainment", "bin.30.mep.food", "bin.30.mep.healthcare", "bin.30.mep.jobs", "bin.30.mep.retail", "bin.30.mep.services", "bin.40.mep.entertainment", "bin.40.mep.food", "bin.40.mep.healthcare", "bin.40.mep.jobs", "bin.40.mep.retail", "bin.40.mep.services"] }
+# mep_entertainment = { sum = ["bin.10.mep.entertainment", "bin.20.mep.entertainment", "bin.30.mep.entertainment", "bin.40.mep.entertainment"] }
+# mep_food = { sum = ["bin.10.mep.food", "bin.20.mep.food", "bin.30.mep.food", "bin.40.mep.food"] }
+# mep_healthcare = { sum = ["bin.10.mep.healthcare", "bin.20.mep.healthcare", "bin.30.mep.healthcare", "bin.40.mep.healthcare"] }
+# mep_jobs = { sum = ["bin.10.mep.jobs", "bin.20.mep.jobs", "bin.30.mep.jobs", "bin.40.mep.jobs"] }
+# mep_retail = { sum = ["bin.10.mep.retail", "bin.20.mep.retail", "bin.30.mep.retail", "bin.40.mep.retail"] }
+# mep_services = { sum = ["bin.10.mep.services", "bin.20.mep.services", "bin.30.mep.services", "bin.40.mep.services"] }
+
 
 [graph]
 edge_list.input_file = "../denver_co/edges-compass.csv.gz"
@@ -18,14 +82,16 @@ type = "a*"
 
 # cut off searches that exceed these termination policies. 
 [termination]
-type = "combined"
-[[termination.models]]
-type = "query_runtime"
-limit = "00:01:00"
-frequency = 100_000
-[[termination.models]]
 type = "solution_size"
-limit = 2_000_000
+limit = 200_000
+
+# use a time-optimal routing strategy
+[cost]
+weights = { trip_time = 1.0 }
+vehicle_rates = { trip_time = { type = "raw" } }
+# weights = { trip_time = 1.0, penalty_factor = 1.0 }
+# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
+cost_aggregation = "sum"
 
 [search.traversal]
 type = "combined"
@@ -40,59 +106,44 @@ name = "walk"
 speed = 5.0
 speed_unit = "kph"
 
-[[search.traversal.models]]
-type = "fixed_speed"
-name = "bike"
-speed = 16.0
-speed_unit = "kph"
+# [[search.traversal.models]]
+# type = "fixed_speed"
+# name = "bike"
+# speed = 16.0
+# speed_unit = "kph"
+
+# [[search.traversal.models]]
+# type = "speed"
+# speed_table_input_file = "../denver_co/edges-posted-speed-enumerated.txt.gz"
+# speed_unit = "kph"
 
 [[search.traversal.models]]
-type = "speed"
-speed_table_input_file = "../denver_co/edges-posted-speed-enumerated.txt.gz"
-speed_unit = "kph"
+type = "time"
+time_unit = "minutes"
+
+# [[search.traversal.models]]
+# type = "turn_delay"
+# edge_heading_input_file = "../denver_co/edges-headings-enumerated.csv.gz"
+# [search.traversal.models.turn_delay_model]
+# type = "tabular_discrete"
+# time_unit = "seconds"
+# [search.traversal.models.turn_delay_model.table]
+# no_turn = 0.0
+# slight_right = 0.5
+# right = 1.0
+# sharp_right = 1.5
+# slight_left = 1.0
+# left = 2.5
+# sharp_left = 3.5
+# u_turn = 9.5
 
 [[search.traversal.models]]
 type = "multimodal"
-
-[search.traversal.models.dependencies]
-walk = [{ input_feature = { name = "walk_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
-bike = [{ input_feature = { name = "bike_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] }]
-drive = [
-    { input_feature = { name = "edge_speed", type = "speed" }, destination_features = ["edge_time", "trip_time"] },
-    # { time_feature = "trip_enroute_delay", destinations = [
-    #     "edge_time",
-    #     "trip_time",
-    # ] },
-]
-
-[search.traversal.models.output_features]
-trip_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = true }
-edge_time = { type = "time", unit = "minutes", initial = 0.0, accumulator = false }
-# penalty_factor = { name = "factor", unit = "none", accumulator = false, format = { FloatingPoint = { initial = 1.0 } } }
-
-# use a time-optimal routing strategy
-[cost]
-weights = { trip_time = 1.0 }
-vehicle_rates = { trip_time = { type = "raw" } }
-# weights = { trip_time = 1.0, penalty_factor = 1.0 }
-# vehicle_rates = { trip_time = { type = "raw" }, penalty_factor = { type = "raw" } }
-cost_aggregation = "sum"
-
-[search.access]
-type = "turn_delay"
-edge_heading_input_file = "../denver_co/edges-headings-enumerated.csv.gz"
-[search.access.turn_delay_model]
-type = "tabular_discrete"
-time_unit = "seconds"
-[search.access.turn_delay_model.table]
-no_turn = 0.0
-slight_right = 0.5
-right = 1.0
-sharp_right = 1.5
-slight_left = 1.0
-left = 2.5
-sharp_left = 3.5
-u_turn = 9.5
+this_mode = "walk"
+available_modes = ["walk"]
+available_route_ids = []
+max_trip_legs = 1
+use_route_ids = false
 
 [search.frontier]
 type = "combined"
@@ -101,9 +152,16 @@ type = "combined"
 type = "road_class"
 road_class_input_file = "../denver_co/edges-road-class-enumerated.txt.gz"
 
-# [[search.frontier.models]]
-# type = "turn_restriction"
-# turn_restriction_input_file = "../denver_co/edges-turn-restrictions.csv.gz"
+[[search.frontier.models]]
+type = "multimodal"
+constraints = [
+    { allowed_modes = ["walk"]},
+]
+mode = "walk"
+available_modes = ["walk"]
+available_route_ids = []
+max_trip_legs = 1
+use_route_ids = false
 
 [[search.frontier.models]]
 type = "time_limit"
@@ -124,37 +182,45 @@ acs_categories = ["B01001_001E"]
 type = "inject"
 format = "key_value"
 write_mode = "overwrite"
-key = "grid_search"
-[plugin.input_plugins.value]
-mode = ["walk", "bike", "drive"]
+key = "mode"
+value = "walk"
+# key = "grid_search"
+# [plugin.input_plugins.value]
+# mode = ["walk", "bike", "drive"]
 # modes = [{ mode = "walk", road_classes = [4, 5, 6, 7] }, { mode = "bike", road_classes = [4, 5, 6, 7] }, { mode = "drive", road_classes = [1, 2, 3, 4, 5, 6] }]
+# [[plugin.input_plugins]]
+# type = "inject"
+# format = "key_value"
+# write_mode = "overwrite"
+# key = "road_classes"
+# value = [2, 3, 4, 5, 6, 7]
 
-[[plugin.input_plugins]]
-type = "inject"
-key = "start_time"
-value = "08:00:00"
-format = "key_value"
-write_mode = "overwrite"
+# [[plugin.input_plugins]]
+# type = "inject"
+# key = "start_time"
+# value = "08:00:00"
+# format = "key_value"
+# write_mode = "overwrite"
 
-[[plugin.input_plugins]]
-type = "inject"
-key = "start_weekday"
-value = "monday"
-format = "key_value"
-write_mode = "overwrite"
+# [[plugin.input_plugins]]
+# type = "inject"
+# key = "start_weekday"
+# value = "monday"
+# format = "key_value"
+# write_mode = "overwrite"
 
-[[plugin.input_plugins]]
-type = "grid_search"
+# [[plugin.input_plugins]]
+# type = "grid_search"
 
-[[plugin.input_plugins]]
-type = "load_balancer"
-[plugin.input_plugins.weight_heuristic]
-type = "custom"
-[plugin.input_plugins.weight_heuristic.custom_weight_type]
-type = "categorical"
-column_name = "mode"
-default = 1
-mapping = { "walk" = 1, "bike" = 10, "drive" = 100 }
+# [[plugin.input_plugins]]
+# type = "load_balancer"
+# [plugin.input_plugins.weight_heuristic]
+# type = "custom"
+# [plugin.input_plugins.weight_heuristic.custom_weight_type]
+# type = "categorical"
+# column_name = "mode"
+# default = 1
+# mapping = { "walk" = 1, "bike" = 10, "drive" = 100 }
 
 [[plugin.output_plugins]]
 type = "summary"

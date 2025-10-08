@@ -73,7 +73,7 @@ pub fn process_wci(
                 }
             }
             Err(err) => {
-                eprint!("Error reading row: {}", err);
+                eprint!("Error reading row: {err}");
             }
         }
     }
@@ -97,13 +97,13 @@ pub fn process_wci(
                 .and_then(|w: WayAttributesForWCI| w.wci_calculate())
         })
         .collect();
-    println!("wci_vec is {:?}", wci_vec);
+    println!("wci_vec is {wci_vec:?}");
 
     let file = File::create(output_file)?;
     let mut writer = BufWriter::new(file);
 
     for wci in wci_vec {
-        writeln!(writer, "{:?}", wci)?;
+        writeln!(writer, "{wci:?}")?;
     }
 
     Ok(())

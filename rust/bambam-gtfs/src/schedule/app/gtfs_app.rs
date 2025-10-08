@@ -8,8 +8,4 @@ use clap::Parser;
 pub struct GtfsApp {
     #[command(subcommand)]
     pub op: GtfsOperation,
-    #[arg(long, default_value_t = 1)]
-    pub parallelism: usize,
-    #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
-    pub manifest_file: String,
 }

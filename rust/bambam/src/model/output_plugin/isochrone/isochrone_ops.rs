@@ -1,16 +1,16 @@
 use geo::{LineString, MultiPoint, Point};
 use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
-use routee_compass_core::{algorithm::search::SearchTreeBranch, model::network::VertexId};
+use routee_compass_core::{algorithm::search::SearchTreeNode, model::network::VertexId};
 use std::collections::HashMap;
 
 pub fn create_multipoint(
-    tree: &HashMap<VertexId, SearchTreeBranch>,
+    tree: &HashMap<VertexId, SearchTreeNode>,
     geoms: &[LineString<f64>],
 ) -> Result<MultiPoint, OutputPluginError> {
     let edge_ids = tree
         .values()
-        .map(|traversal| traversal.edge_traversal.edge_id)
+        .flat_map(|node| node.incoming_edge().map(|e| e.edge_id))
         .collect::<Vec<_>>();
 
     let points = edge_ids

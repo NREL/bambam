@@ -82,10 +82,11 @@ mod test {
             chunksize: None,
             newline_delimited: false,
         };
+        let expected_grid_size = 48;
 
         match run_bambam(args) {
             Ok(rows) => {
-                assert_eq!(rows.len(), 144);
+                assert_eq!(rows.len(), expected_grid_size);
                 for (idx, row) in rows.iter().enumerate() {
                     if let Some(error) = row.get("error") {
                         panic!(
