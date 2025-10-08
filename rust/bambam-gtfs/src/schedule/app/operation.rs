@@ -177,11 +177,8 @@ fn manifest_into_rows(
             let filename = path_buf.to_str().unwrap_or_default();
             ScheduleError::OtherError(format!("failure reading '{filename}': {e}"))
         })?;
-    let row_iter = tqdm!(
-        reader.into_deserialize::<GtfsProvider>(),
-        desc = format!("reading {}", manifest_file)
-    );
-    let rows = row_iter
+    let rows = reader
+        .into_deserialize::<GtfsProvider>()
         .map(|r| {
             r.map_err(|e| {
                 ScheduleError::OtherError(format!("failure reading GTFS manifest row: {e}"))
