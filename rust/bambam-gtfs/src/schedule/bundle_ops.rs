@@ -97,6 +97,9 @@ pub fn process_bundles(
                         output_directory,
                         overwrite,
                     )
+                    .map_err(|e| {
+                        ScheduleError::OtherError(format!("while processing {bundle_file}, {e}"))
+                    })
                 })
                 .collect::<Result<Vec<_>, _>>()
         })
