@@ -4,7 +4,7 @@
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
-use chrono::{NaiveDate, ParseError};
+use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
