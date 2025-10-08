@@ -4,17 +4,19 @@ use flate2::{write::GzEncoder, Compression};
 use geo::Point;
 use gtfs_structures::{Calendar, Gtfs, Stop, StopTime, Trip};
 use itertools::Itertools;
+use kdam::{Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
     network::{Edge, EdgeConfig},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{
     collections::{BinaryHeap, HashMap, HashSet},
     fs::File,
     path::Path,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 use uom::si::f64::Length;
 
@@ -33,6 +35,7 @@ struct ScheduleConfig {
     route_id: String,
 }
 
+/// multithreaded GTFS processing.
 pub fn process_bundles(
     bundle_directory_path: &Path,
     start_edge_list_id: &usize,
@@ -52,6 +55,19 @@ pub fn process_bundles(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| ScheduleError::OtherError(format!("failure reading directory: {e}")))?;
     let chunk_size = archive_paths.len() / parallelism;
+
+    // a progress bar shared across threads
+    let bar: Arc<Mutex<Bar>> = Arc::new(Mutex::new(
+        BarBuilder::default()
+            .desc("batch GTFS processing")
+            .total(archive_paths.len())
+            .animation("fillup")
+            .build()
+            .map_err(|e| {
+                ScheduleError::OtherError(format!("failure building progress bar: {e}"))
+            })?,
+    ));
+
     let errors: Vec<ScheduleError> = archive_paths
         .iter()
         .enumerate()
@@ -61,6 +77,9 @@ pub fn process_bundles(
             chunk
                 .into_iter()
                 .map(|(edge_list_offset, dir_entry)| {
+                    if let Ok(mut bar) = bar.clone().lock() {
+                        let _ = bar.update(1);
+                    }
                     let path = dir_entry.path();
                     let bundle_file = path.to_str().ok_or_else(|| {
                         ScheduleError::OtherError(format!(
@@ -92,6 +111,8 @@ pub fn process_bundles(
         })
         .collect_vec();
 
+    eprintln!(); // end progress bar
+
     if errors.len() > 0 {
         Err(batch_processing_error(&errors))
     } else {
@@ -110,9 +131,19 @@ pub fn process_bundle(
     output_directory: &Path,
     overwrite: bool,
 ) -> Result<(), ScheduleError> {
-    // TODO: GtfsProvider to JSON file output
-
     let gtfs = Gtfs::new(bundle_file).map_err(ScheduleError::from)?;
+
+    let metadata = json! [{
+        "agencies": json![&gtfs.agencies],
+        "feed_info": json![&gtfs.feed_info],
+        "read_duration": json![&gtfs.read_duration],
+        "calendar": json![&gtfs.calendar],
+        "calendar_dates": json![&gtfs.calendar_dates]
+    }];
+    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
+        ScheduleError::OtherError(format!("failure writing GTFS Agencies as JSON string: {e}"))
+    })?;
+
     let gtfs_arc = Arc::new(gtfs);
 
     // Get ordered StopTimes, RouteID and start_dates for each trip that intersects the dates
@@ -269,6 +300,10 @@ pub fn process_bundle(
     }
 
     // Write to files
+    let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
+    std::fs::write(output_directory.join(metadata_filename), &metadata_str).map_err(|e| {
+        ScheduleError::OtherError(format!("failed writing GTFS Agency metadata: {e}"))
+    })?;
     let edges_filename = format!("edges-compass-{edge_list_id}.csv.gz");
     let schedules_filename = format!("edges-schedules-{edge_list_id}.csv.gz");
     let mut edges_writer = create_writer(
