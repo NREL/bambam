@@ -169,8 +169,8 @@ impl GtfsOperation {
                         *overwrite,
                         *parallelism,
                     )
-                    .unwrap_or_else(|_| {
-                        panic!("failed running GTFS processing operation for directory {input}")
+                    .unwrap_or_else(|e| {
+                        log::error!("failure running preprocess-bundle: {e}");
                     })
                 } else {
                     bundle_ops::process_bundle(
@@ -184,8 +184,8 @@ impl GtfsOperation {
                         Path::new(output_directory),
                         *overwrite,
                     )
-                    .unwrap_or_else(|_| {
-                        panic!("failed running GTFS processing operation for input {input}")
+                    .unwrap_or_else(|e| {
+                        log::error!("failure running preprocess-bundle: {e}");
                     })
                 }
             }
