@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::Point;
@@ -443,15 +443,6 @@ fn match_closest_graph_id(
     }
 }
 
-/// helper function to extract the calendar for a given trip.
-fn get_trip_calendar(trip: &Trip, gtfs: Arc<Gtfs>) -> Result<Box<Calendar>, ScheduleError> {
-    let calendar = gtfs
-        .get_calendar(&trip.service_id)
-        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{e}")))?;
-
-    Ok(Box::from(calendar.clone()))
-}
-
 /// uses calendar.txt and calendar_dates.txt to test if a given Trip runs within the
 /// time range [start_date, end_date].
 fn find_trip_start_date(
@@ -461,12 +452,10 @@ fn find_trip_start_date(
     start_date: &NaiveDate,
     end_date: &NaiveDate,
 ) -> Result<Option<NaiveDate>, ScheduleError> {
-    let calendar = gtfs
-        .get_calendar(&trip.service_id)
-        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{e}")));
+    let calendar = gtfs.get_calendar(&trip.service_id).ok();
     match (calendar, dates) {
         // archive contains both calendar.txt and calendar_dates.txt file, so we have to consider date exceptions
-        (Ok(c), Some(cd)) => {
+        (Some(c), Some(cd)) => {
             let in_calendar = (c.start_date <= *end_date) && (*start_date <= c.end_date);
             // only test calendar dates within dates supported by both calendar + user arguments
             let query_start = std::cmp::max(*start_date, c.start_date);
@@ -475,31 +464,51 @@ fn find_trip_start_date(
         }
 
         // archive only contains calendar.txt, so we are looking for an intersection of two date ranges
-        (Ok(c), None) => Ok(search_calendar(start_date, end_date, c)),
+        (Some(c), None) => search_calendar(start_date, end_date, c),
 
         // archive only contains calendar_dates.txt, so we are looking for a single addition that matches our date range
-        (Err(_), Some(cd)) => {
+        (None, Some(cd)) => {
             search_calendar_dates(start_date, end_date, false, &trip.service_id, cd)
         }
 
-        (Err(_), None) => {
+        (None, None) => {
             let msg = format!("trip_id '{}' with service_id '{}' has no entry in either calendar.txt or calendar_dates.txt", trip.id, trip.service_id);
             Err(ScheduleError::MalformedGtfsError(msg))
         }
     }
 }
 
+/// tests matching two date ranges for an intersection. if [start_date, end_date] and
+/// [c.start_date, c.end_date] have an intersecting range, we search that range for the
+/// first date where the service is available for that given day of the week.
 fn search_calendar(
     start_date: &NaiveDate,
     end_date: &NaiveDate,
-    calendar: &Calendar,
-) -> Option<NaiveDate> {
-    let query_start = std::cmp::max(*start_date, calendar.start_date);
-    let query_end = std::cmp::min(*end_date, calendar.end_date);
+    c: &Calendar,
+) -> Result<Option<NaiveDate>, ScheduleError> {
+    let query_start = std::cmp::max(*start_date, c.start_date);
+    let query_end = std::cmp::min(*end_date, c.end_date);
     if query_end > query_start {
-        None
+        Ok(None)
     } else {
-        Some(query_start)
+        let mut current_date = query_start.clone();
+        while &current_date <= &query_end {
+            let matches_weekday = match current_date.weekday() {
+                chrono::Weekday::Mon => c.monday,
+                chrono::Weekday::Tue => c.tuesday,
+                chrono::Weekday::Wed => c.wednesday,
+                chrono::Weekday::Thu => c.thursday,
+                chrono::Weekday::Fri => c.friday,
+                chrono::Weekday::Sat => c.saturday,
+                chrono::Weekday::Sun => c.sunday,
+            };
+            if matches_weekday {
+                return Ok(Some(current_date));
+            }
+            current_date = increment_date(&current_date, &query_start, &query_end)?;
+        }
+
+        return Ok(None);
     }
 }
 
@@ -537,18 +546,25 @@ fn search_calendar_dates(
             _ => {}
         }
 
-        let next_date = current_date.succ_opt().ok_or_else(|| {
-            let msg = format!(
-                "Date overflow in service coverage check. cursor: '{}', date range: [{},{}]",
-                current_date.format("%m-%d-%Y"),
-                query_start.format("%m-%d-%Y"),
-                query_end.format("%m-%d-%Y"),
-            );
-            ScheduleError::MalformedGtfsError(msg)
-        })?;
-        current_date = next_date
+        current_date = increment_date(&current_date, query_start, query_end)?;
     }
     Ok(None)
+}
+
+fn increment_date(
+    current_date: &NaiveDate,
+    range_start: &NaiveDate,
+    range_end: &NaiveDate,
+) -> Result<NaiveDate, ScheduleError> {
+    current_date.succ_opt().ok_or_else(|| {
+        let msg = format!(
+            "Date overflow in service coverage check. cursor: '{}', date range: [{},{}]",
+            current_date.format("%m-%d-%Y"),
+            range_start.format("%m-%d-%Y"),
+            range_end.format("%m-%d-%Y"),
+        );
+        ScheduleError::MalformedGtfsError(msg)
+    })
 }
 
 /// Returns an ordered (ascending) vector of [StopTime]. Internally uses [BinaryHeap] to sort. In order to return the
