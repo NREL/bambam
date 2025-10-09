@@ -7,5 +7,5 @@ use uom::si::f64::Time;
 pub struct TransitTraversalQuery {
     pub start_datetime: NaiveDateTime,
     /// If true, we maintain a DWELL_TIME state variable
-    pub record_dwell_time: bool
+    pub record_dwell_time: Option<bool>,
 }

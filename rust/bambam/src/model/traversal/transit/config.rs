@@ -11,6 +11,8 @@ use crate::model::traversal::transit::schedule_loading_policy::ScheduleLoadingPo
 pub struct TransitTraversalConfig {
     /// edges-schedules file path from gtfs preprocessing
     pub edges_schedules_filename: String,
+    /// metadata file path from gtfs preprocessing
+    pub gtfs_metadata_filename: String,
     /// policy by which to prune departures when reading schedules
     pub schedule_loading_policy: ScheduleLoadingPolicy,
     /// all route ids available in multimdal search. this ordering will be used

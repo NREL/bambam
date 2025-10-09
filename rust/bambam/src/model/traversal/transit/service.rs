@@ -30,7 +30,11 @@ impl TraversalModelService for TransitTraversalService {
             ))
             })?;
 
-        let model = TransitTraversalModel::new(self.engine.clone(), model_query.start_datetime, model_query.record_dwell_time);
+        let model = TransitTraversalModel::new(
+            self.engine.clone(),
+            model_query.start_datetime,
+            model_query.record_dwell_time.unwrap_or_default(),
+        );
         Ok(Arc::new(model))
     }
 }

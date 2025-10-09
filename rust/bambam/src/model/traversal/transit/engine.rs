@@ -1,10 +1,13 @@
 use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
 
-use crate::model::{state::{MultimodalMapping, MultimodalStateMapping}, traversal::transit::{
-    config::TransitTraversalConfig,
-    schedule::{Departure, Schedule},
-    schedule_loading_policy::{self, ScheduleLoadingPolicy},
-}};
+use crate::model::{
+    state::{MultimodalMapping, MultimodalStateMapping},
+    traversal::transit::{
+        config::TransitTraversalConfig,
+        schedule::{Departure, Schedule},
+        schedule_loading_policy::{self, ScheduleLoadingPolicy},
+    },
+};
 use chrono::NaiveDateTime;
 use routee_compass_core::model::traversal::TraversalModelError;
 use serde::{Deserialize, Serialize};
@@ -138,8 +141,5 @@ mod test {
     use crate::model::traversal::transit::*;
 
     #[test]
-    fn test_get_next_departure(){
-        
-    }
-
+    fn test_get_next_departure() {}
 }

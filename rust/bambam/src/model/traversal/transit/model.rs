@@ -20,15 +20,19 @@ use uom::{
 pub struct TransitTraversalModel {
     engine: Arc<TransitTraversalEngine>,
     start_datetime: NaiveDateTime,
-    record_dwell_time: bool
+    record_dwell_time: bool,
 }
 
 impl TransitTraversalModel {
-    pub fn new(engine: Arc<TransitTraversalEngine>, start_datetime: NaiveDateTime, record_dwell_time:bool) -> Self {
+    pub fn new(
+        engine: Arc<TransitTraversalEngine>,
+        start_datetime: NaiveDateTime,
+        record_dwell_time: bool,
+    ) -> Self {
         Self {
             engine,
             start_datetime,
-            record_dwell_time
+            record_dwell_time,
         }
     }
 }
@@ -48,7 +52,7 @@ impl TraversalModel for TransitTraversalModel {
         String,
         routee_compass_core::model::state::StateVariableConfig,
     )> {
-        vec![
+        let mut out = vec![
             (
                 String::from(fieldname::TRIP_TIME),
                 StateVariableConfig::Time {
@@ -81,15 +85,20 @@ impl TraversalModel for TransitTraversalModel {
                     output_unit: None,
                 },
             ),
-            (
+        ];
+
+        if self.record_dwell_time {
+            out.push((
                 String::from(bambam_state::DWELL_TIME),
                 StateVariableConfig::Time {
                     initial: Time::ZERO,
                     accumulator: true,
                     output_unit: None,
                 },
-            ),
-        ]
+            ));
+        }
+
+        out
     }
 
     fn traverse_edge(
