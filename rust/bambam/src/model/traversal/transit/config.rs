@@ -15,7 +15,4 @@ pub struct TransitTraversalConfig {
     pub gtfs_metadata_filename: String,
     /// policy by which to prune departures when reading schedules
     pub schedule_loading_policy: ScheduleLoadingPolicy,
-    /// all route ids available in multimdal search. this ordering will be used
-    /// to generate an enumeration used in state modeling.
-    pub available_route_ids: Vec<String>,
 }

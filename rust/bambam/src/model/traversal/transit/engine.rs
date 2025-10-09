@@ -1,9 +1,10 @@
-use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{cmp, collections::HashMap, fs::File, io::BufReader, path::PathBuf, sync::Arc};
 
 use crate::model::{
     state::{MultimodalMapping, MultimodalStateMapping},
     traversal::transit::{
         config::TransitTraversalConfig,
+        metadata::GtfsArchiveMetadata,
         schedule::{Departure, Schedule},
         schedule_loading_policy::{self, ScheduleLoadingPolicy},
     },
@@ -56,8 +57,16 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
     type Error = TraversalModelError;
 
     fn try_from(value: TransitTraversalConfig) -> Result<Self, Self::Error> {
-        let route_id_to_state = Arc::new(MultimodalMapping::new(&value.available_route_ids)?);
+        // Deserialize metadata and extract route_ids
+        let file = File::open(value.gtfs_metadata_filename).map_err(|e| {
+            TraversalModelError::BuildError(format!("Failed to read metadata file: {}", e))
+        })?;
+        let metadata: GtfsArchiveMetadata =
+            serde_json::from_reader(BufReader::new(file)).map_err(|e| {
+                TraversalModelError::BuildError(format!("Failed to read metadata file: {}", e))
+            })?;
 
+        let route_id_to_state = Arc::new(MultimodalMapping::new(&metadata.route_ids)?);
         Ok(Self {
             edge_schedules: read_schedules_from_file(
                 value.edges_schedules_filename,

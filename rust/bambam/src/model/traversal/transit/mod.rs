@@ -1,6 +1,7 @@
 mod builder;
 mod config;
 mod engine;
+mod metadata;
 mod model;
 mod query;
 mod schedule;
