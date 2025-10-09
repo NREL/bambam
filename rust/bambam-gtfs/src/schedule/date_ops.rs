@@ -50,7 +50,7 @@ pub fn search_calendar(
 ) -> Result<Option<NaiveDate>, ScheduleError> {
     let query_start = std::cmp::max(*start_date, c.start_date);
     let query_end = std::cmp::min(*end_date, c.end_date);
-    if query_end > query_start {
+    if query_end < query_start {
         Ok(None)
     } else {
         let mut current_date = query_start;
