@@ -16,7 +16,7 @@ impl Departure {
         infinity.map(|v| Self {
             route_id: 0,
             src_departure_time: v,
-            dst_arrival_time: v.clone(),
+            dst_arrival_time: v,
         })
     }
 }
