@@ -5,6 +5,7 @@ use crate::model::input_plugin::grid_geometry::grid_geometry_input_plugin_builde
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
+use crate::model::traversal::transit::TransitTraversalBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use inventory;
@@ -31,6 +32,11 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
     builders.add_traversal_model(
         String::from("multimodal"),
         Rc::new(MultimodalTraversalBuilder {}),
+    );
+
+    builders.add_traversal_model(
+        String::from("transit"),
+        Rc::new(TransitTraversalBuilder {}),
     );
 
     builders.add_frontier_model(

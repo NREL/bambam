@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{Duration, Months, NaiveDateTime};
 use skiplist::OrderedSkipList;
 // use uom::si::f64::Time;
 
@@ -7,6 +7,18 @@ pub struct Departure {
     pub route_id: i64,
     pub src_departure_time: NaiveDateTime,
     pub dst_arrival_time: NaiveDateTime,
+}
+
+impl Departure {
+    pub fn infinity_from(datetime: NaiveDateTime) -> Option<Self> {
+        let infinity = datetime.checked_add_months(Months::new(72));
+
+        infinity.map(|v| Self {
+            route_id: 0,
+            src_departure_time: v,
+            dst_arrival_time: v.clone(),
+        })
+    }
 }
 
 impl PartialEq for Departure {

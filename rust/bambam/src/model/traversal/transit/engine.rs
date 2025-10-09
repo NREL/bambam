@@ -42,9 +42,12 @@ impl TransitTraversalEngine {
 
         Ok(departures_skiplist
             .lower_bound(std::ops::Bound::Included(&search_departure))
-            .ok_or(TraversalModelError::InternalError(
-                "Failed to find departure in skiplist".to_string(),
-            ))?
+            .unwrap_or(&Departure::infinity_from(*current_time).ok_or(
+                TraversalModelError::InternalError(format!(
+                    "Failed to model infinity from {}",
+                    current_time
+                )),
+            )?)
             .clone())
     }
 }
@@ -138,8 +141,116 @@ fn read_schedules_from_file(
 #[cfg(test)]
 mod test {
 
-    use crate::model::traversal::transit::*;
+    use crate::model::traversal::transit::{
+        engine::TransitTraversalEngine,
+        schedule::{Departure, Schedule},
+    };
+    use chrono::{Months, NaiveDateTime};
+    use std::str::FromStr;
+
+    fn internal_date(string: &str) -> NaiveDateTime {
+        NaiveDateTime::parse_from_str(&format!("20250101{}", string), "%Y%m%d%H%M%S").unwrap()
+    }
+
+    fn get_dummy_engine() -> TransitTraversalEngine {
+        // There are two edges that reverse each other and two routes that move across them
+        // Route 1:
+        // 16:00 - 16:05 (A-B) -> 16:05 - 16:10 (B-A) -> 16:10 - 16:25 dwell -> 16:25 - 16:30 (A-B) -> 16:30 - 16:35 (B-A)
+        //
+        // Route 2:
+        // 16:15 - 16:45 (A-B) -> 16:45 - 17:00 (B-A)
+
+        let schedules: Vec<Schedule> = vec![
+            Schedule::from_iter(
+                vec![
+                    Departure {
+                        route_id: 0,
+                        src_departure_time: internal_date("160000"),
+                        dst_arrival_time: internal_date("160500"),
+                    },
+                    Departure {
+                        route_id: 0,
+                        src_departure_time: internal_date("162500"),
+                        dst_arrival_time: internal_date("163000"),
+                    },
+                    Departure {
+                        route_id: 1,
+                        src_departure_time: internal_date("161500"),
+                        dst_arrival_time: internal_date("164500"),
+                    },
+                ]
+                .into_iter(),
+            ),
+            Schedule::from_iter(
+                vec![
+                    Departure {
+                        route_id: 0,
+                        src_departure_time: internal_date("160500"),
+                        dst_arrival_time: internal_date("161000"),
+                    },
+                    Departure {
+                        route_id: 0,
+                        src_departure_time: internal_date("163000"),
+                        dst_arrival_time: internal_date("163500"),
+                    },
+                    Departure {
+                        route_id: 1,
+                        src_departure_time: internal_date("164500"),
+                        dst_arrival_time: internal_date("170000"),
+                    },
+                ]
+                .into_iter(),
+            ),
+        ];
+
+        TransitTraversalEngine {
+            edge_schedules: schedules.into_boxed_slice(),
+        }
+    }
 
     #[test]
-    fn test_get_next_departure() {}
+    fn test_get_next_departure() {
+        let engine = get_dummy_engine();
+
+        let mut current_edge: usize = 0;
+        let mut current_time = internal_date("155000");
+        let mut next_departure = engine
+            .get_next_departure(current_edge, &current_time)
+            .unwrap();
+
+        assert_eq!(next_departure.route_id, 0);
+        assert_eq!(next_departure.src_departure_time, internal_date("160000"));
+
+        // Traverse 3 times the next edge
+        for i in (0..3) {
+            next_departure = engine
+                .get_next_departure(current_edge, &current_time)
+                .unwrap();
+            current_time = next_departure.dst_arrival_time.clone();
+            current_edge = 1 - current_edge;
+        }
+
+        // At 16:15, the next departure changes route
+        // That is because route 0 is dwelling until 16:25
+        assert_eq!(next_departure.route_id, 1);
+        assert_eq!(current_time, internal_date("164500"));
+
+        // Ride transit one more time
+        next_departure = engine
+            .get_next_departure(current_edge, &current_time)
+            .unwrap();
+        current_time = next_departure.dst_arrival_time.clone();
+        current_edge = 1 - current_edge;
+
+        // If we wait now, we will find there are no more departures
+        next_departure = engine
+            .get_next_departure(current_edge, &current_time)
+            .unwrap();
+        assert_eq!(
+            next_departure.src_departure_time,
+            Departure::infinity_from(current_time)
+                .unwrap()
+                .src_departure_time
+        );
+    }
 }
