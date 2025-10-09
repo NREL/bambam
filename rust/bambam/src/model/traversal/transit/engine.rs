@@ -231,7 +231,7 @@ mod test {
         assert_eq!(next_departure.src_departure_time, internal_date("160000"));
 
         // Traverse 3 times the next edge
-        for i in (0..3) {
+        for i in 0..3 {
             next_departure = engine
                 .get_next_departure(current_edge, &current_time)
                 .unwrap();
