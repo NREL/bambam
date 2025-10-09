@@ -3,7 +3,7 @@
 ./rust/target/release/bambam_gtfs preprocess-bundle \
     --input "boulder_co/ucb-gtfs.zip" \
     --starting-edge-list-id 1 \
-    --parallelism 50 \
+    --parallelism 1 \
     --output-directory "boulder_co/transit" \
     --vertices-compass-filename "boulder_co/vertices-complete.csv.gz" \
     --start-date 09-01-2025 \
