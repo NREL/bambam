@@ -6,4 +6,5 @@ use uom::si::f64::Time;
 #[derive(Serialize, Deserialize)]
 pub struct TransitTraversalQuery {
     pub start_datetime: NaiveDateTime,
+    pub record_dwell_time: bool
 }

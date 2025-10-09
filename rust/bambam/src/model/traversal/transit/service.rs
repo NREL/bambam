@@ -23,14 +23,14 @@ impl TraversalModelService for TransitTraversalService {
         &self,
         query: &serde_json::Value,
     ) -> Result<std::sync::Arc<dyn TraversalModel>, TraversalModelError> {
-        let model_config: TransitTraversalQuery =
+        let model_query: TransitTraversalQuery =
             serde_json::from_value(query.clone()).map_err(|e| {
                 TraversalModelError::BuildError(format!(
                 "failed to deserialize configuration for speed_by_time_of_day traversal model: {e}"
             ))
             })?;
 
-        let model = TransitTraversalModel::new(self.engine.clone(), model_config.start_datetime);
+        let model = TransitTraversalModel::new(self.engine.clone(), model_query.start_datetime, model_query.record_dwell_time);
         Ok(Arc::new(model))
     }
 }

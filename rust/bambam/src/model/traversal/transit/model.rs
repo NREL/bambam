@@ -21,13 +21,15 @@ pub struct TransitTraversalModel {
     engine: Arc<TransitTraversalEngine>,
     // edge_list_id: usize,
     start_datetime: NaiveDateTime,
+    record_dwell_time: bool
 }
 
 impl TransitTraversalModel {
-    pub fn new(engine: Arc<TransitTraversalEngine>, start_datetime: NaiveDateTime) -> Self {
+    pub fn new(engine: Arc<TransitTraversalEngine>, start_datetime: NaiveDateTime, record_dwell_time:bool) -> Self {
         Self {
             engine,
             start_datetime,
+            record_dwell_time
         }
     }
 }
@@ -139,8 +141,7 @@ impl TraversalModel for TransitTraversalModel {
         // TRANSIT_BOARDING_TIME accumulates time waiting at transit stops, but not dwell time
         if current_route_id != next_departure_route_id {
             state_model.add_time(state, bambam_state::TRANSIT_BOARDING_TIME, &wait_time);
-        } else {
-            // if record_dwell
+        } else if self.record_dwell_time {
             state_model.add_time(state, bambam_state::DWELL_TIME, &wait_time);
         }
 
