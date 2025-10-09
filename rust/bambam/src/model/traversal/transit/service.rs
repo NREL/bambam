@@ -26,8 +26,8 @@ impl TraversalModelService for TransitTraversalService {
         let model_query: TransitTraversalQuery =
             serde_json::from_value(query.clone()).map_err(|e| {
                 TraversalModelError::BuildError(format!(
-                "failed to deserialize configuration for transit traversal model: {e}"
-            ))
+                    "failed to deserialize configuration for transit traversal model: {e}"
+                ))
             })?;
 
         let model = TransitTraversalModel::new(
