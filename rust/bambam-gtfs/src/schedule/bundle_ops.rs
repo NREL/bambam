@@ -54,7 +54,7 @@ pub fn process_bundles(
         .map_err(|e| ScheduleError::GtfsAppError(format!("failure reading directory: {e}")))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| ScheduleError::GtfsAppError(format!("failure reading directory: {e}")))?;
-    let chunk_size = archive_paths.len() / parallelism;
+    let chunk_size = archive_paths.len() / std::cmp::max(1, parallelism);
 
     // a progress bar shared across threads
     let bar: Arc<Mutex<Bar>> = Arc::new(Mutex::new(
