@@ -491,8 +491,8 @@ fn search_calendar(
     if query_end > query_start {
         Ok(None)
     } else {
-        let mut current_date = query_start.clone();
-        while &current_date <= &query_end {
+        let mut current_date = query_start;
+        while current_date <= query_end {
             let matches_weekday = match current_date.weekday() {
                 chrono::Weekday::Mon => c.monday,
                 chrono::Weekday::Tue => c.tuesday,
@@ -508,7 +508,7 @@ fn search_calendar(
             current_date = increment_date(&current_date, &query_start, &query_end)?;
         }
 
-        return Ok(None);
+        Ok(None)
     }
 }
 
