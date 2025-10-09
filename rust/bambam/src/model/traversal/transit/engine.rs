@@ -2,7 +2,8 @@ use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
 
 use crate::model::traversal::transit::{
     schedule::{Departure, Schedule},
-    transit_traversal_config::TransitTraversalConfig,
+    schedule_loading_policy::{self, ScheduleLoadingPolicy},
+    config::TransitTraversalConfig,
 };
 use chrono::NaiveDateTime;
 use routee_compass_core::model::traversal::TraversalModelError;
@@ -17,7 +18,7 @@ pub struct TransitTraversalEngine {
 impl TransitTraversalEngine {
     // TODO: TEST
     pub fn get_next_departure(
-        self,
+        &self,
         edge_id: usize,
         current_time: &NaiveDateTime,
     ) -> Result<Departure, TraversalModelError> {
@@ -57,6 +58,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
             edge_schedules: read_schedules_from_file(
                 value.edges_schedules_filename,
                 route_mapping,
+                value.schedule_loading_policy,
             )?,
         })
     }
@@ -70,14 +72,13 @@ struct RawScheduleRow {
     pub dst_arrival_time: NaiveDateTime,
 }
 
+/// This function assumes that edge_id's are dense. If any edge_id is skipped, the transformation from
+/// a HashMap into Vec<Schedule> will fail
 fn read_schedules_from_file(
     filename: String,
     route_mapping: Arc<HashMap<String, i64>>,
+    schedule_loading_policy: ScheduleLoadingPolicy,
 ) -> Result<Box<[Schedule]>, TraversalModelError> {
-    // Identify groups of rows by edge_id
-    // Apply mapping to route_id
-    // Create Skiplist per edge
-
     // Reading csv
     let file_path = PathBuf::from(filename);
     let reader = csv::ReaderBuilder::new()
@@ -91,8 +92,7 @@ fn read_schedules_from_file(
         })?;
 
     // Deserialize rows according to their edge_id
-    let mut max_edge_id: usize = 0;
-    let mut schedules: HashMap<usize, Vec<Departure>> = HashMap::new();
+    let mut schedules: HashMap<usize, Schedule> = HashMap::new();
     for row in reader.into_deserialize::<RawScheduleRow>() {
         let record = row.map_err(|e| {
             TraversalModelError::BuildError(format!(
@@ -100,9 +100,6 @@ fn read_schedules_from_file(
                 e
             ))
         })?;
-
-        // Update the max value
-        max_edge_id = cmp::max(max_edge_id, record.edge_id);
 
         let route_i64 =
             route_mapping
@@ -112,26 +109,30 @@ fn read_schedules_from_file(
                     record.route_id.clone()
                 )))?;
 
-        schedules
-            .entry(record.edge_id)
-            .or_default()
-            .push(Departure {
+        // This step creates an empty skiplist for every edge we see, even if we don't load any departures to it
+        let schedule_skiplist = schedules.entry(record.edge_id).or_default();
+        schedule_loading_policy.insert_if_valid(
+            schedule_skiplist,
+            Departure {
                 route_id: *route_i64,
                 src_departure_time: record.src_departure_time,
                 dst_arrival_time: record.dst_arrival_time,
-            });
+            },
+        );
     }
 
+    // Observe total number of keys (edge_ids)
+    let n_edges = schedules.keys().len();
+
     // Re-arrange all into a dense boxed slice
-    let mut out = (0..max_edge_id)
+    let mut out = (0..n_edges)
         .map(|i| {
             schedules
-                .get(&i)
+                .remove(&i) // TIL: `remove` returns an owned value, consuming the hashmap
                 .ok_or(TraversalModelError::BuildError(format!(
                     "Invalid schedules file. Missing edge_id {} when the maximum edge_id is {}",
-                    i, max_edge_id
+                    i, n_edges
                 )))
-                .map(|v| v.clone().into_iter().collect())
         })
         .collect::<Result<Vec<Schedule>, TraversalModelError>>()?;
 

@@ -5,7 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::model::traversal::transit::schedule_loading_policy::ScheduleLoadingPolicy;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransitTraversalConfig {
     pub edges_schedules_filename: String,
+    pub schedule_loading_policy: ScheduleLoadingPolicy,
 }

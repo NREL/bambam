@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use crate::model::traversal::transit::{
-    transit_traversal_config::TransitTraversalConfig,
-    transit_traversal_engine::TransitTraversalEngine,
-    transit_traversal_service::TransitTraversalService,
+    engine::TransitTraversalEngine, config::TransitTraversalConfig,
+    service::TransitTraversalService,
 };
 use routee_compass_core::model::traversal::{
     TraversalModelBuilder, TraversalModelError, TraversalModelService,

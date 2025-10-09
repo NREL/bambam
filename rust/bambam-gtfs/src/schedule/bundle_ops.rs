@@ -52,7 +52,7 @@ pub fn process_bundle(
     for (trip_id, trip) in gtfs_arc.clone().trips.iter() {
         let trip_calendar = get_trip_calendar(trip, gtfs_arc.clone())?;
         let trip_intersects =
-            (trip_calendar.start_date < *end_date) && (*start_date < trip_calendar.end_date);
+            (trip_calendar.start_date <= *end_date) && (*start_date <= trip_calendar.end_date);
 
         if trip_intersects {
             trip_stop_times.insert(trip_id.clone(), get_ordered_stops(trip));
