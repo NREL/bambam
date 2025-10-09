@@ -117,6 +117,8 @@ pub fn process_bundles(
     }
 }
 
+/// read a single GTFS archive and prepare a Compass EdgeList dataset from it.
+/// trips with date outside of [start_date, end_date] are removed.
 pub fn process_bundle(
     bundle_file: &str,
     edge_list_id: &usize,
@@ -381,6 +383,7 @@ fn get_stop_location(stop: Arc<Stop>, gtfs: Arc<Gtfs>) -> Option<Point<f64>> {
         )
 }
 
+/// helper function for map matching stop locations to the graph.
 fn match_closest_graph_id(
     point: &Point<f64>,
     spatial_index: Arc<SpatialIndex>,
