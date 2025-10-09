@@ -102,11 +102,15 @@ pub fn process_bundles(
                         ScheduleError::GtfsAppError(format!("while processing {bundle_file}, {e}"))
                     })
                 })
-                .collect::<Result<Vec<_>, _>>()
+                .collect_vec()
         })
         .collect_vec_list()
         .into_iter()
-        .flat_map(|chunk| chunk.into_iter().flat_map(|r| r.err()))
+        .flat_map(|chunks| {
+            chunks
+                .into_iter()
+                .flat_map(|chunk| chunk.into_iter().flat_map(|r| r.err()))
+        })
         .collect_vec();
 
     eprintln!(); // end progress bar
