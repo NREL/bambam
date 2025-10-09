@@ -193,11 +193,11 @@ impl GtfsOperation {
     }
 }
 
+/// helper function for loading a spatial index over the vertices of the graph.
 fn load_vertices_and_create_spatial_index(
     vertices_compass_filename: &str,
     tolerance_meters: f64,
 ) -> Result<Arc<SpatialIndex>, ScheduleError> {
-    // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
     let vertices: Box<[Vertex]> = read_utils::from_csv(
         &Path::new(vertices_compass_filename),
@@ -230,13 +230,13 @@ fn manifest_into_rows(
         .from_path(path_buf.as_path())
         .map_err(|e| {
             let filename = path_buf.to_str().unwrap_or_default();
-            ScheduleError::OtherError(format!("failure reading '{filename}': {e}"))
+            ScheduleError::GtfsAppError(format!("failure reading '{filename}': {e}"))
         })?;
     let rows = reader
         .into_deserialize::<GtfsProvider>()
         .map(|r| {
             r.map_err(|e| {
-                ScheduleError::OtherError(format!("failure reading GTFS manifest row: {e}"))
+                ScheduleError::GtfsAppError(format!("failure reading GTFS manifest row: {e}"))
             })
         })
         .collect::<Result<Vec<GtfsProvider>, ScheduleError>>()?;
