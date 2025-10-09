@@ -9,6 +9,11 @@ use crate::model::traversal::transit::schedule_loading_policy::ScheduleLoadingPo
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TransitTraversalConfig {
+    /// edges-schedules file path from gtfs preprocessing
     pub edges_schedules_filename: String,
-    pub schedule_loading_policy: ScheduleLoadingPolicy
+    /// policy by which to prune departures when reading schedules
+    pub schedule_loading_policy: ScheduleLoadingPolicy,
+    /// all route ids available in multimdal search. this ordering will be used
+    /// to generate an enumeration used in state modeling.
+    pub available_route_ids: Vec<String>,
 }

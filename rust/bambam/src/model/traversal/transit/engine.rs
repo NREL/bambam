@@ -1,10 +1,10 @@
 use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
 
-use crate::model::traversal::transit::{
+use crate::model::{state::{MultimodalMapping, MultimodalStateMapping}, traversal::transit::{
     config::TransitTraversalConfig,
     schedule::{Departure, Schedule},
     schedule_loading_policy::{self, ScheduleLoadingPolicy},
-};
+}};
 use chrono::NaiveDateTime;
 use routee_compass_core::model::traversal::TraversalModelError;
 use serde::{Deserialize, Serialize};
@@ -50,13 +50,12 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
     type Error = TraversalModelError;
 
     fn try_from(value: TransitTraversalConfig) -> Result<Self, Self::Error> {
-        // TODO: Replace with MultiModalStateMapping
-        let route_mapping = Arc::new(HashMap::<String, i64>::new());
+        let route_id_to_state = Arc::new(MultimodalMapping::new(&value.available_route_ids)?);
 
         Ok(Self {
             edge_schedules: read_schedules_from_file(
                 value.edges_schedules_filename,
-                route_mapping,
+                route_id_to_state.clone(),
                 value.schedule_loading_policy,
             )?,
         })
@@ -75,7 +74,7 @@ struct RawScheduleRow {
 /// a HashMap into Vec<Schedule> will fail
 fn read_schedules_from_file(
     filename: String,
-    route_mapping: Arc<HashMap<String, i64>>,
+    route_mapping: Arc<MultimodalStateMapping>,
     schedule_loading_policy: ScheduleLoadingPolicy,
 ) -> Result<Box<[Schedule]>, TraversalModelError> {
     // Reading csv
@@ -98,7 +97,7 @@ fn read_schedules_from_file(
 
         let route_i64 =
             route_mapping
-                .get(&record.route_id)
+                .get_label(&record.route_id)
                 .ok_or(TraversalModelError::BuildError(format!(
                     "Cannot find route id mapping for string {}",
                     record.route_id.clone()
@@ -131,4 +130,16 @@ fn read_schedules_from_file(
         .collect::<Result<Vec<Schedule>, TraversalModelError>>()?;
 
     Ok(out.into_boxed_slice())
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::model::traversal::transit::*;
+
+    #[test]
+    fn test_get_next_departure(){
+        
+    }
+
 }

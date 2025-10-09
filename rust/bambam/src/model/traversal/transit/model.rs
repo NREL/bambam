@@ -19,7 +19,6 @@ use uom::{
 
 pub struct TransitTraversalModel {
     engine: Arc<TransitTraversalEngine>,
-    // edge_list_id: usize,
     start_datetime: NaiveDateTime,
     record_dwell_time: bool
 }
