@@ -1,9 +1,9 @@
 use std::{cmp, collections::HashMap, path::PathBuf, sync::Arc};
 
 use crate::model::traversal::transit::{
+    config::TransitTraversalConfig,
     schedule::{Departure, Schedule},
     schedule_loading_policy::{self, ScheduleLoadingPolicy},
-    config::TransitTraversalConfig,
 };
 use chrono::NaiveDateTime;
 use routee_compass_core::model::traversal::TraversalModelError;
@@ -26,8 +26,7 @@ impl TransitTraversalEngine {
             self.edge_schedules
                 .get(edge_id)
                 .ok_or(TraversalModelError::InternalError(format!(
-                    "EdgeId {} exceeds schedules length",
-                    edge_id
+                    "EdgeId {edge_id} exceeds schedules length"
                 )))?;
 
         // We need to create the struct shell to be able to search the
@@ -40,9 +39,9 @@ impl TransitTraversalEngine {
 
         Ok(departures_skiplist
             .lower_bound(std::ops::Bound::Included(&search_departure))
-            .ok_or(TraversalModelError::InternalError(format!(
-                "Failed to find departure in skiplist"
-            )))?
+            .ok_or(TraversalModelError::InternalError(
+                "Failed to find departure in skiplist".to_string(),
+            ))?
             .clone())
     }
 }
@@ -85,10 +84,7 @@ fn read_schedules_from_file(
         .has_headers(true)
         .from_path(file_path.as_path())
         .map_err(|e| {
-            TraversalModelError::BuildError(format!(
-                "Error creating reader to schedules file: {}",
-                e
-            ))
+            TraversalModelError::BuildError(format!("Error creating reader to schedules file: {e}"))
         })?;
 
     // Deserialize rows according to their edge_id
@@ -96,8 +92,7 @@ fn read_schedules_from_file(
     for row in reader.into_deserialize::<RawScheduleRow>() {
         let record = row.map_err(|e| {
             TraversalModelError::BuildError(format!(
-                "Failed to deserialize row from schedules file: {}",
-                e
+                "Failed to deserialize row from schedules file: {e}"
             ))
         })?;
 
@@ -130,8 +125,7 @@ fn read_schedules_from_file(
             schedules
                 .remove(&i) // TIL: `remove` returns an owned value, consuming the hashmap
                 .ok_or(TraversalModelError::BuildError(format!(
-                    "Invalid schedules file. Missing edge_id {} when the maximum edge_id is {}",
-                    i, n_edges
+                    "Invalid schedules file. Missing edge_id {i} when the maximum edge_id is {n_edges}"
                 )))
         })
         .collect::<Result<Vec<Schedule>, TraversalModelError>>()?;

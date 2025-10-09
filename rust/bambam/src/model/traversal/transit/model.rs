@@ -24,14 +24,17 @@ pub struct TransitTraversalModel {
 }
 
 impl TransitTraversalModel {
-    pub fn new(engine: Arc<TransitTraversalEngine>, start_datetime: NaiveDateTime) -> Self{
-        Self { engine: engine, start_datetime: start_datetime }
+    pub fn new(engine: Arc<TransitTraversalEngine>, start_datetime: NaiveDateTime) -> Self {
+        Self {
+            engine,
+            start_datetime,
+        }
     }
 }
 
 impl TraversalModel for TransitTraversalModel {
     fn name(&self) -> String {
-        format!("transit_traversal")
+        "transit_traversal".to_string()
     }
 
     fn input_features(&self) -> Vec<routee_compass_core::model::state::InputFeature> {

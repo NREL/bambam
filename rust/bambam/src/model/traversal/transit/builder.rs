@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::model::traversal::transit::{
-    engine::TransitTraversalEngine, config::TransitTraversalConfig,
+    config::TransitTraversalConfig, engine::TransitTraversalEngine,
     service::TransitTraversalService,
 };
 use routee_compass_core::model::traversal::{

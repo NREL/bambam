@@ -41,11 +41,11 @@ pub fn mode_time_fieldname(mode: &str) -> String {
 /// helper function for creating normalized and enumerated fieldnames
 /// for fields associated with a trip leg.
 fn leg_fieldname(leg_idx: LegIdx, field: &str) -> String {
-    format!("leg_{}_{}", leg_idx, field)
+    format!("leg_{leg_idx}_{field}")
 }
 
 /// helper function for creating normalized fieldnames for fields
 /// accumulating metrics for a given travel mode.
 fn mode_fieldname(mode: &str, field: &str) -> String {
-    format!("mode_{}_{}", mode, field)
+    format!("mode_{mode}_{field}")
 }
