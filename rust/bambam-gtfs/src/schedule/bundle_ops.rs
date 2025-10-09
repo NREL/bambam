@@ -157,7 +157,7 @@ pub fn process_bundle(
                 .map(|(service_id, dates)| {
                     let inner = dates
                         .iter()
-                        .map(|d| (d.date.clone(), d.exception_type.clone()))
+                        .map(|d| (d.date, d.exception_type))
                         .collect::<HashMap<_, _>>();
                     (service_id.clone(), inner)
                 })
@@ -520,7 +520,7 @@ fn search_calendar_dates(
     service_id: &str,
     dates: &HashMap<String, HashMap<NaiveDate, Exception>>,
 ) -> Result<Option<NaiveDate>, ScheduleError> {
-    let mut current_date = query_start.clone();
+    let mut current_date = *query_start;
     while &current_date <= query_end {
         // if date range not in calendar, we are looking for _one_ addition in range
         // if date range in calendar, we are looking for _one_ date not deleted
@@ -531,9 +531,9 @@ fn search_calendar_dates(
             None => None,
         };
         match (date_range_in_calendar, exception_opt) {
-            (false, Some(Exception::Added)) => return Ok(Some(current_date.clone())), // case 1: found one addition, exit
-            (true, None) => return Ok(Some(current_date.clone())), // case 2: not deleted or added <=> not deleted, exit
-            (true, Some(Exception::Added)) => return Ok(Some(current_date.clone())), // case 3: redundancy/bad data, but exit
+            (false, Some(Exception::Added)) => return Ok(Some(current_date)), // case 1: found one addition, exit
+            (true, None) => return Ok(Some(current_date)), // case 2: not deleted or added <=> not deleted, exit
+            (true, Some(Exception::Added)) => return Ok(Some(current_date)), // case 3: redundancy/bad data, but exit
             _ => {}
         }
 
