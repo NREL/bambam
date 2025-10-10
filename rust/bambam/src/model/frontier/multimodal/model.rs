@@ -506,9 +506,9 @@ mod test {
         max_trip_legs: u64,
     ) {
         for (leg_idx, mode) in legs.iter().enumerate() {
-            state_ops::set_leg_mode(state, leg_idx as u64, mode, &state_model, &mode_to_state)
+            state_ops::set_leg_mode(state, leg_idx as u64, mode, state_model, mode_to_state)
                 .expect("test invariant failed");
-            state_ops::increment_active_leg_idx(state, &state_model, max_trip_legs)
+            state_ops::increment_active_leg_idx(state, state_model, max_trip_legs)
                 .expect("test invariant failed");
         }
     }

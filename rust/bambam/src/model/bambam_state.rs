@@ -11,6 +11,11 @@ pub const TRIP_ARRIVAL_DELAY: &str = "trip_arrival_delay";
 /// during scheduled mode traversals, a record of the route used.
 pub const ROUTE_ID: &str = "route_id";
 
+/// a record of the total "switching mode" time. currently used in transit traversal to model waiting time
+pub const TRANSIT_BOARDING_TIME: &str = "transit_boarding_time";
+/// a record of the total time sitting on transit during dwell in between edge traversals.
+pub const DWELL_TIME: &str = "dwell_time";
+
 /// used to penalize an edge. convention is to design this
 /// as one of the vehicle cost rates, via a "raw" interpretation
 /// (no cost conversion) and then to use "mul" (multiplicitive)

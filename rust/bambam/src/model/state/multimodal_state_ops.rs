@@ -104,15 +104,13 @@ pub fn get_existing_leg_mode<'a>(
     let label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
     match label_opt {
         None => Err(StateModelError::RuntimeError(format!(
-            "Internal Error: get_leg_mode called on leg idx {} but mode label is not set",
-            leg_idx
+            "Internal Error: get_leg_mode called on leg idx {leg_idx} but mode label is not set"
         ))),
         Some(label) => mode_to_state
             .get_categorical(label)?
             .ok_or_else(|| {
                 StateModelError::RuntimeError(format!(
-                    "internal error, leg {} has invalid mode label {}",
-                    leg_idx, label
+                    "internal error, leg {leg_idx} has invalid mode label {label}"
                 ))
             })
             .map(|s| s.as_str()),
@@ -248,7 +246,7 @@ pub fn set_leg_mode(
     mode_to_state: &MultimodalStateMapping,
 ) -> Result<(), StateModelError> {
     let mode_label = mode_to_state.get_label(mode).ok_or_else(|| {
-        StateModelError::RuntimeError(format!("mode mapping has no entry for '{}' mode", mode))
+        StateModelError::RuntimeError(format!("mode mapping has no entry for '{mode}' mode"))
     })?;
     let name = fieldname::leg_mode_fieldname(leg_idx);
     state_model.set_custom_i64(state, &name, mode_label)
@@ -265,8 +263,7 @@ pub fn set_leg_route_id(
 ) -> Result<(), StateModelError> {
     let route_id_label = route_id_to_state.get_label(route_id).ok_or_else(|| {
         StateModelError::RuntimeError(format!(
-            "route_id mapping has no entry for '{}' route id",
-            route_id
+            "route_id mapping has no entry for '{route_id}' route id"
         ))
     })?;
     let name = fieldname::leg_route_id_fieldname(leg_idx);
@@ -277,8 +274,7 @@ pub fn set_leg_route_id(
 pub fn validate_leg_idx(leg_idx: LegIdx, max_trip_legs: LegIdx) -> Result<(), StateModelError> {
     if leg_idx >= max_trip_legs {
         Err(StateModelError::RuntimeError(format!(
-            "invalid leg id {leg_idx} >= max leg id {}",
-            max_trip_legs
+            "invalid leg id {leg_idx} >= max leg id {max_trip_legs}"
         )))
     } else {
         Ok(())
