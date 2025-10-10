@@ -1,4 +1,11 @@
-use std::{cmp, collections::HashMap, fs::File, io::BufReader, path::PathBuf, sync::Arc};
+use std::{
+    cmp,
+    collections::HashMap,
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::model::{
     state::{MultimodalMapping, MultimodalStateMapping},
@@ -10,7 +17,8 @@ use crate::model::{
     },
 };
 use chrono::NaiveDateTime;
-use routee_compass_core::model::traversal::TraversalModelError;
+use flate2::bufread::GzDecoder;
+use routee_compass_core::{model::traversal::TraversalModelError, util::fs::read_utils};
 use serde::{Deserialize, Serialize};
 use skiplist::OrderedSkipList;
 use uom::si::f64::Time;
@@ -20,7 +28,6 @@ pub struct TransitTraversalEngine {
 }
 
 impl TransitTraversalEngine {
-    // TODO: TEST
     pub fn get_next_departure(
         &self,
         edge_id: usize,
@@ -58,7 +65,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
 
     fn try_from(value: TransitTraversalConfig) -> Result<Self, Self::Error> {
         // Deserialize metadata and extract route_ids
-        let file = File::open(value.gtfs_metadata_filename).map_err(|e| {
+        let file = File::open(value.gtfs_metadata_input_file).map_err(|e| {
             TraversalModelError::BuildError(format!("Failed to read metadata file: {}", e))
         })?;
         let metadata: GtfsArchiveMetadata =
@@ -69,7 +76,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
         let route_id_to_state = Arc::new(MultimodalMapping::new(&metadata.route_ids)?);
         Ok(Self {
             edge_schedules: read_schedules_from_file(
-                value.edges_schedules_filename,
+                value.edges_schedules_input_file,
                 route_id_to_state.clone(),
                 value.schedule_loading_policy,
             )?,
@@ -93,23 +100,14 @@ fn read_schedules_from_file(
     schedule_loading_policy: ScheduleLoadingPolicy,
 ) -> Result<Box<[Schedule]>, TraversalModelError> {
     // Reading csv
-    let file_path = PathBuf::from(filename);
-    let reader = csv::ReaderBuilder::new()
-        .has_headers(true)
-        .from_path(file_path.as_path())
+    let rows: Box<[RawScheduleRow]> = read_utils::from_csv(&Path::new(&filename), true, None, None)
         .map_err(|e| {
             TraversalModelError::BuildError(format!("Error creating reader to schedules file: {e}"))
         })?;
 
     // Deserialize rows according to their edge_id
     let mut schedules: HashMap<usize, Schedule> = HashMap::new();
-    for row in reader.into_deserialize::<RawScheduleRow>() {
-        let record = row.map_err(|e| {
-            TraversalModelError::BuildError(format!(
-                "Failed to deserialize row from schedules file: {e}"
-            ))
-        })?;
-
+    for record in rows {
         let route_i64 =
             route_mapping
                 .get_label(&record.route_id)

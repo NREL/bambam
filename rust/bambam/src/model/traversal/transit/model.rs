@@ -81,7 +81,7 @@ impl TraversalModel for TransitTraversalModel {
                 String::from(bambam_state::TRANSIT_BOARDING_TIME),
                 StateVariableConfig::Time {
                     initial: Time::ZERO,
-                    accumulator: true,
+                    accumulator: false,
                     output_unit: None,
                 },
             ),
@@ -92,7 +92,7 @@ impl TraversalModel for TransitTraversalModel {
                 String::from(bambam_state::DWELL_TIME),
                 StateVariableConfig::Time {
                     initial: Time::ZERO,
-                    accumulator: true,
+                    accumulator: false,
                     output_unit: None,
                 },
             ));
