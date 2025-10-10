@@ -52,8 +52,7 @@ impl TransitTraversalEngine {
             .lower_bound(std::ops::Bound::Included(&search_departure))
             .unwrap_or(&Departure::infinity_from(*current_time).ok_or(
                 TraversalModelError::InternalError(format!(
-                    "Failed to model infinity from {}",
-                    current_time
+                    "Failed to model infinity from {current_time}"
                 )),
             )?)
             .clone())
@@ -66,11 +65,11 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
     fn try_from(value: TransitTraversalConfig) -> Result<Self, Self::Error> {
         // Deserialize metadata and extract route_ids
         let file = File::open(value.gtfs_metadata_input_file).map_err(|e| {
-            TraversalModelError::BuildError(format!("Failed to read metadata file: {}", e))
+            TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
         })?;
         let metadata: GtfsArchiveMetadata =
             serde_json::from_reader(BufReader::new(file)).map_err(|e| {
-                TraversalModelError::BuildError(format!("Failed to read metadata file: {}", e))
+                TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
             })?;
 
         let route_id_to_state = Arc::new(MultimodalMapping::new(&metadata.route_ids)?);
@@ -156,7 +155,7 @@ mod test {
     use std::str::FromStr;
 
     fn internal_date(string: &str) -> NaiveDateTime {
-        NaiveDateTime::parse_from_str(&format!("20250101{}", string), "%Y%m%d%H%M%S").unwrap()
+        NaiveDateTime::parse_from_str(&format!("20250101{string}"), "%Y%m%d%H%M%S").unwrap()
     }
 
     fn get_dummy_engine() -> TransitTraversalEngine {
@@ -233,7 +232,7 @@ mod test {
             next_departure = engine
                 .get_next_departure(current_edge, &current_time)
                 .unwrap();
-            current_time = next_departure.dst_arrival_time.clone();
+            current_time = next_departure.dst_arrival_time;
             current_edge = 1 - current_edge;
         }
 
@@ -246,7 +245,7 @@ mod test {
         next_departure = engine
             .get_next_departure(current_edge, &current_time)
             .unwrap();
-        current_time = next_departure.dst_arrival_time.clone();
+        current_time = next_departure.dst_arrival_time;
         current_edge = 1 - current_edge;
 
         // If we wait now, we will find there are no more departures
