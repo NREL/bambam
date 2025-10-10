@@ -1,7 +1,6 @@
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 
-use chrono::NaiveDate;
-use gtfs_structures::{Exception, Gtfs, StopTime, Trip};
+use gtfs_structures::{StopTime, Trip};
 
 use crate::schedule::schedule_error::ScheduleError;
 
