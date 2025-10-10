@@ -19,7 +19,7 @@ pub struct GtfsProvider {
 
 impl GtfsProvider {
     pub fn filename(&self) -> String {
-        let name = [
+        let filename_merged = [
             self.state_code.clone(),
             self.municipality.clone(),
             Some(self.provider.clone()),
@@ -27,8 +27,12 @@ impl GtfsProvider {
         ]
         .iter()
         .flatten()
-        .join("_");
-        format!("{name}.zip")
+        .join("-");
+        let filename_cleaned = filename_merged
+            .replace(" ", "_")
+            .replace("(", "")
+            .replace(")", "");
+        format!("{filename_cleaned}.zip")
     }
 }
 

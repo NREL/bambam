@@ -1,12 +1,15 @@
+//! GTFS archive pre-processing scripts for bambam-gtfs transit modeling.
+//! see [https://github.com/MobilityData/mobility-database-catalogs] for
+//! information on the mobility database catalog listing.
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
-use crate::schedule::{process_bundle, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
+use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
 use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
 use itertools::Itertools;
-use kdam::{tqdm, Bar};
+use kdam::Bar;
 use rayon::prelude::*;
 use routee_compass_core::model::map::SpatialIndex;
 use routee_compass_core::model::network::Vertex;
@@ -22,62 +25,121 @@ use wkt::ToWkt;
 pub enum GtfsOperation {
     /// summarize attributes for the downloaded GTFS archives
     Summary {
+        /// file containing a list of GTFS arcives
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
     },
     /// download all WKT shapes data from the GTFS archives
     Shapes {
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
     },
     /// download all of the GTFS archives
     Download {
         #[arg(long, default_value_t = 1)]
         parallelism: usize,
+        /// country code to filter from list, defaults to US-based transit options
+        #[arg(long, default_value_t = String::from("US"))]
+        country_code: String,
+        /// data type to filter from list
+        #[arg(long, default_value_t = String::from("gtfs"))]
+        data_type: String,
         #[arg(long, default_value_t=String::from("2024-08-13-mobilitydataacatalog.csv"))]
         manifest_file: String,
     },
     /// Process bundle into EdgeLists
     PreprocessBundle {
+        /// a single GTFS archive or a directory of GTFS archives
+        #[arg(long)]
+        input: String,
+        /// in this case of a single input file, this sets the edge list id for that input.
+        /// for a directory input, sets the starting edge list id.
+        #[arg(long)]
+        starting_edge_list_id: usize,
+
         #[arg(long, default_value_t = 1)]
         parallelism: usize,
-        #[arg(long)]
-        edge_list_id: usize,
-        #[arg(long)]
-        bundle_file: String,
+
         #[arg(long)]
         output_directory: String,
+
         #[arg(long)]
         vertices_compass_filename: String,
-        #[arg(long)]
+
+        #[arg(long, value_parser = parse_naive_date)]
         start_date: NaiveDate,
-        #[arg(long)]
+
+        #[arg(long, value_parser = parse_naive_date)]
         end_date: NaiveDate,
+
         #[arg(long, default_value_t = 325.)]
         vertex_match_tolerance: f64,
+
         #[arg(value_enum, default_value_t=MissingStopLocationPolicy::Fail)]
         missing_stop_location_policy: MissingStopLocationPolicy,
+
         #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
+
         #[arg(long, default_value_t = true)]
         overwrite: bool,
     },
 }
 
+/// helper function for date deserialization in clap
+fn parse_naive_date(s: &str) -> Result<NaiveDate, String> {
+    let fmt = "%m-%d-%Y";
+    NaiveDate::parse_from_str(s, fmt).map_err(|e| {
+        format!("failed reading date value '{s}'. required format: '{fmt}'. error: {e}")
+    })
+}
+
 impl GtfsOperation {
     pub fn run(&self) {
         match self {
-            GtfsOperation::Summary { manifest_file } => {
-                summarize(&manifest_into_rows(manifest_file))
+            GtfsOperation::Summary {
+                manifest_file,
+                data_type,
+                country_code,
+            } => {
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
+                summarize(&rows)
             }
-            GtfsOperation::Shapes { manifest_file } => shapes(&manifest_into_rows(manifest_file)),
+            GtfsOperation::Shapes {
+                manifest_file,
+                country_code,
+                data_type,
+            } => {
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
+                shapes(&rows)
+            }
             GtfsOperation::Download {
                 manifest_file,
                 parallelism,
-            } => download(&manifest_into_rows(manifest_file), *parallelism),
+                data_type,
+                country_code,
+            } => {
+                let rows = manifest_into_rows(manifest_file, Some(country_code), Some(data_type))
+                    .expect("failed reading manifest");
+                download(&rows, *parallelism)
+            }
             GtfsOperation::PreprocessBundle {
-                bundle_file,
-                edge_list_id,
+                input,
+                starting_edge_list_id,
                 vertices_compass_filename,
                 start_date,
                 end_date,
@@ -86,32 +148,56 @@ impl GtfsOperation {
                 distance_calculation_policy,
                 output_directory,
                 overwrite,
-                .. // Not using parallelism, yet
+                parallelism,
             } => {
-                let spatial_index =
-                    load_vertices_and_create_spatial_index(vertices_compass_filename, *vertex_match_tolerance).unwrap();
-                process_bundle(
-                    bundle_file,
-                    edge_list_id,
-                    start_date,
-                    end_date,
-                    spatial_index,
-                    missing_stop_location_policy,
-                    distance_calculation_policy,
-                    Path::new(output_directory),
-                    *overwrite,
+                let spatial_index = load_vertices_and_create_spatial_index(
+                    vertices_compass_filename,
+                    *vertex_match_tolerance,
                 )
-                .unwrap()
+                .expect("failed reading vertices and building spatial index");
+                let input_path = Path::new(input);
+                if input_path.is_dir() {
+                    bundle_ops::process_bundles(
+                        input_path,
+                        starting_edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index,
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        Path::new(output_directory),
+                        *overwrite,
+                        *parallelism,
+                    )
+                    .unwrap_or_else(|e| {
+                        log::error!("failure running preprocess-bundle: {e}");
+                    })
+                } else {
+                    bundle_ops::process_bundle(
+                        input,
+                        starting_edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index,
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        Path::new(output_directory),
+                        *overwrite,
+                    )
+                    .unwrap_or_else(|e| {
+                        log::error!("failure running preprocess-bundle: {e}");
+                    })
+                }
             }
         }
     }
 }
 
+/// helper function for loading a spatial index over the vertices of the graph.
 fn load_vertices_and_create_spatial_index(
     vertices_compass_filename: &str,
     tolerance_meters: f64,
 ) -> Result<Arc<SpatialIndex>, ScheduleError> {
-    // load Compass Vertices, create spatial index
     let bar_builder = Bar::builder().desc("read vertices file");
     let vertices: Box<[Vertex]> = read_utils::from_csv(
         &Path::new(vertices_compass_filename),
@@ -127,23 +213,44 @@ fn load_vertices_and_create_spatial_index(
     )))
 }
 
-fn manifest_into_rows(manifest_file: &str) -> Vec<GtfsProvider> {
+/// reads rows from a GTFS manifest in the format of Mobility Data Catalog
+/// see [https://github.com/MobilityData/mobility-database-catalogs].
+///
+/// # Arguments
+///
+/// * `country_code` - optional country to filter by
+/// * `data_type` - optional data type to filter by
+fn manifest_into_rows(
+    manifest_file: &str,
+    country_code: Option<&str>,
+    data_type: Option<&str>,
+) -> Result<Vec<GtfsProvider>, ScheduleError> {
     let path_buf = PathBuf::from(manifest_file);
     let reader = csv::ReaderBuilder::new()
         .from_path(path_buf.as_path())
-        .unwrap_or_else(|_| panic!("file {} not found", path_buf.to_str().unwrap_or_default()));
-    let row_iter = tqdm!(
-        reader.into_deserialize::<GtfsProvider>(),
-        desc = format!("reading {}", manifest_file)
-    );
-    let us_rows: Result<Vec<GtfsProvider>, _> = row_iter
-        .filter(|r| match r {
-            Ok(provider) => provider.country_code == *"US" && provider.data_type == "gtfs",
-            Err(_) => true,
+        .map_err(|e| {
+            let filename = path_buf.to_str().unwrap_or_default();
+            ScheduleError::GtfsAppError(format!("failure reading '{filename}': {e}"))
+        })?;
+    let rows = reader
+        .into_deserialize::<GtfsProvider>()
+        .map(|r| {
+            r.map_err(|e| {
+                ScheduleError::GtfsAppError(format!("failure reading GTFS manifest row: {e}"))
+            })
         })
-        .collect::<Result<Vec<_>, _>>();
+        .collect::<Result<Vec<GtfsProvider>, ScheduleError>>()?;
+    let us_rows: Vec<GtfsProvider> = rows
+        .into_iter()
+        .filter(|r| match (country_code, data_type) {
+            (None, None) => true,
+            (None, Some(dt)) => r.data_type.as_str() == dt,
+            (Some(cc), None) => r.country_code.as_str() == cc,
+            (Some(cc), Some(dt)) => r.country_code.as_str() == cc && r.data_type.as_str() == dt,
+        })
+        .collect_vec();
 
-    us_rows.unwrap()
+    Ok(us_rows)
 }
 
 fn summarize(rows: &Vec<GtfsProvider>) {
