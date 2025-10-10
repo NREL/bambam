@@ -3,7 +3,7 @@ use std::collections::{BinaryHeap, HashMap};
 use chrono::NaiveDate;
 use gtfs_structures::{Exception, Gtfs, StopTime, Trip};
 
-use crate::schedule::{date_ops, schedule_error::ScheduleError};
+use crate::schedule::schedule_error::ScheduleError;
 
 /// a trip that matches our user's date range, prepared for edge list processing.
 pub struct ProcessedTrip {

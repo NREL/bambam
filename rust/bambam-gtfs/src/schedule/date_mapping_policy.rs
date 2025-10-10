@@ -166,7 +166,7 @@ fn pick_nearest_date(
                 date_tolerance,
                 match_weekday,
             )?;
-            if let Some(date_match) = matches.iter().next() {
+            if let Some(date_match) = matches.first() {
                 let _ = confirm_no_delete(date_match, cd)?;
                 return Ok(*date_match);
             }
