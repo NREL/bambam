@@ -258,7 +258,7 @@ fn map_into_range_preserving_weekday(
             ScheduleError::InvalidDataError(msg)
         })
     }?;
-    while &cursor != &stop {
+    while cursor != stop {
         if cursor.weekday() == target.weekday() {
             // found it! terminate early!
             return Ok(cursor);
