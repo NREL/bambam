@@ -157,7 +157,7 @@ fn pick_nearest_date(
                 date_tolerance,
                 match_weekday,
             )?;
-            for date_match in matches.iter() {
+            if let Some(date_match) = matches.iter().next() {
                 let _ = confirm_no_delete(date_match, cd)?;
                 return Ok(*date_match);
             }
@@ -167,7 +167,7 @@ fn pick_nearest_date(
                     Err(e) => e,
                 };
 
-            let msg = if match_weekday && matches.len() == 0 {
+            let msg = if match_weekday && matches.is_empty() {
                 format!(
                     "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found no matches in calendar.txt matching weekday within tolerance of {} days and failed to find an add in calendar_dates.txt due to: {}",
                     target.format("%m-%d-%Y"),
@@ -192,7 +192,7 @@ fn pick_nearest_date(
                 )
             };
 
-            return Err(ScheduleError::InternalError(msg));
+            Err(ScheduleError::InternalError(msg))
         }
     }
 }
@@ -267,7 +267,7 @@ fn find_nearest_add(
         }
     }
     match heap.pop() {
-        Some(min_distance_date) => Ok(min_distance_date.1.date.clone()),
+        Some(min_distance_date) => Ok(min_distance_date.1.date),
         None => {
             let mwd_str = if match_weekday {
                 " with matching weekday"
@@ -449,7 +449,7 @@ fn find_in_range_preserving_weekday(
     }
 
     if !found.is_empty() {
-        return Ok(found);
+        Ok(found)
     } else {
         // didn't find a weekday to map into in the 'real' date range.
         let msg = format!(
