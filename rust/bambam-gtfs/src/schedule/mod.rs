@@ -11,7 +11,7 @@ mod date_mapping_policy;
 pub mod date_ops;
 pub use date_mapping_policy::{DateMappingPolicy, DateMappingPolicyType};
 pub use missing_stop_matching_policy::MissingStopLocationPolicy;
-pub use processed_trip::ProcessedTrip;
+pub use processed_trip::SortedTrip;
 pub use provider::GtfsProvider;
 pub use schedule_error::batch_processing_error;
 pub use summary::GtfsSummary;

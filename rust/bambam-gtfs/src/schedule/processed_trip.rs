@@ -6,7 +6,7 @@ use gtfs_structures::{Exception, Gtfs, StopTime, Trip};
 use crate::schedule::schedule_error::ScheduleError;
 
 /// a trip that matches our user's date range, prepared for edge list processing.
-pub struct ProcessedTrip {
+pub struct SortedTrip {
     /// GTFS trip identifier
     pub trip_id: String,
     /// GTFS route_id associated with this [`Trip`]
@@ -19,18 +19,18 @@ pub struct ProcessedTrip {
     // pub start_date: NaiveDate,
 }
 
-impl ProcessedTrip {
+impl SortedTrip {
     /// creates a new trip data collection organized around generating scheduled edges
     /// in the Compass edge list.
     ///
     /// if this trip's date does not match the user date range, [`ProcessedTrip`] is not created.
     pub fn new(
         trip: &Trip,
-        gtfs: &Gtfs,
-        dates_lookup: Option<&HashMap<String, HashMap<NaiveDate, Exception>>>,
+        // gtfs: &Gtfs,
+        // dates_lookup: Option<&HashMap<String, HashMap<NaiveDate, Exception>>>,
         // start_date: &NaiveDate,
         // end_date: &NaiveDate,
-    ) -> Result<Option<ProcessedTrip>, ScheduleError> {
+    ) -> Result<Option<SortedTrip>, ScheduleError> {
         let stop_times = get_ordered_stops(trip)?;
         let result = Self {
             trip_id: trip.id.clone(),

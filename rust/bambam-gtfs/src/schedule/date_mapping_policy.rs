@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use gtfs_structures::{Calendar, CalendarDate, Exception, Gtfs};
 use serde::{Deserialize, Serialize};
 
-use crate::schedule::{date_ops, schedule_error::ScheduleError, ProcessedTrip};
+use crate::schedule::{date_ops, schedule_error::ScheduleError, SortedTrip};
 
 #[derive(Serialize, Deserialize, Clone, Debug, ValueEnum)]
 #[serde(rename_all = "snake_case")]
@@ -69,7 +69,7 @@ impl DateMappingPolicy {
     pub fn pick_date(
         &self,
         target: &NaiveDate,
-        trip: &ProcessedTrip,
+        trip: &SortedTrip,
         gtfs: Arc<Gtfs>,
     ) -> Result<NaiveDate, ScheduleError> {
         match self {
@@ -109,7 +109,7 @@ impl Iterator for DateIterator {
 /// returns the target date if successful.
 fn pick_exact_date(
     target: &NaiveDate,
-    trip: &ProcessedTrip,
+    trip: &SortedTrip,
     gtfs: &Gtfs,
 ) -> Result<NaiveDate, ScheduleError> {
     let c_opt = gtfs.get_calendar(&trip.service_id).ok();
@@ -133,7 +133,7 @@ fn pick_exact_date(
 /// and optionally enforce matching weekday.
 fn pick_nearest_date(
     target: &NaiveDate,
-    trip: &ProcessedTrip,
+    trip: &SortedTrip,
     gtfs: &Gtfs,
     date_tolerance: u64,
     match_weekday: bool,

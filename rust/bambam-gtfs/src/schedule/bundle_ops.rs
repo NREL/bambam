@@ -25,7 +25,7 @@ use crate::schedule::{
     batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     schedule_error::ScheduleError,
-    DateMappingPolicy, MissingStopLocationPolicy, ProcessedTrip,
+    DateMappingPolicy, MissingStopLocationPolicy, SortedTrip,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -172,10 +172,10 @@ pub fn process_bundle(
             Some(lookup)
         };
 
-    // get trips that match our date range
-    let mut trips: HashMap<String, ProcessedTrip> = HashMap::new();
+    // get trips that match our date range. sort their StopTimes by departure sequence.
+    let mut trips: HashMap<String, SortedTrip> = HashMap::new();
     for t in gtfs.trips.values() {
-        let trip_data_opt = ProcessedTrip::new(t, &gtfs, gtfs_dates_lookup.as_ref())?;
+        let trip_data_opt = SortedTrip::new(t)?;
         if let Some(trip_data) = trip_data_opt {
             let _ = trips.insert(trip_data.trip_id.clone(), trip_data);
         }
