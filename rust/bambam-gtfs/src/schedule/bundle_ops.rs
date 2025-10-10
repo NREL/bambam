@@ -320,10 +320,8 @@ pub fn process_bundle(
         overwrite,
     );
 
-    for k in edge_keys {
-        let edge = edges.get(k).ok_or(ScheduleError::InternalError(format!(
-            "edge {k:?} not present in 'edges' array"
-        )))?;
+    let edge_iterator = edges.iter().sorted_by_cached_key(|(_, e)| e.edge_id);
+    for (k, edge) in edge_iterator {
         let schedule_vec: &Vec<ScheduleConfig> =
             schedules
                 .get(k)
