@@ -2,7 +2,7 @@ use chrono::{Duration, NaiveDate, NaiveDateTime};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::Point;
-use gtfs_structures::{Exception, Gtfs, Stop, StopTime};
+use gtfs_structures::{Gtfs, Stop, StopTime};
 use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
