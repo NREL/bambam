@@ -9,12 +9,14 @@ use crate::schedule::{date_ops, schedule_error::ScheduleError};
 pub struct ProcessedTrip {
     /// GTFS trip identifier
     pub trip_id: String,
+    /// GTFS route_id associated with this [`Trip`]
+    pub route_id: String,
+    /// service associated with this trip
+    pub service_id: String,
     /// list of [`StopTime`] values associated with this [`Trip`] in sorted order
     pub stop_times: Vec<StopTime>,
     /// starting date of this trip.
     pub start_date: NaiveDate,
-    /// GTFS route_id associated with this [`Trip`]
-    pub route_id: String,
 }
 
 impl ProcessedTrip {
@@ -38,9 +40,10 @@ impl ProcessedTrip {
                 let stop_times = get_ordered_stops(trip)?;
                 let result = Self {
                     trip_id: trip.id.clone(),
+                    route_id: trip.route_id.clone(),
+                    service_id: trip.service_id.clone(),
                     stop_times,
                     start_date,
-                    route_id: trip.route_id.clone(),
                 };
                 Ok(Some(result))
             }
