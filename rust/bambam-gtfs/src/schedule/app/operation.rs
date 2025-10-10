@@ -97,7 +97,7 @@ pub enum GtfsOperation {
         #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
 
-        #[arg(value_enum)]
+        #[arg(long, value_enum)]
         date_mapping_policy: DateMappingPolicyType,
 
         #[arg(long)]
@@ -174,7 +174,9 @@ impl GtfsOperation {
                 let date_mapping_config = json![{
                     "type": json![date_mapping_policy],
                     "date_tolerance": json![date_mapping_date_tolerance],
-                    "match_weekday": json![date_mapping_match_weekday]
+                    "match_weekday": json![date_mapping_match_weekday],
+                    "start_date": json![start_date.format("%m-%d-%Y").to_string()],
+                    "end_date": json![end_date.format("%m-%d-%Y").to_string()]
                 }];
                 let date_mapping_policy: DateMappingPolicy =
                     serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|_| {
