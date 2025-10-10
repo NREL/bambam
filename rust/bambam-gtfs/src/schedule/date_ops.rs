@@ -114,7 +114,7 @@ pub fn search_calendar_dates(
 }
 
 /// helper function to increment a date value by 1 day within some time range.
-fn increment_date(
+pub fn increment_date(
     current_date: &NaiveDate,
     range_start: &NaiveDate,
     range_end: &NaiveDate,
