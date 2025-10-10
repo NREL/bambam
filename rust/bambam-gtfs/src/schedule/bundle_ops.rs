@@ -140,38 +140,6 @@ pub fn process_bundle(
 ) -> Result<(), ScheduleError> {
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
-    // collect metadata for writing to file
-    let metadata = json! [{
-        "agencies": json![&gtfs.agencies],
-        "feed_info": json![&gtfs.feed_info],
-        "read_duration": json![&gtfs.read_duration],
-        "calendar": json![&gtfs.calendar],
-        "calendar_dates": json![&gtfs.calendar_dates],
-        "route_ids": json![gtfs.routes.keys().collect_vec()]
-    }];
-    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
-        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
-    })?;
-
-    // for O(1) lookup of Addition/Deletion in calendar_dates.txt by (service_id, date)
-    let gtfs_dates_lookup: Option<HashMap<String, HashMap<NaiveDate, Exception>>> =
-        if gtfs.calendar_dates.is_empty() {
-            None
-        } else {
-            let lookup = gtfs
-                .calendar_dates
-                .iter()
-                .map(|(service_id, dates)| {
-                    let inner = dates
-                        .iter()
-                        .map(|d| (d.date, d.exception_type))
-                        .collect::<HashMap<_, _>>();
-                    (service_id.clone(), inner)
-                })
-                .collect::<HashMap<_, _>>();
-            Some(lookup)
-        };
-
     // get trips that match our date range. sort their StopTimes by departure sequence.
     let mut trips: HashMap<String, SortedTrip> = HashMap::new();
     for t in gtfs.trips.values() {
@@ -305,6 +273,19 @@ pub fn process_bundle(
     }
 
     // Write to files
+
+    // collect metadata for writing to file
+    let metadata = json! [{
+        "agencies": json![&gtfs.agencies],
+        "feed_info": json![&gtfs.feed_info],
+        "read_duration": json![&gtfs.read_duration],
+        "calendar": json![&gtfs.calendar],
+        "calendar_dates": json![&gtfs.calendar_dates],
+        "route_ids": json![gtfs.routes.keys().collect_vec()]
+    }];
+    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
+        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
+    })?;
     let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
     std::fs::create_dir_all(output_directory).map_err(|e| {
         let outdir = output_directory.to_str().unwrap_or_default();
