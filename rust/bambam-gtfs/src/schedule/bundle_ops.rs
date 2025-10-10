@@ -220,7 +220,7 @@ pub fn process_bundle(
 
             // This only gets to run if all previous conditions are met
             // it adds the edge if it has not yet been added.
-            edges.entry((src_id, dst_id)).or_insert_with(|| {
+            let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
                 // Estimate distance
                 let distance: Length = match distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => compute_haversine(src_point, dst_point),
@@ -272,7 +272,7 @@ pub fn process_bundle(
                 })?;
 
             let schedule = ScheduleConfig {
-                edge_id,
+                edge_id: edge.edge_id.0,
                 src_departure_time,
                 dst_arrival_time,
                 route_id: trip.route_id.clone(),
