@@ -177,8 +177,12 @@ impl GtfsOperation {
                     "match_weekday": json![date_mapping_match_weekday]
                 }];
                 let date_mapping_policy: DateMappingPolicy =
-                    serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|_| panic!("invalid date mapping arguments: {}",
-                        serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default()));
+                    serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|_| {
+                        panic!(
+                            "invalid date mapping arguments: {}",
+                            serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default()
+                        )
+                    });
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
                     bundle_ops::process_bundles(
