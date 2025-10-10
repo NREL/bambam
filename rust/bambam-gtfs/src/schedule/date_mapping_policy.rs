@@ -1,10 +1,19 @@
 use std::{collections::BinaryHeap, sync::Arc};
 
 use chrono::{Datelike, Days, NaiveDate};
+use clap::ValueEnum;
 use gtfs_structures::{Calendar, CalendarDate, Exception, Gtfs};
 use serde::{Deserialize, Serialize};
 
 use crate::schedule::{date_ops, schedule_error::ScheduleError, ProcessedTrip};
+
+#[derive(Serialize, Deserialize, Clone, Debug, ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum DateMappingPolicyType {
+    ExactDay,
+    ExactRange,
+    MatchNearest,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]

@@ -3,7 +3,10 @@
 //! information on the mobility database catalog listing.
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
-use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
+use crate::schedule::{
+    bundle_ops, DateMappingPolicy, DateMappingPolicyType, GtfsProvider, GtfsSummary,
+    MissingStopLocationPolicy,
+};
 use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
@@ -15,6 +18,7 @@ use routee_compass_core::model::map::SpatialIndex;
 use routee_compass_core::model::network::Vertex;
 use routee_compass_core::util::fs::read_utils;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{collections::HashSet, fs::File, io::Write, path::Path, time::Duration};
@@ -93,6 +97,15 @@ pub enum GtfsOperation {
         #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
 
+        #[arg(value_enum)]
+        date_mapping_policy: DateMappingPolicyType,
+
+        #[arg(long)]
+        date_mapping_date_tolerance: Option<u64>,
+
+        #[arg(long)]
+        date_mapping_match_weekday: Option<bool>,
+
         #[arg(long, default_value_t = true)]
         overwrite: bool,
     },
@@ -149,12 +162,25 @@ impl GtfsOperation {
                 output_directory,
                 overwrite,
                 parallelism,
+                date_mapping_policy,
+                date_mapping_date_tolerance,
+                date_mapping_match_weekday,
             } => {
                 let spatial_index = load_vertices_and_create_spatial_index(
                     vertices_compass_filename,
                     *vertex_match_tolerance,
                 )
                 .expect("failed reading vertices and building spatial index");
+                let date_mapping_config = json![{
+                    "type": json![date_mapping_policy],
+                    "date_tolerance": json![date_mapping_date_tolerance],
+                    "match_weekday": json![date_mapping_match_weekday]
+                }];
+                let date_mapping_policy: DateMappingPolicy =
+                    serde_json::from_value(date_mapping_config.clone()).expect(&format!(
+                        "invalid date mapping arguments: {}",
+                        serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default(),
+                    ));
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
                     bundle_ops::process_bundles(
@@ -165,6 +191,7 @@ impl GtfsOperation {
                         spatial_index,
                         missing_stop_location_policy,
                         distance_calculation_policy,
+                        &date_mapping_policy,
                         Path::new(output_directory),
                         *overwrite,
                         *parallelism,
@@ -181,6 +208,7 @@ impl GtfsOperation {
                         spatial_index,
                         missing_stop_location_policy,
                         distance_calculation_policy,
+                        &date_mapping_policy,
                         Path::new(output_directory),
                         *overwrite,
                     )

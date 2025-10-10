@@ -15,8 +15,8 @@ pub struct ProcessedTrip {
     pub service_id: String,
     /// list of [`StopTime`] values associated with this [`Trip`] in sorted order
     pub stop_times: Vec<StopTime>,
-    /// starting date of this trip.
-    pub start_date: NaiveDate,
+    // /// starting date of this trip.
+    // pub start_date: NaiveDate,
 }
 
 impl ProcessedTrip {
@@ -28,26 +28,35 @@ impl ProcessedTrip {
         trip: &Trip,
         gtfs: &Gtfs,
         dates_lookup: Option<&HashMap<String, HashMap<NaiveDate, Exception>>>,
-        start_date: &NaiveDate,
-        end_date: &NaiveDate,
+        // start_date: &NaiveDate,
+        // end_date: &NaiveDate,
     ) -> Result<Option<ProcessedTrip>, ScheduleError> {
+        let stop_times = get_ordered_stops(trip)?;
+        let result = Self {
+            trip_id: trip.id.clone(),
+            route_id: trip.route_id.clone(),
+            service_id: trip.service_id.clone(),
+            stop_times,
+            // start_date,
+        };
+        Ok(Some(result))
         // check for the "start date" that we can use to match
-        let intersection_start_date_opt =
-            date_ops::find_trip_start_date(trip, gtfs, dates_lookup, start_date, end_date)?;
-        match intersection_start_date_opt {
-            None => Ok(None),
-            Some(start_date) => {
-                let stop_times = get_ordered_stops(trip)?;
-                let result = Self {
-                    trip_id: trip.id.clone(),
-                    route_id: trip.route_id.clone(),
-                    service_id: trip.service_id.clone(),
-                    stop_times,
-                    start_date,
-                };
-                Ok(Some(result))
-            }
-        }
+        // let intersection_start_date_opt =
+        //     date_ops::find_trip_start_date(trip, gtfs, dates_lookup, start_date, end_date)?;
+        // match intersection_start_date_opt {
+        //     None => Ok(None),
+        //     Some(start_date) => {
+        //         let stop_times = get_ordered_stops(trip)?;
+        //         let result = Self {
+        //             trip_id: trip.id.clone(),
+        //             route_id: trip.route_id.clone(),
+        //             service_id: trip.service_id.clone(),
+        //             stop_times,
+        //             start_date,
+        //         };
+        //         Ok(Some(result))
+        //     }
+        // }
     }
 }
 

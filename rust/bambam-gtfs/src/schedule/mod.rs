@@ -9,6 +9,7 @@ pub mod app;
 pub mod bundle_ops;
 mod date_mapping_policy;
 pub mod date_ops;
+pub use date_mapping_policy::{DateMappingPolicy, DateMappingPolicyType};
 pub use missing_stop_matching_policy::MissingStopLocationPolicy;
 pub use processed_trip::ProcessedTrip;
 pub use provider::GtfsProvider;
