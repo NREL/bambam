@@ -179,10 +179,11 @@ impl GtfsOperation {
                     "end_date": json![end_date.format("%m-%d-%Y").to_string()]
                 }];
                 let date_mapping_policy: DateMappingPolicy =
-                    serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|_| {
+                    serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|e| {
                         panic!(
-                            "invalid date mapping arguments: {}",
-                            serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default()
+                            "invalid date mapping arguments caused error '{}': {}",
+                            e,
+                            serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default(),
                         )
                     });
                 let input_path = Path::new(input);

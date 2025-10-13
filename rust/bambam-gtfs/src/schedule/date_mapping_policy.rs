@@ -3,9 +3,13 @@ use std::{collections::BinaryHeap, sync::Arc};
 use chrono::{Datelike, Days, NaiveDate};
 use clap::ValueEnum;
 use gtfs_structures::{Calendar, CalendarDate, Exception, Gtfs};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::schedule::{date_ops, schedule_error::ScheduleError, SortedTrip};
+use crate::util::date_codec::app::{
+    deserialize_naive_date, deserialize_optional_naive_date, APP_DATE_FORMAT,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, ValueEnum)]
 #[serde(rename_all = "snake_case")]
@@ -18,14 +22,19 @@ pub enum DateMappingPolicyType {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum DateMappingPolicy {
+    #[serde(deserialize_with = "deserialize_naive_date")]
     ExactDay(NaiveDate),
     ExactRange {
         /// start date in range
+        #[serde(deserialize_with = "deserialize_naive_date")]
         start_date: NaiveDate,
+        #[serde(deserialize_with = "deserialize_naive_date")]
         end_date: NaiveDate,
     },
     MatchNearest {
+        #[serde(deserialize_with = "deserialize_naive_date")]
         start_date: NaiveDate,
+        #[serde(deserialize_with = "deserialize_optional_naive_date")]
         end_date: Option<NaiveDate>,
         /// limit to the number of days to search from the target date +-
         /// to a viable date in the GTFS archive.
@@ -41,28 +50,16 @@ impl DateMappingPolicy {
     /// schedules for.
     pub fn iter(&self) -> DateIterator {
         match self {
-            DateMappingPolicy::ExactDay(day) => DateIterator {
-                current: Some(*day),
-                start_inclusive: *day,
-                end_inclusive: *day,
-            },
+            DateMappingPolicy::ExactDay(day) => DateIterator::new(*day, None),
             DateMappingPolicy::ExactRange {
                 start_date,
                 end_date,
-            } => DateIterator {
-                current: Some(*start_date),
-                start_inclusive: *start_date,
-                end_inclusive: *end_date,
-            },
+            } => DateIterator::new(*start_date, Some(*end_date)),
             DateMappingPolicy::MatchNearest {
                 start_date,
                 end_date,
                 ..
-            } => DateIterator {
-                current: Some(*start_date),
-                start_inclusive: *start_date,
-                end_inclusive: end_date.unwrap_or_else(|| *start_date),
-            },
+            } => DateIterator::new(*start_date, *end_date),
         }
     }
 
@@ -88,6 +85,16 @@ pub struct DateIterator {
     current: Option<NaiveDate>,
     start_inclusive: NaiveDate,
     end_inclusive: NaiveDate,
+}
+
+impl DateIterator {
+    pub fn new(start: NaiveDate, end: Option<NaiveDate>) -> DateIterator {
+        DateIterator {
+            current: Some(start),
+            start_inclusive: start,
+            end_inclusive: end.unwrap_or(start),
+        }
+    }
 }
 
 impl Iterator for DateIterator {
@@ -120,10 +127,10 @@ fn pick_exact_date(
             Err(ScheduleError::MalformedGtfsError(msg))
         }
         (Some(c), None) => find_in_calendar(target, c),
-        (None, Some(cd)) => confirm_add(target, cd),
+        (None, Some(cd)) => confirm_add_exception(target, cd),
         (Some(c), Some(cd)) => match find_in_calendar(target, c) {
-            Ok(_) => confirm_no_delete(target, cd),
-            Err(ce) => confirm_add(target, cd)
+            Ok(_) => confirm_no_delete_exception(target, cd),
+            Err(ce) => confirm_add_exception(target, cd)
                 .map_err(|e| ScheduleError::InvalidDataError(format!("{ce}, {e}"))),
         },
     }
@@ -145,9 +152,9 @@ fn pick_nearest_date(
             let msg = format!("cannot pick date with trip_id '{}' as it does not match calendar or calendar dates", trip.trip_id);
             Err(ScheduleError::MalformedGtfsError(msg))
         }
-        (None, Some(cd)) => find_nearest_add(target, cd, date_tolerance, match_weekday),
+        (None, Some(cd)) => find_nearest_add_exception(target, cd, date_tolerance, match_weekday),
         (Some(c), None) => {
-            let matches = find_in_range_with_tolerance(
+            let matches = date_range_intersection(
                 target,
                 &c.start_date,
                 &c.end_date,
@@ -159,7 +166,7 @@ fn pick_nearest_date(
             })
         }
         (Some(c), Some(cd)) => {
-            let matches = find_in_range_with_tolerance(
+            let matches = date_range_intersection(
                 target,
                 &c.start_date,
                 &c.end_date,
@@ -167,11 +174,11 @@ fn pick_nearest_date(
                 match_weekday,
             )?;
             if let Some(date_match) = matches.first() {
-                let _ = confirm_no_delete(date_match, cd)?;
+                let _ = confirm_no_delete_exception(date_match, cd)?;
                 return Ok(*date_match);
             }
             let calendar_dates_error =
-                match find_nearest_add(target, cd, date_tolerance, match_weekday) {
+                match find_nearest_add_exception(target, cd, date_tolerance, match_weekday) {
                     Ok(nearest) => return Ok(nearest),
                     Err(e) => e,
                 };
@@ -179,14 +186,14 @@ fn pick_nearest_date(
             let msg = if match_weekday && matches.is_empty() {
                 format!(
                     "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found no matches in calendar.txt matching weekday within tolerance of {} days and failed to find an add in calendar_dates.txt due to: {}",
-                    target.format("%m-%d-%Y"),
+                    target.format(APP_DATE_FORMAT),
                     date_tolerance,
                     calendar_dates_error
                 )
             } else if match_weekday {
                 format!(
                     "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found {} matches in calendar.txt with matching weekday and within date tolerance of {} days, but were all 'deleted' exception_type entries in calendar_dates.txt. failed to find an add in calendar_dates.txt due to: {}",
-                    target.format("%m-%d-%Y"),
+                    target.format(APP_DATE_FORMAT),
                     matches.len(),
                     date_tolerance,
                     calendar_dates_error
@@ -194,7 +201,7 @@ fn pick_nearest_date(
             } else {
                 format!(
                     "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found {} matches in calendar.txt within date tolerance of {} days, but were all 'deleted' exception_type entries in calendar_dates.txt. failed to find an add in calendar_dates.txt due to: {}",
-                    target.format("%m-%d-%Y"),
+                    target.format(APP_DATE_FORMAT),
                     matches.len(),
                     date_tolerance,
                     calendar_dates_error
@@ -250,9 +257,189 @@ impl PartialEq for DateCandidate {
 
 impl Eq for DateCandidate {}
 
+/// tests intersection of some target date with a date range.
+/// returns all valid dates that could be used from this date range, filtering by the date
+/// tolerance and weekday match criteria.
+fn date_range_intersection(
+    target: &NaiveDate,
+    start: &NaiveDate,
+    end: &NaiveDate,
+    tol: u64,
+    match_weekday: bool,
+) -> Result<Vec<NaiveDate>, ScheduleError> {
+    let mut candidates: Vec<(u64, NaiveDate)> = Vec::new();
+
+    // Calculate the tolerance range around the target date
+    let tolerance_days = Days::new(tol);
+    let target_start = target.checked_sub_days(tolerance_days).ok_or_else(|| {
+        let msg = format!(
+            "while applying date tolerance of {} days to target date {}, date became out of range",
+            tol,
+            target.format(APP_DATE_FORMAT)
+        );
+        ScheduleError::InvalidDataError(msg)
+    })?;
+    let target_end = target.checked_add_days(tolerance_days).ok_or_else(|| {
+        let msg = format!(
+            "while applying date tolerance of {} days to target date {}, date became out of range",
+            tol,
+            target.format(APP_DATE_FORMAT)
+        );
+        ScheduleError::InvalidDataError(msg)
+    })?;
+
+    // Find the overlap between [target_start, target_end] and [start, end]
+    let overlap_start = std::cmp::max(target_start, *start);
+    let overlap_end = std::cmp::min(target_end, *end);
+
+    // If there's no overlap, return empty vector
+    if overlap_start > overlap_end {
+        return Ok(Vec::new());
+    }
+
+    // Iterate through the overlapping date range
+    let mut current = overlap_start;
+    while current <= overlap_end {
+        let distance = current.signed_duration_since(*target).abs().num_days() as u64;
+
+        // Check if this date is within tolerance
+        if distance <= tol {
+            // Check weekday matching if required
+            if !match_weekday || current.weekday() == target.weekday() {
+                candidates.push((distance, current));
+            }
+        }
+
+        // Move to next day
+        current = current.checked_add_days(Days::new(1)).ok_or_else(|| {
+            let msg = format!(
+                "date iteration became out of range while processing date range intersection"
+            );
+            ScheduleError::InvalidDataError(msg)
+        })?;
+    }
+
+    // Sort by distance from target (closest first)
+    candidates.sort_by_key(|(distance, _)| *distance);
+
+    // Extract just the dates from the (distance, date) tuples
+    Ok(candidates.into_iter().map(|(_, date)| date).collect())
+}
+
+/// tests intersection of some simulated target date across the boundary of some
+/// date range
+fn date_range_intersection_for_exception_type(
+    target: &NaiveDate,
+    boundary: &NaiveDate,
+    tol: u64,
+    // adding: bool,
+) -> Result<Vec<NaiveDate>, ScheduleError> {
+    let adding: bool = target < boundary;
+    let distance = boundary.signed_duration_since(*target).abs().num_days() as u64;
+    let remaining = tol - distance;
+    let mut output = vec![*boundary];
+    for days in 0..remaining {
+        let next_opt = if adding {
+            boundary.checked_add_days(Days::new(days))
+        } else {
+            boundary.checked_sub_days(Days::new(days))
+        };
+        let next = next_opt.ok_or_else(|| {
+            let target_str = target.format(APP_DATE_FORMAT);
+            let op = if adding {
+                "adding"
+            } else {
+                "subtracting"
+            };
+            let msg = format!("while finding overlap in date range with tolerance of {tol} days to date {target_str}, date became out of range");
+            ScheduleError::InvalidDataError(msg)
+        })?;
+        output.push(next);
+    }
+    Ok(output)
+}
+
+/// finds the dates with maching weekday to some target in a date range.
+/// fails if no dates were found with matching weekday.
+fn date_range_intersection_preserving_weekday(
+    target: &NaiveDate,
+    start: &NaiveDate,
+    end: &NaiveDate,
+) -> Result<Vec<NaiveDate>, ScheduleError> {
+    let date_range = *start..*end;
+    let first_weekday_opt =
+        DateIterator::new(*start, Some(*end)).find(|d| d.weekday() == target.weekday());
+    let first_weekday = match first_weekday_opt {
+        Some(first) => Ok(first),
+        None => {
+            let msg = format!(
+                "no date with matching weekday {}",
+                error_msg_suffix(target, start, end)
+            );
+            Err(ScheduleError::InvalidDataError(msg))
+        }
+    }?;
+
+    // search through the rest of the range stepping by a week at a time
+    let mut result = vec![];
+    let mut cursor = Some(first_weekday);
+    while let Some(prev_cursor) = cursor {
+        let next_cursor = step_date(prev_cursor, 7)?;
+        if date_range.contains(&next_cursor) {
+            cursor = Some(next_cursor);
+            result.push(next_cursor);
+        } else {
+            cursor = None;
+        }
+    }
+    return Ok(result);
+}
+
+/// helper function to find some expected target date in the calendar_dates.txt of a
+/// GTFS archive where the entry should have an exception_type of "Added".
+fn confirm_add_exception(
+    target: &NaiveDate,
+    calendar_dates: &[CalendarDate],
+) -> Result<NaiveDate, ScheduleError> {
+    match calendar_dates
+        .iter()
+        .find(|cd| &cd.date == target && cd.exception_type == Exception::Added)
+    {
+        Some(_) => Ok(*target),
+        None => {
+            let msg = format!(
+                "no calendar_dates match target date '{}' with exception_type as 'added'",
+                target.format(APP_DATE_FORMAT),
+            );
+            Err(ScheduleError::InvalidDataError(msg))
+        }
+    }
+}
+
+/// helper function to find some expected target date in the calendar_dates.txt of a
+/// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
+fn confirm_no_delete_exception(
+    target: &NaiveDate,
+    calendar_dates: &[CalendarDate],
+) -> Result<NaiveDate, ScheduleError> {
+    match calendar_dates
+        .iter()
+        .find(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
+    {
+        Some(_) => {
+            let msg = format!(
+                "date in calendar_dates match target date '{}' with exception_type as 'deleted'",
+                target.format(APP_DATE_FORMAT),
+            );
+            Err(ScheduleError::InvalidDataError(msg))
+        }
+        None => Ok(*target),
+    }
+}
+
 /// finds the nearest date to the target date that has an exception_type of "Added"
 /// which is within some date_tolerance.
-fn find_nearest_add(
+fn find_nearest_add_exception(
     target: &NaiveDate,
     calendar_dates: &[CalendarDate],
     date_tolerance: u64,
@@ -285,7 +472,7 @@ fn find_nearest_add(
             };
             let msg = format!(
                 "no Added entry in calendar_dates.txt within {date_tolerance} days of {}{}",
-                target.format("%m-%d-%Y"),
+                target.format(APP_DATE_FORMAT),
                 mwd_str
             );
             Err(ScheduleError::InvalidDataError(msg))
@@ -293,190 +480,44 @@ fn find_nearest_add(
     }
 }
 
-/// helper function to find some expected target date in the calendar_dates.txt of a
-/// GTFS archive where the entry should have an exception_type of "Added".
-fn confirm_add(
-    target: &NaiveDate,
-    calendar_dates: &[CalendarDate],
-) -> Result<NaiveDate, ScheduleError> {
-    match calendar_dates
-        .iter()
-        .find(|cd| &cd.date == target && cd.exception_type == Exception::Added)
-    {
-        Some(_) => Ok(*target),
-        None => {
-            let msg = format!(
-                "no calendar_dates match target date '{}' with exception_type as 'added'",
-                target.format("%m-%d-%Y"),
-            );
-            Err(ScheduleError::InvalidDataError(msg))
-        }
-    }
-}
-
-/// helper function to find some expected target date in the calendar_dates.txt of a
-/// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
-fn confirm_no_delete(
-    target: &NaiveDate,
-    calendar_dates: &[CalendarDate],
-) -> Result<NaiveDate, ScheduleError> {
-    match calendar_dates
-        .iter()
-        .find(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
-    {
-        Some(_) => {
-            let msg = format!(
-                "date in calendar_dates match target date '{}' with exception_type as 'deleted'",
-                target.format("%m-%d-%Y"),
-            );
-            Err(ScheduleError::InvalidDataError(msg))
-        }
-        None => Ok(*target),
-    }
-}
-
-/// helper for testing a date range with the range extended by some date tolerance
-fn find_in_range_with_tolerance(
-    target: &NaiveDate,
-    start: &NaiveDate,
-    end: &NaiveDate,
-    tol: u64,
-    match_weekday: bool,
-) -> Result<Vec<NaiveDate>, ScheduleError> {
-    let days = Days::new(tol);
-    let start_with_tol = start.checked_sub_days(days).ok_or_else(|| {
-        let start_str = start.format("%m-%d-%Y");
-        let msg = format!("while applying date tolerance of {tol} days to start date {start_str}, date became out of range");
-        ScheduleError::InvalidDataError(msg)
-    })?;
-    let end_with_tol = end.checked_add_days(days).ok_or_else(|| {
-        let end_str = end.format("%m-%d-%Y");
-        let msg = format!("while applying date tolerance of {tol} days to end date {end_str}, date became out of range");
-        ScheduleError::InvalidDataError(msg)
-    })?;
-
-    // case 1) value is below start but within tolerance: [(start-tol) ... (target) ... (start)]
-    let add_to_target = target < start && &start_with_tol <= target;
-    // case 2) value is above end but within tolerance:  [(end) ... (target) ... (end+tol)]
-    let sub_from_target = end < target && target <= &end_with_tol;
-
-    if add_to_target && match_weekday {
-        find_in_range_preserving_weekday(target, start, end)
-    } else if add_to_target {
-        find_in_range(target, start, tol, true)
-    } else if sub_from_target && match_weekday {
-        find_in_range_preserving_weekday(target, start, end)
-    } else if sub_from_target {
-        find_in_range(target, end, tol, false)
-    } else {
-        let msg = format!(
-            "could not find date near {} within {} days from date range [{}, {}]",
-            tol,
-            target.format("%m-%d-%Y"),
-            start.format("%m-%d-%Y"),
-            end.format("%m-%d-%Y"),
-        );
-        Err(ScheduleError::InvalidDataError(msg))
-    }
-}
-
-fn find_in_range(
-    target: &NaiveDate,
-    boundary: &NaiveDate,
-    tol: u64,
-    adding: bool,
-) -> Result<Vec<NaiveDate>, ScheduleError> {
-    let distance = boundary.signed_duration_since(*target).abs().num_days() as u64;
-    let remaining = tol - distance;
-    let mut output = vec![*boundary];
-    for days in 0..remaining {
-        let next_opt = if adding {
-            boundary.checked_add_days(Days::new(days))
-        } else {
-            boundary.checked_sub_days(Days::new(days))
-        };
-        let next = next_opt.ok_or_else(|| {
-            let target_str = target.format("%m-%d-%Y");
-            let op = if adding {
-                "adding"
-            } else {
-                "subtracting"
-            };
-            let msg = format!("while finding overlap in date range with tolerance of {tol} days to date {target_str}, date became out of range");
-            ScheduleError::InvalidDataError(msg)
-        })?;
-        output.push(next);
-    }
-    Ok(output)
-}
-
-fn find_in_range_preserving_weekday(
-    target: &NaiveDate,
-    start: &NaiveDate,
-    end: &NaiveDate,
-) -> Result<Vec<NaiveDate>, ScheduleError> {
-    let is_below_range = target < start;
-    let is_above_range = end < target;
-    if !is_above_range && !is_below_range {
-        let msg = format!(
-            "invalid arguments for map_into_range_preserving_weekday, target {} is already within range [{},{}]",
-            target.format("%m-%d-%Y"),
-            start.format("%m-%d-%Y"),
-            end.format("%m-%d-%Y")
-        );
-        return Err(ScheduleError::InternalError(msg));
-    }
-    // search for the nearest weekday starting from the closest range boundary to the target
-    let mut cursor = if is_below_range { *start } else { *end };
-    let one_day = Days::new(1);
-    let one_week = Days::new(7);
-    let stop = if is_below_range {
-        cursor.checked_add_days(one_week).ok_or_else(|| {
-            let cur_str = cursor.format("%m-%d-%Y");
-            let msg = format!("while creating search boundary for range-preserving date mapping, was unable to add 7 days to {cur_str}");
-            ScheduleError::InvalidDataError(msg)
-        })
-    } else {
-        cursor.checked_sub_days(one_week).ok_or_else(|| {
-            let cur_str = cursor.format("%m-%d-%Y");
-            let msg = format!("while creating search boundary for range-preserving date mapping, was unable to subtract 7 days to {cur_str}");
-            ScheduleError::InvalidDataError(msg)
-        })
-    }?;
-    let mut found = vec![];
-    while cursor != stop {
-        if cursor.weekday() == target.weekday() {
-            // found it! terminate early!
-            found.push(cursor);
-        }
-        let next = cursor.checked_add_days(one_day).ok_or_else(|| {
-            let cur_str = cursor.format("%m-%d-%Y");
-            let msg = format!("while creating search boundary for range-preserving date mapping, was unable to add 1 day to {cur_str}");
-            ScheduleError::InvalidDataError(msg)
-        })?;
-        cursor = next;
-    }
-
-    if !found.is_empty() {
-        Ok(found)
-    } else {
-        // didn't find a weekday to map into in the 'real' date range.
-        let msg = format!(
-            "unable to find matching weekday {} for target {} within range [{},{}]",
-            target.weekday(),
-            target.format("%m-%d-%Y"),
-            start.format("%m-%d-%Y"),
-            end.format("%m-%d-%Y")
-        );
-        Err(ScheduleError::InvalidDataError(msg))
-    }
-}
-
 fn range_match_error_msg(current: &NaiveDate, start: &NaiveDate, end: &NaiveDate) -> String {
     format!(
         "target date '{}' does not match [{},{}]",
-        current.format("%m-%d-%Y"),
-        start.format("%m-%d-%Y"),
-        end.format("%m-%d-%Y")
+        current.format(APP_DATE_FORMAT),
+        start.format(APP_DATE_FORMAT),
+        end.format(APP_DATE_FORMAT)
+    )
+}
+
+fn step_date(date: NaiveDate, step: i64) -> Result<NaiveDate, ScheduleError> {
+    if step == 0 {
+        return Ok(date);
+    }
+    let stepped = if step < 0 {
+        let step_days = Days::new(step.abs() as u64);
+        date.checked_add_days(step_days)
+    } else {
+        let step_days = Days::new(step.abs() as u64);
+        date.checked_sub_days(step_days)
+    };
+    stepped.ok_or_else(|| {
+        let op = if step < 0 { "subtracting" } else { "adding" };
+        let msg = format!(
+            "failure {} {} days to date {} due to bounds error",
+            op,
+            step,
+            date.format(APP_DATE_FORMAT)
+        );
+        ScheduleError::InvalidDataError(msg)
+    })
+}
+
+/// helper function for returning errors that reference some target date and date range
+fn error_msg_suffix(target: &NaiveDate, start: &NaiveDate, end: &NaiveDate) -> String {
+    format!(
+        "for target date '{}' and date range [{},{}]",
+        target.format(APP_DATE_FORMAT),
+        start.format(APP_DATE_FORMAT),
+        end.format(APP_DATE_FORMAT)
     )
 }
