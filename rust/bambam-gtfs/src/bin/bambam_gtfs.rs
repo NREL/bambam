@@ -4,6 +4,7 @@ use bambam_gtfs::schedule::app::GtfsApp;
 use clap::Parser;
 
 fn main() {
+    env_logger::init();
     let args = GtfsApp::parse();
     args.op.run()
 }
