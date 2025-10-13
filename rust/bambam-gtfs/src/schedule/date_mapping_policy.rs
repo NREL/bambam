@@ -129,14 +129,16 @@ fn pick_exact_date(
         (Some(c), None) => find_in_calendar(target, c),
         (None, Some(cd)) => confirm_add_exception(target, cd),
         (Some(c), Some(cd)) => match find_in_calendar(target, c) {
-            Ok(_) => if confirm_no_delete_exception(target, cd) {
-                Ok(*target)
-            } else {
-                Err(ScheduleError::InvalidDataError(format!(
+            Ok(_) => {
+                if confirm_no_delete_exception(target, cd) {
+                    Ok(*target)
+                } else {
+                    Err(ScheduleError::InvalidDataError(format!(
                     "date {} is valid for calendar.txt but has exception of deleted in calendar_dates.txt",
                     target.format(APP_DATE_FORMAT)
                 )))
-            },
+                }
+            }
             Err(ce) => confirm_add_exception(target, cd)
                 .map_err(|e| ScheduleError::InvalidDataError(format!("{ce}, {e}"))),
         },
@@ -182,22 +184,26 @@ fn pick_nearest_date(
                 date_tolerance,
                 match_weekday,
             )?;
-            for date in cd.iter() {
-                if date.date == *target && !(date.exception_type == Exception::Added) {
-                    matches.push(date.date);
+            for calendar_date in cd.iter() {
+                let matches_date = calendar_date.date == *target;
+                let is_add = calendar_date.exception_type == Exception::Added;
+                let matches_weekday_expectation =
+                    !match_weekday || target.weekday() == calendar_date.date.weekday();
+                if matches_date && is_add & matches_weekday_expectation {
+                    matches.push(calendar_date.date);
                 }
             }
             let matches_minus_delete = matches
                 .into_iter()
                 .filter(|date_match| confirm_no_delete_exception(date_match, cd))
                 .collect_vec();
-            
-            matches_minus_delete.iter().min().cloned()
-                .ok_or_else(|| ScheduleError::InvalidDataError(format!(
+
+            matches_minus_delete.iter().min().cloned().ok_or_else(|| {
+                ScheduleError::InvalidDataError(format!(
                     "no match found across calendar + calendar_dates {}",
                     error_msg_suffix(target, &c.start_date, &c.end_date)
-                )))
-
+                ))
+            })
         }
     }
 }
@@ -299,74 +305,74 @@ fn date_range_intersection(
     Ok(candidates.into_iter().map(|(_, date)| date).collect())
 }
 
-/// tests intersection of some simulated target date across the boundary of some
-/// date range
-fn date_range_intersection_for_exception_type(
-    target: &NaiveDate,
-    boundary: &NaiveDate,
-    tol: u64,
-    // adding: bool,
-) -> Result<Vec<NaiveDate>, ScheduleError> {
-    let adding: bool = target < boundary;
-    let distance = boundary.signed_duration_since(*target).abs().num_days() as u64;
-    let remaining = tol - distance;
-    let mut output = vec![*boundary];
-    for days in 0..remaining {
-        let next_opt = if adding {
-            boundary.checked_add_days(Days::new(days))
-        } else {
-            boundary.checked_sub_days(Days::new(days))
-        };
-        let next = next_opt.ok_or_else(|| {
-            let target_str = target.format(APP_DATE_FORMAT);
-            let op = if adding {
-                "adding"
-            } else {
-                "subtracting"
-            };
-            let msg = format!("while finding overlap in date range with tolerance of {tol} days to date {target_str}, date became out of range");
-            ScheduleError::InvalidDataError(msg)
-        })?;
-        output.push(next);
-    }
-    Ok(output)
-}
+// /// tests intersection of some simulated target date across the boundary of some
+// /// date range
+// fn date_range_intersection_for_exception_type(
+//     target: &NaiveDate,
+//     boundary: &NaiveDate,
+//     tol: u64,
+//     // adding: bool,
+// ) -> Result<Vec<NaiveDate>, ScheduleError> {
+//     let adding: bool = target < boundary;
+//     let distance = boundary.signed_duration_since(*target).abs().num_days() as u64;
+//     let remaining = tol - distance;
+//     let mut output = vec![*boundary];
+//     for days in 0..remaining {
+//         let next_opt = if adding {
+//             boundary.checked_add_days(Days::new(days))
+//         } else {
+//             boundary.checked_sub_days(Days::new(days))
+//         };
+//         let next = next_opt.ok_or_else(|| {
+//             let target_str = target.format(APP_DATE_FORMAT);
+//             let op = if adding {
+//                 "adding"
+//             } else {
+//                 "subtracting"
+//             };
+//             let msg = format!("while finding overlap in date range with tolerance of {tol} days to date {target_str}, date became out of range");
+//             ScheduleError::InvalidDataError(msg)
+//         })?;
+//         output.push(next);
+//     }
+//     Ok(output)
+// }
 
-/// finds the dates with maching weekday to some target in a date range.
-/// fails if no dates were found with matching weekday.
-fn date_range_intersection_preserving_weekday(
-    target: &NaiveDate,
-    start: &NaiveDate,
-    end: &NaiveDate,
-) -> Result<Vec<NaiveDate>, ScheduleError> {
-    let date_range = *start..*end;
-    let first_weekday_opt =
-        DateIterator::new(*start, Some(*end)).find(|d| d.weekday() == target.weekday());
-    let first_weekday = match first_weekday_opt {
-        Some(first) => Ok(first),
-        None => {
-            let msg = format!(
-                "no date with matching weekday {}",
-                error_msg_suffix(target, start, end)
-            );
-            Err(ScheduleError::InvalidDataError(msg))
-        }
-    }?;
+// /// finds the dates with maching weekday to some target in a date range.
+// /// fails if no dates were found with matching weekday.
+// fn date_range_intersection_preserving_weekday(
+//     target: &NaiveDate,
+//     start: &NaiveDate,
+//     end: &NaiveDate,
+// ) -> Result<Vec<NaiveDate>, ScheduleError> {
+//     let date_range = *start..*end;
+//     let first_weekday_opt =
+//         DateIterator::new(*start, Some(*end)).find(|d| d.weekday() == target.weekday());
+//     let first_weekday = match first_weekday_opt {
+//         Some(first) => Ok(first),
+//         None => {
+//             let msg = format!(
+//                 "no date with matching weekday {}",
+//                 error_msg_suffix(target, start, end)
+//             );
+//             Err(ScheduleError::InvalidDataError(msg))
+//         }
+//     }?;
 
-    // search through the rest of the range stepping by a week at a time
-    let mut result = vec![];
-    let mut cursor = Some(first_weekday);
-    while let Some(prev_cursor) = cursor {
-        let next_cursor = step_date(prev_cursor, 7)?;
-        if date_range.contains(&next_cursor) {
-            cursor = Some(next_cursor);
-            result.push(next_cursor);
-        } else {
-            cursor = None;
-        }
-    }
-    Ok(result)
-}
+//     // search through the rest of the range stepping by a week at a time
+//     let mut result = vec![];
+//     let mut cursor = Some(first_weekday);
+//     while let Some(prev_cursor) = cursor {
+//         let next_cursor = step_date(prev_cursor, 7)?;
+//         if date_range.contains(&next_cursor) {
+//             cursor = Some(next_cursor);
+//             result.push(next_cursor);
+//         } else {
+//             cursor = None;
+//         }
+//     }
+//     Ok(result)
+// }
 
 /// helper function to find some expected target date in the calendar_dates.txt of a
 /// GTFS archive where the entry should have an exception_type of "Added".
@@ -392,7 +398,7 @@ fn confirm_add_exception(
 /// helper function to find some expected target date in the calendar_dates.txt of a
 /// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
 fn confirm_no_delete_exception(target: &NaiveDate, calendar_dates: &[CalendarDate]) -> bool {
-    match calendar_dates
+    calendar_dates
         .iter()
         .find(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
         .is_none()
