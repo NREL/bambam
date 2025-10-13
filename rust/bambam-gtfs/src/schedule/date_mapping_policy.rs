@@ -129,7 +129,14 @@ fn pick_exact_date(
         (Some(c), None) => find_in_calendar(target, c),
         (None, Some(cd)) => confirm_add_exception(target, cd),
         (Some(c), Some(cd)) => match find_in_calendar(target, c) {
-            Ok(_) => confirm_no_delete_exception(target, cd),
+            Ok(_) => if confirm_no_delete_exception(target, cd) {
+                Ok(*target)
+            } else {
+                Err(ScheduleError::InvalidDataError(format!(
+                    "date {} is valid for calendar.txt but has exception of deleted in calendar_dates.txt",
+                    target.format(APP_DATE_FORMAT)
+                )))
+            },
             Err(ce) => confirm_add_exception(target, cd)
                 .map_err(|e| ScheduleError::InvalidDataError(format!("{ce}, {e}"))),
         },
@@ -162,53 +169,35 @@ fn pick_nearest_date(
                 match_weekday,
             )?;
             matches.first().cloned().ok_or_else(|| {
-                ScheduleError::InternalError("empty find result should be unreachable".to_string())
+                let msg = error_msg_suffix(target, &c.start_date, &c.end_date);
+                ScheduleError::InvalidDataError(format!("could not find any matching dates {msg}"))
             })
         }
         (Some(c), Some(cd)) => {
-            let matches = date_range_intersection(
+            // find all matches across calendar.txt and calendar_dates.txt
+            let mut matches = date_range_intersection(
                 target,
                 &c.start_date,
                 &c.end_date,
                 date_tolerance,
                 match_weekday,
             )?;
-            if let Some(date_match) = matches.first() {
-                let _ = confirm_no_delete_exception(date_match, cd)?;
-                return Ok(*date_match);
+            for date in cd.iter() {
+                if date.date == *target && !(date.exception_type == Exception::Added) {
+                    matches.push(date.date);
+                }
             }
-            let calendar_dates_error =
-                match find_nearest_add_exception(target, cd, date_tolerance, match_weekday) {
-                    Ok(nearest) => return Ok(nearest),
-                    Err(e) => e,
-                };
+            let matches_minus_delete = matches
+                .into_iter()
+                .filter(|date_match| confirm_no_delete_exception(date_match, cd))
+                .collect_vec();
+            
+            matches_minus_delete.iter().min().cloned()
+                .ok_or_else(|| ScheduleError::InvalidDataError(format!(
+                    "no match found across calendar + calendar_dates {}",
+                    error_msg_suffix(target, &c.start_date, &c.end_date)
+                )))
 
-            let msg = if match_weekday && matches.is_empty() {
-                format!(
-                    "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found no matches in calendar.txt matching weekday within tolerance of {} days and failed to find an add in calendar_dates.txt due to: {}",
-                    target.format(APP_DATE_FORMAT),
-                    date_tolerance,
-                    calendar_dates_error
-                )
-            } else if match_weekday {
-                format!(
-                    "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found {} matches in calendar.txt with matching weekday and within date tolerance of {} days, but were all 'deleted' exception_type entries in calendar_dates.txt. failed to find an add in calendar_dates.txt due to: {}",
-                    target.format(APP_DATE_FORMAT),
-                    matches.len(),
-                    date_tolerance,
-                    calendar_dates_error
-                )
-            } else {
-                format!(
-                    "unable to find nearest for {} from calendar.txt and calendar_dates.txt. found {} matches in calendar.txt within date tolerance of {} days, but were all 'deleted' exception_type entries in calendar_dates.txt. failed to find an add in calendar_dates.txt due to: {}",
-                    target.format(APP_DATE_FORMAT),
-                    matches.len(),
-                    date_tolerance,
-                    calendar_dates_error
-                )
-            };
-
-            Err(ScheduleError::InternalError(msg))
         }
     }
 }
@@ -270,23 +259,8 @@ fn date_range_intersection(
     let mut candidates: Vec<(u64, NaiveDate)> = Vec::new();
 
     // Calculate the tolerance range around the target date
-    let tolerance_days = Days::new(tol);
-    let target_start = target.checked_sub_days(tolerance_days).ok_or_else(|| {
-        let msg = format!(
-            "while applying date tolerance of {} days to target date {}, date became out of range",
-            tol,
-            target.format(APP_DATE_FORMAT)
-        );
-        ScheduleError::InvalidDataError(msg)
-    })?;
-    let target_end = target.checked_add_days(tolerance_days).ok_or_else(|| {
-        let msg = format!(
-            "while applying date tolerance of {} days to target date {}, date became out of range",
-            tol,
-            target.format(APP_DATE_FORMAT)
-        );
-        ScheduleError::InvalidDataError(msg)
-    })?;
+    let target_start = step_date(*target, -(tol as i64))?;
+    let target_end = step_date(*target, tol as i64)?;
 
     // Find the overlap between [target_start, target_end] and [start, end]
     let overlap_start = std::cmp::max(target_start, *start);
@@ -312,7 +286,8 @@ fn date_range_intersection(
 
         // Move to next day
         current = current.checked_add_days(Days::new(1)).ok_or_else(|| {
-            let msg = "date iteration became out of range while processing date range intersection".to_string();
+            let msg = "date iteration became out of range while processing date range intersection"
+                .to_string();
             ScheduleError::InvalidDataError(msg)
         })?;
     }
@@ -416,23 +391,11 @@ fn confirm_add_exception(
 
 /// helper function to find some expected target date in the calendar_dates.txt of a
 /// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
-fn confirm_no_delete_exception(
-    target: &NaiveDate,
-    calendar_dates: &[CalendarDate],
-) -> Result<NaiveDate, ScheduleError> {
+fn confirm_no_delete_exception(target: &NaiveDate, calendar_dates: &[CalendarDate]) -> bool {
     match calendar_dates
         .iter()
         .find(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
-    {
-        Some(_) => {
-            let msg = format!(
-                "date in calendar_dates match target date '{}' with exception_type as 'deleted'",
-                target.format(APP_DATE_FORMAT),
-            );
-            Err(ScheduleError::InvalidDataError(msg))
-        }
-        None => Ok(*target),
-    }
+        .is_none()
 }
 
 /// finds the nearest date to the target date that has an exception_type of "Added"
