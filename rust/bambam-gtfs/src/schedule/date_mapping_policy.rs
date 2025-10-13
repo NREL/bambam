@@ -229,9 +229,11 @@ struct DateCandidate(u64, CalendarDate);
 
 impl Ord for DateCandidate {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .cmp(&other.0)
-            .then_with(|| self.1.date.cmp(&other.1.date))
+        // Reverse the ordering to make BinaryHeap work as min-heap for distance
+        other
+            .0
+            .cmp(&self.0)
+            .then_with(|| other.1.date.cmp(&self.1.date))
     }
 }
 
@@ -305,75 +307,6 @@ fn date_range_intersection(
     Ok(candidates.into_iter().map(|(_, date)| date).collect())
 }
 
-// /// tests intersection of some simulated target date across the boundary of some
-// /// date range
-// fn date_range_intersection_for_exception_type(
-//     target: &NaiveDate,
-//     boundary: &NaiveDate,
-//     tol: u64,
-//     // adding: bool,
-// ) -> Result<Vec<NaiveDate>, ScheduleError> {
-//     let adding: bool = target < boundary;
-//     let distance = boundary.signed_duration_since(*target).abs().num_days() as u64;
-//     let remaining = tol - distance;
-//     let mut output = vec![*boundary];
-//     for days in 0..remaining {
-//         let next_opt = if adding {
-//             boundary.checked_add_days(Days::new(days))
-//         } else {
-//             boundary.checked_sub_days(Days::new(days))
-//         };
-//         let next = next_opt.ok_or_else(|| {
-//             let target_str = target.format(APP_DATE_FORMAT);
-//             let op = if adding {
-//                 "adding"
-//             } else {
-//                 "subtracting"
-//             };
-//             let msg = format!("while finding overlap in date range with tolerance of {tol} days to date {target_str}, date became out of range");
-//             ScheduleError::InvalidDataError(msg)
-//         })?;
-//         output.push(next);
-//     }
-//     Ok(output)
-// }
-
-// /// finds the dates with maching weekday to some target in a date range.
-// /// fails if no dates were found with matching weekday.
-// fn date_range_intersection_preserving_weekday(
-//     target: &NaiveDate,
-//     start: &NaiveDate,
-//     end: &NaiveDate,
-// ) -> Result<Vec<NaiveDate>, ScheduleError> {
-//     let date_range = *start..*end;
-//     let first_weekday_opt =
-//         DateIterator::new(*start, Some(*end)).find(|d| d.weekday() == target.weekday());
-//     let first_weekday = match first_weekday_opt {
-//         Some(first) => Ok(first),
-//         None => {
-//             let msg = format!(
-//                 "no date with matching weekday {}",
-//                 error_msg_suffix(target, start, end)
-//             );
-//             Err(ScheduleError::InvalidDataError(msg))
-//         }
-//     }?;
-
-//     // search through the rest of the range stepping by a week at a time
-//     let mut result = vec![];
-//     let mut cursor = Some(first_weekday);
-//     while let Some(prev_cursor) = cursor {
-//         let next_cursor = step_date(prev_cursor, 7)?;
-//         if date_range.contains(&next_cursor) {
-//             cursor = Some(next_cursor);
-//             result.push(next_cursor);
-//         } else {
-//             cursor = None;
-//         }
-//     }
-//     Ok(result)
-// }
-
 /// helper function to find some expected target date in the calendar_dates.txt of a
 /// GTFS archive where the entry should have an exception_type of "Added".
 fn confirm_add_exception(
@@ -399,7 +332,8 @@ fn confirm_add_exception(
 /// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
 fn confirm_no_delete_exception(target: &NaiveDate, calendar_dates: &[CalendarDate]) -> bool {
     !calendar_dates
-        .iter().any(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
+        .iter()
+        .any(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
 }
 
 /// finds the nearest date to the target date that has an exception_type of "Added"
@@ -422,7 +356,7 @@ fn find_nearest_add_exception(
         if matches_exception && matches_weekday {
             let time_delta = date.date.signed_duration_since(*target).abs();
             let days = time_delta.num_days() as u64;
-            if days < date_tolerance {
+            if days <= date_tolerance {
                 heap.push(DateCandidate(days, date.clone()));
             }
         }
@@ -454,16 +388,17 @@ fn range_match_error_msg(current: &NaiveDate, start: &NaiveDate, end: &NaiveDate
     )
 }
 
+/// adds (or when step is negative, subtracts) days from a date.
 fn step_date(date: NaiveDate, step: i64) -> Result<NaiveDate, ScheduleError> {
     if step == 0 {
         return Ok(date);
     }
     let stepped = if step < 0 {
         let step_days = Days::new(step.unsigned_abs());
-        date.checked_add_days(step_days)
+        date.checked_sub_days(step_days)
     } else {
         let step_days = Days::new(step.unsigned_abs());
-        date.checked_sub_days(step_days)
+        date.checked_add_days(step_days)
     };
     stepped.ok_or_else(|| {
         let op = if step < 0 { "subtracting" } else { "adding" };
@@ -485,4 +420,525 @@ fn error_msg_suffix(target: &NaiveDate, start: &NaiveDate, end: &NaiveDate) -> S
         start.format(APP_DATE_FORMAT),
         end.format(APP_DATE_FORMAT)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::NaiveDate;
+
+    #[test]
+    fn test_step_date_zero_step() {
+        let date = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let result = step_date(date, 0).unwrap();
+        assert_eq!(result, date);
+    }
+
+    #[test]
+    fn test_step_date_positive_step() {
+        let date = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 6, 20).unwrap();
+        let result = step_date(date, 5).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_negative_step() {
+        let date = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 6, 10).unwrap();
+        let result = step_date(date, -5).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_cross_month_boundary_forward() {
+        let date = NaiveDate::from_ymd_opt(2023, 6, 28).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 7, 3).unwrap();
+        let result = step_date(date, 5).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_cross_month_boundary_backward() {
+        let date = NaiveDate::from_ymd_opt(2023, 7, 3).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 6, 28).unwrap();
+        let result = step_date(date, -5).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_cross_year_boundary_forward() {
+        let date = NaiveDate::from_ymd_opt(2023, 12, 28).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2024, 1, 2).unwrap();
+        let result = step_date(date, 5).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_cross_year_boundary_backward() {
+        let date = NaiveDate::from_ymd_opt(2024, 1, 5).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 12, 26).unwrap();
+        let result = step_date(date, -10).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_leap_year() {
+        let date = NaiveDate::from_ymd_opt(2024, 2, 28).unwrap(); // 2024 is a leap year
+        let expected = NaiveDate::from_ymd_opt(2024, 3, 1).unwrap();
+        let result = step_date(date, 2).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_non_leap_year() {
+        let date = NaiveDate::from_ymd_opt(2023, 2, 28).unwrap(); // 2023 is not a leap year
+        let expected = NaiveDate::from_ymd_opt(2023, 3, 1).unwrap();
+        let result = step_date(date, 1).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_large_positive_step() {
+        let date = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 12, 31).unwrap();
+        let result = step_date(date, 364).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_large_negative_step() {
+        let date = NaiveDate::from_ymd_opt(2023, 12, 31).unwrap();
+        let expected = NaiveDate::from_ymd_opt(2023, 1, 1).unwrap();
+        let result = step_date(date, -364).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_step_date_overflow_positive() {
+        // Test with a date close to the maximum representable date
+        let date = NaiveDate::MAX;
+        let result = step_date(date, 1);
+        assert!(result.is_err());
+
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("failure adding"));
+            assert!(msg.contains("bounds error"));
+        } else {
+            panic!("Expected InvalidDataError for overflow");
+        }
+    }
+
+    #[test]
+    fn test_step_date_overflow_negative() {
+        // Test with a date close to the minimum representable date
+        let date = NaiveDate::MIN;
+        let result = step_date(date, -1);
+        assert!(result.is_err());
+
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("failure subtracting"));
+            assert!(msg.contains("bounds error"));
+        } else {
+            panic!("Expected InvalidDataError for underflow");
+        }
+    }
+
+    #[test]
+    fn test_step_date_error_message_format() {
+        let date = NaiveDate::MAX;
+        let result = step_date(date, 100);
+
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("failure adding 100 days"));
+            assert!(msg.contains(&date.format(APP_DATE_FORMAT).to_string()));
+            assert!(msg.contains("bounds error"));
+        } else {
+            panic!("Expected InvalidDataError with specific message format");
+        }
+    }
+
+    #[test]
+    fn test_step_date_edge_case_one_day() {
+        let date = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+
+        // Test adding one day
+        let result_add = step_date(date, 1).unwrap();
+        let expected_add = NaiveDate::from_ymd_opt(2023, 6, 16).unwrap();
+        assert_eq!(result_add, expected_add);
+
+        // Test subtracting one day
+        let result_sub = step_date(date, -1).unwrap();
+        let expected_sub = NaiveDate::from_ymd_opt(2023, 6, 14).unwrap();
+        assert_eq!(result_sub, expected_sub);
+    }
+
+    #[test]
+    fn test_step_date_maximum_safe_values() {
+        // Test with reasonably large values that should work
+        let date = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+
+        // Test large positive step
+        let result_pos = step_date(date, 10000);
+        assert!(result_pos.is_ok());
+
+        // Test large negative step
+        let result_neg = step_date(date, -10000);
+        assert!(result_neg.is_ok());
+    }
+
+    // Helper function to create test CalendarDate
+    fn create_calendar_date(date: NaiveDate, exception_type: Exception) -> CalendarDate {
+        CalendarDate {
+            service_id: "test_service".to_string(),
+            date,
+            exception_type,
+        }
+    }
+
+    // Tests for confirm_add_exception
+    #[test]
+    fn test_confirm_add_exception_success() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(target, Exception::Added),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Deleted,
+            ),
+        ];
+
+        let result = confirm_add_exception(&target, &calendar_dates);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), target);
+    }
+
+    #[test]
+    fn test_confirm_add_exception_not_found() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Deleted,
+            ),
+        ];
+
+        let result = confirm_add_exception(&target, &calendar_dates);
+        assert!(result.is_err());
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("no calendar_dates match target date"));
+            assert!(msg.contains("06-15-2023")); // MM-DD-YYYY format
+            assert!(msg.contains("exception_type as 'added'"));
+        } else {
+            panic!("Expected InvalidDataError");
+        }
+    }
+
+    #[test]
+    fn test_confirm_add_exception_deleted_entry_exists() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(target, Exception::Deleted), // Has the date but wrong exception type
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Added,
+            ),
+        ];
+
+        let result = confirm_add_exception(&target, &calendar_dates);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_confirm_add_exception_empty_calendar_dates() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![];
+
+        let result = confirm_add_exception(&target, &calendar_dates);
+        assert!(result.is_err());
+    }
+
+    // Tests for confirm_no_delete_exception
+    #[test]
+    fn test_confirm_no_delete_exception_no_delete() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(target, Exception::Added),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Added,
+            ),
+        ];
+
+        let result = confirm_no_delete_exception(&target, &calendar_dates);
+        assert!(result);
+    }
+
+    #[test]
+    fn test_confirm_no_delete_exception_has_delete() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(target, Exception::Deleted),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Added,
+            ),
+        ];
+
+        let result = confirm_no_delete_exception(&target, &calendar_dates);
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_confirm_no_delete_exception_date_not_present() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Deleted,
+            ),
+        ];
+
+        let result = confirm_no_delete_exception(&target, &calendar_dates);
+        assert!(result); // True because target date is not in the list
+    }
+
+    #[test]
+    fn test_confirm_no_delete_exception_empty_calendar_dates() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![];
+
+        let result = confirm_no_delete_exception(&target, &calendar_dates);
+        assert!(result); // True because no entries means no delete exceptions
+    }
+
+    // Tests for find_nearest_add_exception
+    #[test]
+    fn test_find_nearest_add_exception_exact_match() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ),
+            create_calendar_date(target, Exception::Added),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Added,
+            ),
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 0, false);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), target);
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_nearest_within_tolerance() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap(); // Friday
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 12).unwrap(),
+                Exception::Added,
+            ), // 3 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 18).unwrap(),
+                Exception::Added,
+            ), // 3 days after
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 20).unwrap(),
+                Exception::Deleted,
+            ), // Should be ignored
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_ok());
+        // Should return the closer one (6/12, which is 3 days away)
+        assert_eq!(
+            result.unwrap(),
+            NaiveDate::from_ymd_opt(2023, 6, 12).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_with_weekday_matching() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap(); // Thursday
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 12).unwrap(),
+                Exception::Added,
+            ), // Monday, 3 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 8).unwrap(),
+                Exception::Added,
+            ), // Thursday, 7 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 22).unwrap(),
+                Exception::Added,
+            ), // Thursday, 7 days after
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 10, true);
+        assert!(result.is_ok());
+        // Should return the closer Thursday (6/8, which is 7 days away but matches weekday)
+        assert_eq!(
+            result.unwrap(),
+            NaiveDate::from_ymd_opt(2023, 6, 8).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_outside_tolerance() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 1).unwrap(),
+                Exception::Added,
+            ), // 14 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 30).unwrap(),
+                Exception::Added,
+            ), // 15 days after
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_err());
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("no Added entry in calendar_dates.txt"));
+            assert!(msg.contains("within 5 days"));
+            assert!(msg.contains("06-15-2023")); // MM-DD-YYYY format
+        } else {
+            panic!("Expected InvalidDataError");
+        }
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_no_weekday_match() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap(); // Thursday
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 12).unwrap(),
+                Exception::Added,
+            ), // Monday
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 16).unwrap(),
+                Exception::Added,
+            ), // Friday
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 18).unwrap(),
+                Exception::Added,
+            ), // Sunday
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, true);
+        assert!(result.is_err());
+        if let Err(ScheduleError::InvalidDataError(msg)) = result {
+            assert!(msg.contains("no Added entry in calendar_dates.txt"));
+            assert!(msg.contains("with matching weekday"));
+        } else {
+            panic!("Expected InvalidDataError");
+        }
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_only_deleted_entries() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 14).unwrap(),
+                Exception::Deleted,
+            ),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 15).unwrap(),
+                Exception::Deleted,
+            ),
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 16).unwrap(),
+                Exception::Deleted,
+            ),
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_empty_calendar_dates() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_equal_distance_picks_earlier() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 12).unwrap(),
+                Exception::Added,
+            ), // 3 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 18).unwrap(),
+                Exception::Added,
+            ), // 3 days after
+        ];
+
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_ok());
+        // With the reversed ordering, when distances are equal, it should pick the earlier date
+        // because of the tie-breaker: other.1.date.cmp(&self.1.date)
+        assert_eq!(
+            result.unwrap(),
+            NaiveDate::from_ymd_opt(2023, 6, 12).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_find_nearest_add_exception_tolerance_edge_case() {
+        let target = NaiveDate::from_ymd_opt(2023, 6, 15).unwrap();
+        let calendar_dates = vec![
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 10).unwrap(),
+                Exception::Added,
+            ), // Exactly 5 days before
+            create_calendar_date(
+                NaiveDate::from_ymd_opt(2023, 6, 9).unwrap(),
+                Exception::Added,
+            ), // 6 days before (outside tolerance)
+        ];
+
+        // With tolerance 4, the date that is exactly 4 days away should be excluded
+        let result = find_nearest_add_exception(&target, &calendar_dates, 4, false);
+        assert!(result.is_err()); // 5 days should be outside tolerance
+
+        // But with tolerance 6, it should be included
+        let result = find_nearest_add_exception(&target, &calendar_dates, 5, false);
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            NaiveDate::from_ymd_opt(2023, 6, 10).unwrap()
+        );
+    }
 }
