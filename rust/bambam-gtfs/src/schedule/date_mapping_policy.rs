@@ -312,9 +312,7 @@ fn date_range_intersection(
 
         // Move to next day
         current = current.checked_add_days(Days::new(1)).ok_or_else(|| {
-            let msg = format!(
-                "date iteration became out of range while processing date range intersection"
-            );
+            let msg = "date iteration became out of range while processing date range intersection".to_string();
             ScheduleError::InvalidDataError(msg)
         })?;
     }
@@ -392,7 +390,7 @@ fn date_range_intersection_preserving_weekday(
             cursor = None;
         }
     }
-    return Ok(result);
+    Ok(result)
 }
 
 /// helper function to find some expected target date in the calendar_dates.txt of a
@@ -494,10 +492,10 @@ fn step_date(date: NaiveDate, step: i64) -> Result<NaiveDate, ScheduleError> {
         return Ok(date);
     }
     let stepped = if step < 0 {
-        let step_days = Days::new(step.abs() as u64);
+        let step_days = Days::new(step.unsigned_abs());
         date.checked_add_days(step_days)
     } else {
-        let step_days = Days::new(step.abs() as u64);
+        let step_days = Days::new(step.unsigned_abs());
         date.checked_sub_days(step_days)
     };
     stepped.ok_or_else(|| {
