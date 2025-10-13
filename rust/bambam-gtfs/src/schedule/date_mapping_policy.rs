@@ -398,10 +398,8 @@ fn confirm_add_exception(
 /// helper function to find some expected target date in the calendar_dates.txt of a
 /// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
 fn confirm_no_delete_exception(target: &NaiveDate, calendar_dates: &[CalendarDate]) -> bool {
-    calendar_dates
-        .iter()
-        .find(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
-        .is_none()
+    !calendar_dates
+        .iter().any(|cd| &cd.date == target && cd.exception_type == Exception::Deleted)
 }
 
 /// finds the nearest date to the target date that has an exception_type of "Added"
