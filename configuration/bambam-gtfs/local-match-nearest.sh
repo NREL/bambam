@@ -9,5 +9,5 @@
     --date-mapping-match-weekday true \
     --output-directory "boulder_co/transit" \
     --vertices-compass-filename "boulder_co/vertices-complete.csv.gz" \
-    --start-date 09-01-2025 \
-    --end-date 09-01-2025
+    --start-date 08-15-2025 \
+    --end-date 08-15-2025
