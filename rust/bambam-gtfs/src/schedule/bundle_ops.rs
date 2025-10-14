@@ -303,7 +303,8 @@ pub fn process_bundle(
         .map(|(service_id, (target, picked))| {
             let target_str = target.format(APP_DATE_FORMAT).to_string();
             let picked_str = picked.format(APP_DATE_FORMAT).to_string();
-            (service_id, (target_str, picked_str))
+            let dates_ser = json![{"target": target_str, "picked": picked_str}];
+            (service_id, dates_ser)
         })
         .collect::<HashMap<_, _>>();
     let metadata = json! [{
