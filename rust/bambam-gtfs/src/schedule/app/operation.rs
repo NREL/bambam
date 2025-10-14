@@ -107,6 +107,10 @@ pub enum GtfsOperation {
 
         #[arg(long, default_value_t = true)]
         overwrite: bool,
+
+        /// ignore failures during batch processing and continue with successful bundles
+        #[arg(long, default_value_t = false)]
+        ignore_failures: bool,
     },
 }
 
@@ -164,6 +168,7 @@ impl GtfsOperation {
                 date_mapping_policy,
                 date_mapping_date_tolerance,
                 date_mapping_match_weekday,
+                ignore_failures,
             } => {
                 let spatial_index = load_vertices_and_create_spatial_index(
                     vertices_compass_filename,
@@ -203,6 +208,7 @@ impl GtfsOperation {
                         Path::new(output_directory),
                         *overwrite,
                         *parallelism,
+                        *ignore_failures,
                     )
                     .unwrap_or_else(|e| {
                         log::error!("failure running preprocess-bundle: {e}");
