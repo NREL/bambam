@@ -98,13 +98,13 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 let start_date =
                     NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading start_date for exact range mapping policy: {e}"
+                            "failure reading start_date for nearest range mapping policy: {e}"
                         ))
                     })?;
                 let end_date =
                     NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading end_date for exact range mapping policy: {e}"
+                            "failure reading end_date for nearest range mapping policy: {e}"
                         ))
                     })?;
                 Ok(Self::NearestRange {
