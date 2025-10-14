@@ -8,39 +8,32 @@ use crate::{
     util::date_codec::app::APP_DATE_FORMAT,
 };
 
-/// helper function to find some expected date in the calendar.txt of a GTFS archive
-pub fn find_in_calendar(
-    target: &NaiveDate,
-    calendar: &Calendar,
-) -> Result<NaiveDate, ScheduleError> {
-    let start = &calendar.start_date;
-    let end = &calendar.end_date;
-    let within_service_date_range = start <= target && target <= end;
-    if within_service_date_range {
-        Ok(*target)
-    } else {
-        let msg = range_match_error_msg(target, start, end);
-        Err(ScheduleError::InvalidDataError(format!(
-            "no calendar.txt dates match target: {msg}"
-        )))
-    }
-}
-
-/// tests intersection of some target date with a date range.
-/// returns all valid dates that could be used from this date range, filtering by the date
+/// tests intersection (inclusive) of some target date with a date range.
+///
+/// # Arguments
+///
+/// * `target` - the "real" date from the date range
+/// * `start` - start (inclusive) of the range to test against from the calendar.txt file
+/// * `end` - end (inclusive) of the range to test against from the calendar.txt file
+/// * `date_tolerance` - number of days outside of range we will tolerate remapping dates
+/// * `match_weekday` - if true, ensure any found dates also match the target by day of week
+///
+/// # Returns
+///
+/// all valid dates that could be used from this date range, filtering by the date
 /// tolerance and weekday match criteria.
 pub fn date_range_intersection(
     target: &NaiveDate,
     start: &NaiveDate,
     end: &NaiveDate,
-    tol: u64,
+    date_tolerance: u64,
     match_weekday: bool,
 ) -> Result<Vec<NaiveDate>, ScheduleError> {
     let mut candidates: Vec<(u64, NaiveDate)> = Vec::new();
 
     // Calculate the tolerance range around the target date
-    let target_start = step_date(*target, -(tol as i64))?;
-    let target_end = step_date(*target, tol as i64)?;
+    let target_start = step_date(*target, -(date_tolerance as i64))?;
+    let target_end = step_date(*target, date_tolerance as i64)?;
 
     // Find the overlap between [target_start, target_end] and [start, end]
     let overlap_start = std::cmp::max(target_start, *start);
@@ -57,7 +50,7 @@ pub fn date_range_intersection(
         let distance = current.signed_duration_since(*target).abs().num_days() as u64;
 
         // Check if this date is within tolerance
-        if distance <= tol {
+        if distance <= date_tolerance {
             // Check weekday matching if required
             if !match_weekday || current.weekday() == target.weekday() {
                 candidates.push((distance, current));
@@ -65,11 +58,7 @@ pub fn date_range_intersection(
         }
 
         // Move to next day
-        current = current.checked_add_days(Days::new(1)).ok_or_else(|| {
-            let msg = "date iteration became out of range while processing date range intersection"
-                .to_string();
-            ScheduleError::InvalidDataError(msg)
-        })?;
+        current = step_date(current, 1)?;
     }
 
     // Sort by distance from target (closest first)
@@ -77,6 +66,24 @@ pub fn date_range_intersection(
 
     // Extract just the dates from the (distance, date) tuples
     Ok(candidates.into_iter().map(|(_, date)| date).collect())
+}
+
+/// helper function to find some expected date in the calendar.txt of a GTFS archive
+pub fn find_in_calendar(
+    target: &NaiveDate,
+    calendar: &Calendar,
+) -> Result<NaiveDate, ScheduleError> {
+    let start = &calendar.start_date;
+    let end = &calendar.end_date;
+    let within_service_date_range = start <= target && target <= end;
+    if within_service_date_range {
+        Ok(*target)
+    } else {
+        let msg = error_msg_suffix(target, start, end);
+        Err(ScheduleError::InvalidDataError(format!(
+            "no calendar.txt dates match {msg}"
+        )))
+    }
 }
 
 /// helper function to find some expected target date in the calendar_dates.txt of a
@@ -101,7 +108,9 @@ pub fn confirm_add_exception(
 }
 
 /// helper function to find some expected target date in the calendar_dates.txt of a
-/// GTFS archive where the entry should 1) not exist or 2) NOT have an exception_type of "Deleted".
+/// GTFS archive where the entry should
+///   1) not exist, or
+///   2) NOT have an exception_type of "Deleted".
 pub fn confirm_no_delete_exception(target: &NaiveDate, calendar_dates: &[CalendarDate]) -> bool {
     !calendar_dates
         .iter()
@@ -149,15 +158,6 @@ pub fn find_nearest_add_exception(
             Err(ScheduleError::InvalidDataError(msg))
         }
     }
-}
-
-pub fn range_match_error_msg(current: &NaiveDate, start: &NaiveDate, end: &NaiveDate) -> String {
-    format!(
-        "target date '{}' does not match [{},{}]",
-        current.format(APP_DATE_FORMAT),
-        start.format(APP_DATE_FORMAT),
-        end.format(APP_DATE_FORMAT)
-    )
 }
 
 /// adds (or when step is negative, subtracts) days from a date.
