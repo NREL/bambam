@@ -1,7 +1,7 @@
 use chrono::{Duration, NaiveDate, NaiveDateTime};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
-use geo::Point;
+use geo::{LineString, Point};
 use gtfs_structures::{Gtfs, Stop, StopTime};
 use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
@@ -181,6 +181,8 @@ pub fn process_bundle(
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
     // sequence of scheduled departures by route id between VertexIds in the vertex set
     let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
+    // linestrings for each GTFS edge
+    let mut geometries: HashMap<(usize, usize), LineString> = HashMap::new();
     // if the [`DateMappingPolicy`] remapped any dates, it is stored here.
     let mut date_mapping: HashMap<String, (NaiveDate, NaiveDate)> = HashMap::new();
 
@@ -206,6 +208,14 @@ pub fn process_bundle(
                 // This only gets to run if all previous conditions are met
                 // it adds the edge if it has not yet been added.
                 let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
+                    let geometry = match distance_calculation_policy {
+                        DistanceCalculationPolicy::Haversine => {
+                            LineString::new(vec![src_point.0, dst_point.0])
+                        }
+                        DistanceCalculationPolicy::Shape => todo!(),
+                        DistanceCalculationPolicy::Fallback => todo!(),
+                    };
+
                     // Estimate distance
                     let distance: Length = match distance_calculation_policy {
                         DistanceCalculationPolicy::Haversine => {
@@ -217,6 +227,7 @@ pub fn process_bundle(
 
                     let edge = Edge::new(*edge_list_id, edge_id, src_id, dst_id, distance);
                     schedules.insert((src_id, dst_id), vec![]);
+                    geometries.insert((src_id, dst_id), geometry);
                     edge_id += 1;
                     edge
                 });
@@ -319,6 +330,7 @@ pub fn process_bundle(
     })?;
     let edges_filename = format!("edges-compass-{edge_list_id}.csv.gz");
     let schedules_filename = format!("edges-schedules-{edge_list_id}.csv.gz");
+    let geometries_filename = format!("edges-geometries-enumerated-{edge_list_id}.txt.gz");
     let mut edges_writer = create_writer(
         output_directory,
         &edges_filename,
@@ -331,6 +343,13 @@ pub fn process_bundle(
         &schedules_filename,
         true,
         QuoteStyle::Necessary,
+        overwrite,
+    );
+    let mut geometries_writer = create_writer(
+        output_directory,
+        &geometries_filename,
+        false,
+        QuoteStyle::Never,
         overwrite,
     );
 
@@ -369,6 +388,24 @@ pub fn process_bundle(
                     ))
                 })?;
             }
+        }
+
+        if let Some(ref mut writer) = geometries_writer {
+            let geometry = geometries.get(k).ok_or_else(|| {
+                ScheduleError::GtfsAppError(format!(
+                    "Failed to write to geometry file {}: geometry {k:?} not found",
+                    String::from(&schedules_filename)
+                ))
+            })?;
+            writer
+                .serialize(geometry.to_wkt().to_string())
+                .map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "Failed to write to geometry file {}: {}",
+                        String::from(&edges_filename),
+                        e
+                    ))
+                })?;
         }
     }
     Ok(())

@@ -517,12 +517,12 @@ mod test {
         // ASSERTION 2: confirm each leg's dist/time keys exist and values were set with zeroes
         for leg_idx in (0..max_trip_legs) {
             let dist = state_ops::get_leg_distance(&state, leg_idx, &state_model)
-                .expect(&format!("unable to get leg distance for leg {leg_idx}"));
+                .unwrap_or_else(|_| panic!("unable to get leg distance for leg {leg_idx}"));
             let time = state_ops::get_leg_time(&state, leg_idx, &state_model)
-                .expect(&format!("unable to get leg time for leg {leg_idx}"));
+                .unwrap_or_else(|_| panic!("unable to get leg time for leg {leg_idx}"));
             let route_id =
                 state_ops::get_leg_route_id(&state, leg_idx, &state_model, &tm.route_id_to_state)
-                    .expect(&format!("unable to get leg route_id for leg {leg_idx}"));
+                    .unwrap_or_else(|_| panic!("unable to get leg route_id for leg {leg_idx}"));
             assert_eq!(dist.value, 0.0);
             assert_eq!(time.value, 0.0);
             assert_eq!(route_id, None);
@@ -660,7 +660,7 @@ mod test {
         state: &[StateVariable],
         state_model: &StateModel,
     ) -> Result<(), String> {
-        let active_leg = state_ops::get_active_leg_idx(&state, &state_model)
+        let active_leg = state_ops::get_active_leg_idx(state, state_model)
             .expect("failure getting active leg index");
 
         match (leg_idx, active_leg) {
@@ -691,7 +691,7 @@ mod test {
         max_trip_legs: u64,
         mode_to_state: &MultimodalStateMapping,
     ) -> Result<(), String> {
-        let active_leg_opt = state_ops::get_active_leg_idx(&state, &state_model)
+        let active_leg_opt = state_ops::get_active_leg_idx(state, state_model)
             .expect("failure getting active leg index");
 
         match (mode, active_leg_opt) {
@@ -703,11 +703,11 @@ mod test {
                 Err(format!("assert_active_mode failure: we are expecting no active mode, but state has leg index of {leg_idx}"))
             }
             (Some(m), None) => {
-                Err(format!("assert_active_mode failure: we are expecting an active mode, but state has no active leg"))
+                Err("assert_active_mode failure: we are expecting an active mode, but state has no active leg".to_string())
             }
             (Some(test_mode), Some(leg_idx)) => {
-                let active_mode = state_ops::get_existing_leg_mode(&state, leg_idx, &state_model, max_trip_legs, &mode_to_state)
-                    .expect(&format!("failure getting mode for leg {leg_idx}"));
+                let active_mode = state_ops::get_existing_leg_mode(state, leg_idx, state_model, max_trip_legs, mode_to_state)
+                    .unwrap_or_else(|_| panic!("failure getting mode for leg {leg_idx}"));
 
                 if active_mode != test_mode {
                     Err(format!("expected active leg mode of {active_mode} to be {test_mode}"))
@@ -722,7 +722,7 @@ mod test {
     /// helper for printing the state as JSON to the console
     fn print_state(state: &[StateVariable], state_model: &StateModel) {
         let state_json = state_model
-            .serialize_state(&state, false)
+            .serialize_state(state, false)
             .expect("state serialization failed");
         println!(
             "{}",

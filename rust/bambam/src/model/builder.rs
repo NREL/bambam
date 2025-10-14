@@ -7,6 +7,7 @@ use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::Iso
 use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
+use crate::model::traversal::transit::TransitTraversalBuilder;
 use inventory;
 use routee_compass::app::compass::BuilderRegistration;
 use routee_compass::app::compass::CompassAppError;
@@ -32,6 +33,8 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
         String::from("multimodal"),
         Rc::new(MultimodalTraversalBuilder {}),
     );
+
+    builders.add_traversal_model(String::from("transit"), Rc::new(TransitTraversalBuilder {}));
 
     builders.add_frontier_model(
         "multimodal".to_string(),
