@@ -236,6 +236,7 @@ fn pick_nearest_date(
                 date_tolerance,
                 match_weekday,
             )?;
+            // apply exceptions in calendar_dates.txt to the matches
             for calendar_date in cd.iter() {
                 let matches_date = calendar_date.date == *target;
                 let is_add = calendar_date.exception_type == Exception::Added;
@@ -250,7 +251,18 @@ fn pick_nearest_date(
                 .filter(|date_match| date_ops::confirm_no_delete_exception(date_match, cd))
                 .collect_vec();
 
-            matches_minus_delete.iter().min().cloned().ok_or_else(|| {
+            // find the valid date that is closest to the target date
+            let min_distance_match = matches_minus_delete
+                .iter()
+                .map(|date| {
+                    let days = target.signed_duration_since(*date).abs().num_days();
+                    (days, date)
+                })
+                .min()
+                .map(|(_, d)| d)
+                .cloned();
+
+            min_distance_match.ok_or_else(|| {
                 ScheduleError::InvalidDataError(format!(
                     "no match found across calendar + calendar_dates {}",
                     date_ops::error_msg_suffix(target, &c.start_date, &c.end_date)
