@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate, NaiveDateTime};
+use chrono::{Duration, NaiveDate};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::{LineString, Point};
@@ -10,7 +10,6 @@ use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
     network::{Edge, EdgeConfig},
 };
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
@@ -25,29 +24,26 @@ use crate::schedule::{
     batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     schedule_error::ScheduleError,
-    MissingStopLocationPolicy, ProcessedTrip,
+    MissingStopLocationPolicy, ProcessedTrip, ScheduleRow,
 };
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ScheduleConfig {
-    edge_id: usize,
-    src_departure_time: NaiveDateTime,
-    dst_arrival_time: NaiveDateTime,
-    route_id: String,
+#[derive(Clone)]
+pub struct ProcessBundlesConfig {
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
+    pub spatial_index: Arc<SpatialIndex>,
+    pub missing_stop_location_policy: MissingStopLocationPolicy,
+    pub distance_calculation_policy: DistanceCalculationPolicy,
+    pub output_directory: String,
+    pub overwrite: bool,
 }
 
 /// multithreaded GTFS processing.
 pub fn process_bundles(
     bundle_directory_path: &Path,
     start_edge_list_id: &usize,
-    start_date: &NaiveDate,
-    end_date: &NaiveDate,
-    spatial_index: Arc<SpatialIndex>,
-    missing_stop_location_policy: &MissingStopLocationPolicy,
-    distance_calculation_policy: &DistanceCalculationPolicy,
-    output_directory: &Path,
-    overwrite: bool,
     parallelism: usize,
+    c: Arc<ProcessBundlesConfig>,
 ) -> Result<(), ScheduleError> {
     let archive_paths = bundle_directory_path
         .read_dir()
@@ -87,18 +83,7 @@ pub fn process_bundles(
                         ))
                     })?;
                     let edge_list_id = *start_edge_list_id + edge_list_offset;
-                    process_bundle(
-                        bundle_file,
-                        &edge_list_id,
-                        start_date,
-                        end_date,
-                        spatial_index.clone(),
-                        missing_stop_location_policy,
-                        distance_calculation_policy,
-                        output_directory,
-                        overwrite,
-                    )
-                    .map_err(|e| {
+                    process_bundle(bundle_file, &edge_list_id, c.clone()).map_err(|e| {
                         ScheduleError::GtfsAppError(format!("while processing {bundle_file}, {e}"))
                     })
                 })
@@ -127,13 +112,7 @@ pub fn process_bundles(
 pub fn process_bundle(
     bundle_file: &str,
     edge_list_id: &usize,
-    start_date: &NaiveDate,
-    end_date: &NaiveDate,
-    spatial_index: Arc<SpatialIndex>,
-    missing_stop_location_policy: &MissingStopLocationPolicy,
-    distance_calculation_policy: &DistanceCalculationPolicy,
-    output_directory: &Path,
-    overwrite: bool,
+    c: Arc<ProcessBundlesConfig>,
 ) -> Result<(), ScheduleError> {
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
@@ -172,8 +151,13 @@ pub fn process_bundle(
     // get trips that match our date range
     let mut trips: HashMap<String, ProcessedTrip> = HashMap::new();
     for t in gtfs.trips.values() {
-        let trip_data_opt =
-            ProcessedTrip::new(t, &gtfs, gtfs_dates_lookup.as_ref(), start_date, end_date)?;
+        let trip_data_opt = ProcessedTrip::new(
+            t,
+            &gtfs,
+            gtfs_dates_lookup.as_ref(),
+            &c.start_date,
+            &c.end_date,
+        )?;
         if let Some(trip_data) = trip_data_opt {
             let _ = trips.insert(trip_data.trip_id.clone(), trip_data);
         }
@@ -181,8 +165,8 @@ pub fn process_bundle(
     if trips.is_empty() {
         let msg = format!(
             "date range [{}, {}] did not match any trips",
-            start_date.format("%m-%d-%Y"),
-            end_date.format("%m-%d-%Y"),
+            c.start_date.format("%m-%d-%Y"),
+            c.end_date.format("%m-%d-%Y"),
         );
         return Err(ScheduleError::GtfsAppError(msg));
     }
@@ -204,13 +188,13 @@ pub fn process_bundle(
     // Construct edge lists
     let mut edge_id: usize = 0;
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
-    let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
+    let mut schedules: HashMap<(usize, usize), Vec<ScheduleRow>> = HashMap::new();
     let mut geometries: HashMap<(usize, usize), LineString> = HashMap::new();
     for trip in trips.values() {
         for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
-            let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
+            let map_match_result = map_match(src, dst, &stop_locations, c.spatial_index.clone())?;
             let ((src_id, src_point), (dst_id, dst_point)) =
-                match (map_match_result, missing_stop_location_policy) {
+                match (map_match_result, &c.missing_stop_location_policy) {
                     (Some(result), _) => result,
                     (None, MissingStopLocationPolicy::Fail) => {
                         let msg = format!("{} or {}", src.stop.id, dst.stop.id);
@@ -222,7 +206,7 @@ pub fn process_bundle(
             // This only gets to run if all previous conditions are met
             // it adds the edge if it has not yet been added.
             let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
-                let geometry = match distance_calculation_policy {
+                let geometry = match &c.distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => {
                         LineString::new(vec![src_point.0, dst_point.0])
                     }
@@ -231,7 +215,7 @@ pub fn process_bundle(
                 };
 
                 // Estimate distance
-                let distance: Length = match distance_calculation_policy {
+                let distance: Length = match &c.distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => compute_haversine(src_point, dst_point),
                     DistanceCalculationPolicy::Shape => todo!(),
                     DistanceCalculationPolicy::Fallback => todo!(),
@@ -281,7 +265,7 @@ pub fn process_bundle(
                     ScheduleError::InvalidDataError(msg)
                 })?;
 
-            let schedule = ScheduleConfig {
+            let schedule = ScheduleRow {
                 edge_id: edge.edge_id.0,
                 src_departure_time,
                 dst_arrival_time,
@@ -303,6 +287,7 @@ pub fn process_bundle(
     }
 
     // Write to files
+    let output_directory = Path::new(&c.output_directory);
     let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
     std::fs::create_dir_all(output_directory).map_err(|e| {
         let outdir = output_directory.to_str().unwrap_or_default();
@@ -321,26 +306,26 @@ pub fn process_bundle(
         &edges_filename,
         true,
         QuoteStyle::Necessary,
-        overwrite,
+        c.overwrite,
     );
     let mut schedules_writer = create_writer(
         output_directory,
         &schedules_filename,
         true,
         QuoteStyle::Necessary,
-        overwrite,
+        c.overwrite,
     );
     let mut geometries_writer = create_writer(
         output_directory,
         &geometries_filename,
         false,
         QuoteStyle::Never,
-        overwrite,
+        c.overwrite,
     );
 
     let edge_iterator = edges.iter().sorted_by_cached_key(|(_, e)| e.edge_id);
     for (k, edge) in edge_iterator {
-        let schedule_vec: &Vec<ScheduleConfig> =
+        let schedule_vec: &Vec<ScheduleRow> =
             schedules
                 .get(k)
                 .ok_or(ScheduleError::InternalError(format!(

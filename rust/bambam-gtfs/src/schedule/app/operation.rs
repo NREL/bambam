@@ -1,6 +1,7 @@
 //! GTFS archive pre-processing scripts for bambam-gtfs transit modeling.
 //! see [https://github.com/MobilityData/mobility-database-catalogs] for
 //! information on the mobility database catalog listing.
+use crate::schedule::bundle_ops::ProcessBundlesConfig;
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{bundle_ops, GtfsProvider, GtfsSummary, MissingStopLocationPolicy};
@@ -155,38 +156,34 @@ impl GtfsOperation {
                     *vertex_match_tolerance,
                 )
                 .expect("failed reading vertices and building spatial index");
+
+                let config = Arc::new(ProcessBundlesConfig {
+                    start_date: start_date.clone(),
+                    end_date: end_date.clone(),
+                    spatial_index,
+                    missing_stop_location_policy: missing_stop_location_policy.clone(),
+                    distance_calculation_policy: distance_calculation_policy.clone(),
+                    output_directory: output_directory.clone(),
+                    overwrite: overwrite.clone(),
+                });
+
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
                     bundle_ops::process_bundles(
                         input_path,
                         starting_edge_list_id,
-                        start_date,
-                        end_date,
-                        spatial_index,
-                        missing_stop_location_policy,
-                        distance_calculation_policy,
-                        Path::new(output_directory),
-                        *overwrite,
                         *parallelism,
+                        config,
                     )
                     .unwrap_or_else(|e| {
                         log::error!("failure running preprocess-bundle: {e}");
                     })
                 } else {
-                    bundle_ops::process_bundle(
-                        input,
-                        starting_edge_list_id,
-                        start_date,
-                        end_date,
-                        spatial_index,
-                        missing_stop_location_policy,
-                        distance_calculation_policy,
-                        Path::new(output_directory),
-                        *overwrite,
+                    bundle_ops::process_bundle(input, starting_edge_list_id, config).unwrap_or_else(
+                        |e| {
+                            log::error!("failure running preprocess-bundle: {e}");
+                        },
                     )
-                    .unwrap_or_else(|e| {
-                        log::error!("failure running preprocess-bundle: {e}");
-                    })
                 }
             }
         }
