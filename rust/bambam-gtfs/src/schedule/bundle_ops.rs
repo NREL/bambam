@@ -32,6 +32,7 @@ use crate::schedule::{
 pub struct ProcessBundlesConfig {
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
+    pub starting_edge_list_id: usize,
     pub spatial_index: Arc<SpatialIndex>,
     pub missing_stop_location_policy: MissingStopLocationPolicy,
     pub distance_calculation_policy: DistanceCalculationPolicy,
@@ -65,11 +66,20 @@ impl GtfsEdge {
 }
 
 /// multithreaded GTFS processing.
-pub fn process_bundles(
+///
+/// # Arguments
+///
+/// * `bundle_directory_path` - location of zipped GTFS archives
+/// * `parallelism` - threads dedicated to GTFS import
+/// * `conf` - configuration for processing, see for options
+/// * `ignore_bad_gtfs` - if true, any failed processing does not terminate import and
+///   remaining archives are processed into edge list outputs. errors are logged.
+///
+pub fn batch_process(
     bundle_directory_path: &Path,
     parallelism: usize,
     conf: Arc<ProcessBundlesConfig>,
-    ignore_errors: bool,
+    ignore_bad_gtfs: bool,
 ) -> Result<(), ScheduleError> {
     let archive_paths = bundle_directory_path
         .read_dir()
@@ -125,7 +135,7 @@ pub fn process_bundles(
     eprintln!(); // end progress bar
 
     // handle errors, either by terminating early, or, logging them
-    if !errors.is_empty() && !ignore_errors {
+    if !errors.is_empty() && !ignore_bad_gtfs {
         return Err(batch_processing_error(&errors));
     } else if !errors.is_empty() {
         // log errors
@@ -141,9 +151,10 @@ pub fn process_bundles(
         .collect_vec()
         .par_chunks(chunk_size)
         .map(|chunk| {
-            chunk
-                .iter()
-                .map(|(edge_list_id, bundle)| write_bundle(bundle, conf.clone(), *edge_list_id))
+            chunk.iter().map(|(index, bundle)| {
+                let edge_list_id = conf.starting_edge_list_id + index;
+                write_bundle(bundle, conf.clone(), edge_list_id)
+            })
         })
         .collect_vec_list()
         .into_iter()
@@ -347,7 +358,7 @@ pub fn process_bundle(
 }
 
 /// writes the provided bundle to files enumerated by the provided edge_list_id.
-fn write_bundle(
+pub fn write_bundle(
     bundle: &GtfsBundle,
     c: Arc<ProcessBundlesConfig>,
     edge_list_id: usize,

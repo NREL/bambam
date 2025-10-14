@@ -96,6 +96,9 @@ pub enum GtfsOperation {
 
         #[arg(long, default_value_t = true)]
         overwrite: bool,
+
+        #[arg(long, default_value_t = true)]
+        ignore_bad_gtfs: bool,
     },
 }
 
@@ -150,6 +153,7 @@ impl GtfsOperation {
                 output_directory,
                 overwrite,
                 parallelism,
+                ignore_bad_gtfs,
             } => {
                 let spatial_index = load_vertices_and_create_spatial_index(
                     vertices_compass_filename,
@@ -161,29 +165,24 @@ impl GtfsOperation {
                     start_date: start_date.clone(),
                     end_date: end_date.clone(),
                     spatial_index,
+                    starting_edge_list_id: *starting_edge_list_id,
                     missing_stop_location_policy: missing_stop_location_policy.clone(),
                     distance_calculation_policy: distance_calculation_policy.clone(),
                     output_directory: output_directory.clone(),
-                    overwrite: overwrite.clone(),
+                    overwrite: *overwrite,
                 });
 
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
-                    bundle_ops::process_bundles(
-                        input_path,
-                        starting_edge_list_id,
-                        *parallelism,
-                        config,
-                    )
-                    .unwrap_or_else(|e| {
-                        log::error!("failure running preprocess-bundle: {e}");
-                    })
-                } else {
-                    bundle_ops::process_bundle(input, starting_edge_list_id, config).unwrap_or_else(
-                        |e| {
+                    bundle_ops::batch_process(input_path, *parallelism, config, *ignore_bad_gtfs)
+                        .unwrap_or_else(|e| {
                             log::error!("failure running preprocess-bundle: {e}");
-                        },
-                    )
+                        })
+                } else {
+                    let bundle = bundle_ops::process_bundle(input, config.clone())
+                        .expect("failure processing GTFS bundle");
+                    bundle_ops::write_bundle(&bundle, config.clone(), config.starting_edge_list_id)
+                        .expect("failure writing GTFS bundle");
                 }
             }
         }
