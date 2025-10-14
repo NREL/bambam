@@ -80,7 +80,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
             } => {
                 let date = NaiveDate::parse_from_str(date, APP_DATE_FORMAT).map_err(|e| {
                     ScheduleError::GtfsAppError(format!(
-                        "failure reading date for exact date mapping policy: {e}"
+                        "failure reading date for nearest date mapping policy: {e}"
                     ))
                 })?;
                 Ok(Self::NearestDate {
