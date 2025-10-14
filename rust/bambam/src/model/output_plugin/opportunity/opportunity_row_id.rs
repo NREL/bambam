@@ -33,7 +33,7 @@ impl std::fmt::Display for OpportunityRowId {
             OpportunityRowId::DestinationVertex(label) => label.to_string(),
             OpportunityRowId::Edge(edge_list_id, edge_id) => format!("{edge_list_id}-{edge_id}"),
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
