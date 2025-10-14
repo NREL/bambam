@@ -162,8 +162,8 @@ impl GtfsOperation {
                 .expect("failed reading vertices and building spatial index");
 
                 let config = Arc::new(ProcessBundlesConfig {
-                    start_date: start_date.clone(),
-                    end_date: end_date.clone(),
+                    start_date: *start_date,
+                    end_date: *end_date,
                     spatial_index,
                     starting_edge_list_id: *starting_edge_list_id,
                     missing_stop_location_policy: missing_stop_location_policy.clone(),
