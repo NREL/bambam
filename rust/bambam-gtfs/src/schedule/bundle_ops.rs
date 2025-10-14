@@ -8,11 +8,11 @@ use kdam::{Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
 use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
-    network::{Edge, EdgeConfig},
+    network::{EdgeConfig, EdgeId, VertexId},
 };
 use serde_json::json;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs::File,
     path::Path,
     sync::{Arc, Mutex},
@@ -27,6 +27,7 @@ use crate::schedule::{
     MissingStopLocationPolicy, ProcessedTrip, ScheduleRow,
 };
 
+/// configures the run of the GTFS import
 #[derive(Clone)]
 pub struct ProcessBundlesConfig {
     pub start_date: NaiveDate,
@@ -38,12 +39,37 @@ pub struct ProcessBundlesConfig {
     pub overwrite: bool,
 }
 
+pub struct GtfsBundle {
+    pub edges: Vec<GtfsEdge>,
+    pub metadata: serde_json::Value,
+}
+
+pub struct GtfsEdge {
+    edge: EdgeConfig,
+    geometry: LineString,
+    schedules: Vec<ScheduleRow>,
+}
+
+impl GtfsEdge {
+    pub fn new(edge: EdgeConfig, geometry: LineString) -> Self {
+        Self {
+            edge,
+            geometry,
+            schedules: vec![],
+        }
+    }
+
+    pub fn add_schedule(&mut self, schedule: ScheduleRow) {
+        self.schedules.push(schedule);
+    }
+}
+
 /// multithreaded GTFS processing.
 pub fn process_bundles(
     bundle_directory_path: &Path,
-    start_edge_list_id: &usize,
     parallelism: usize,
-    c: Arc<ProcessBundlesConfig>,
+    conf: Arc<ProcessBundlesConfig>,
+    ignore_errors: bool,
 ) -> Result<(), ScheduleError> {
     let archive_paths = bundle_directory_path
         .read_dir()
@@ -64,15 +90,15 @@ pub fn process_bundles(
             })?,
     ));
 
-    let errors: Vec<ScheduleError> = archive_paths
-        .iter()
-        .enumerate()
-        .collect_vec()
+    let (bundles, errors): (Vec<GtfsBundle>, Vec<ScheduleError>) = archive_paths
+        // .iter()
+        // .enumerate()
+        // .collect_vec()
         .par_chunks(chunk_size)
         .map(|chunk| {
             chunk
                 .iter()
-                .map(|(edge_list_offset, dir_entry)| {
+                .map(|dir_entry| {
                     if let Ok(mut bar) = bar.clone().lock() {
                         let _ = bar.update(1);
                     }
@@ -82,8 +108,8 @@ pub fn process_bundles(
                             "unable to convert directory entry into string: {dir_entry:?}"
                         ))
                     })?;
-                    let edge_list_id = *start_edge_list_id + edge_list_offset;
-                    process_bundle(bundle_file, &edge_list_id, c.clone()).map_err(|e| {
+                    // let edge_list_id = *start_edge_list_id + edge_list_offset;
+                    process_bundle(bundle_file, conf.clone()).map_err(|e| {
                         ScheduleError::GtfsAppError(format!("while processing {bundle_file}, {e}"))
                     })
                 })
@@ -91,17 +117,47 @@ pub fn process_bundles(
         })
         .collect_vec_list()
         .into_iter()
-        .flat_map(|chunks| {
-            chunks
-                .into_iter()
-                .flat_map(|chunk| chunk.into_iter().flat_map(|r| r.err()))
-        })
-        .collect_vec();
+        .flat_map(|chunks| chunks.into_iter().flat_map(|chunk| chunk.into_iter()))
+        .collect_vec()
+        .into_iter()
+        .partition_result();
 
     eprintln!(); // end progress bar
 
-    if !errors.is_empty() {
-        Err(batch_processing_error(&errors))
+    // handle errors, either by terminating early, or, logging them
+    if !errors.is_empty() && !ignore_errors {
+        return Err(batch_processing_error(&errors));
+    } else if !errors.is_empty() {
+        // log errors
+        for error in errors {
+            log::error!("{error}");
+        }
+    }
+
+    // write results to file
+    let (_, write_errors): (Vec<_>, Vec<_>) = bundles
+        .into_iter()
+        .enumerate()
+        .collect_vec()
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .map(|(edge_list_id, bundle)| write_bundle(bundle, conf.clone(), *edge_list_id))
+        })
+        .collect_vec_list()
+        .into_iter()
+        .flat_map(|chunks| {
+            chunks
+                .into_iter()
+                .flat_map(|chunk| chunk.into_iter().filter(|r| r.is_err()).collect_vec())
+        })
+        .collect_vec()
+        .into_iter()
+        .partition_result();
+
+    if !write_errors.is_empty() {
+        Err(batch_processing_error(&write_errors))
     } else {
         Ok(())
     }
@@ -111,9 +167,8 @@ pub fn process_bundles(
 /// trips with date outside of [start_date, end_date] are removed.
 pub fn process_bundle(
     bundle_file: &str,
-    edge_list_id: &usize,
     c: Arc<ProcessBundlesConfig>,
-) -> Result<(), ScheduleError> {
+) -> Result<GtfsBundle, ScheduleError> {
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
     // collect metadata for writing to file
@@ -125,9 +180,6 @@ pub fn process_bundle(
         "calendar_dates": json![&gtfs.calendar_dates],
         "route_ids": json![gtfs.routes.keys().collect_vec()]
     }];
-    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
-        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
-    })?;
 
     // for O(1) lookup of Addition/Deletion in calendar_dates.txt by (service_id, date)
     let gtfs_dates_lookup: Option<HashMap<String, HashMap<NaiveDate, Exception>>> =
@@ -186,10 +238,8 @@ pub fn process_bundle(
         .collect();
 
     // Construct edge lists
-    let mut edge_id: usize = 0;
-    let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
-    let mut schedules: HashMap<(usize, usize), Vec<ScheduleRow>> = HashMap::new();
-    let mut geometries: HashMap<(usize, usize), LineString> = HashMap::new();
+    let mut edge_id: EdgeId = EdgeId(0);
+    let mut edges: HashMap<(VertexId, VertexId), GtfsEdge> = HashMap::new();
     for trip in trips.values() {
         for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
             let map_match_result = map_match(src, dst, &stop_locations, c.spatial_index.clone())?;
@@ -205,7 +255,7 @@ pub fn process_bundle(
 
             // This only gets to run if all previous conditions are met
             // it adds the edge if it has not yet been added.
-            let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
+            let gtfs_edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
                 let geometry = match &c.distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => {
                         LineString::new(vec![src_point.0, dst_point.0])
@@ -221,11 +271,19 @@ pub fn process_bundle(
                     DistanceCalculationPolicy::Fallback => todo!(),
                 };
 
-                let edge = Edge::new(*edge_list_id, edge_id, src_id, dst_id, distance);
-                schedules.insert((src_id, dst_id), vec![]);
-                geometries.insert((src_id, dst_id), geometry);
-                edge_id += 1;
-                edge
+                let edge = EdgeConfig {
+                    edge_id,
+                    src_vertex_id: src_id,
+                    dst_vertex_id: dst_id,
+                    distance: distance.get::<uom::si::length::meter>(),
+                };
+
+                let gtfs_edge = GtfsEdge::new(edge, geometry);
+
+                // NOTE: edge id update completed after creating this Edge
+                edge_id = EdgeId(edge_id.0 + 1);
+
+                gtfs_edge
             });
 
             // Pick departure OR arrival time
@@ -266,26 +324,34 @@ pub fn process_bundle(
                 })?;
 
             let schedule = ScheduleRow {
-                edge_id: edge.edge_id.0,
+                edge_id: gtfs_edge.edge.edge_id.0,
                 src_departure_time,
                 dst_arrival_time,
                 route_id: trip.route_id.clone(),
             };
-            schedules
-                .get_mut(&(src_id, dst_id))
-                .ok_or_else(||{
-                    ScheduleError::InternalError(format!("expected relation ({src_id})->({dst_id}) not created in 'schedules' collection"))
-                })?
-                .push(schedule);
+            gtfs_edge.add_schedule(schedule);
         }
     }
 
-    // Check consistent dictionary keys
-    let edge_keys: HashSet<_> = edges.keys().collect();
-    if edge_keys != schedules.keys().collect() {
-        return Err(ScheduleError::InvalidResultKeysError);
-    }
+    let edges_sorted = edges
+        .into_values()
+        .sorted_by_cached_key(|e| e.edge.edge_id)
+        .collect_vec();
 
+    let result = GtfsBundle {
+        edges: edges_sorted,
+        metadata,
+    };
+
+    Ok(result)
+}
+
+/// writes the provided bundle to files enumerated by the provided edge_list_id.
+fn write_bundle(
+    bundle: &GtfsBundle,
+    c: Arc<ProcessBundlesConfig>,
+    edge_list_id: usize,
+) -> Result<(), ScheduleError> {
     // Write to files
     let output_directory = Path::new(&c.output_directory);
     let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
@@ -294,6 +360,9 @@ pub fn process_bundle(
         ScheduleError::GtfsAppError(format!(
             "unable to create output directory path '{outdir}': {e}"
         ))
+    })?;
+    let metadata_str = serde_json::to_string_pretty(&bundle.metadata).map_err(|e| {
+        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
     })?;
     std::fs::write(output_directory.join(metadata_filename), &metadata_str).map_err(|e| {
         ScheduleError::GtfsAppError(format!("failed writing GTFS Agency metadata: {e}"))
@@ -323,23 +392,14 @@ pub fn process_bundle(
         c.overwrite,
     );
 
-    let edge_iterator = edges.iter().sorted_by_cached_key(|(_, e)| e.edge_id);
-    for (k, edge) in edge_iterator {
-        let schedule_vec: &Vec<ScheduleRow> =
-            schedules
-                .get(k)
-                .ok_or(ScheduleError::InternalError(format!(
-                    "edge {k:?} not present in 'schedules' array"
-                )))?;
-
+    for GtfsEdge {
+        edge,
+        geometry,
+        schedules,
+    } in bundle.edges.iter()
+    {
         if let Some(ref mut writer) = edges_writer {
-            let edge_config = EdgeConfig {
-                edge_id: edge.edge_id,
-                src_vertex_id: edge.src_vertex_id,
-                dst_vertex_id: edge.dst_vertex_id,
-                distance: edge.distance.get::<uom::si::length::meter>(),
-            };
-            writer.serialize(edge_config).map_err(|e| {
+            writer.serialize(edge).map_err(|e| {
                 ScheduleError::GtfsAppError(format!(
                     "Failed to write to edges file {}: {}",
                     String::from(&edges_filename),
@@ -349,7 +409,7 @@ pub fn process_bundle(
         }
 
         if let Some(ref mut writer) = schedules_writer {
-            for schedule in schedule_vec.iter() {
+            for schedule in schedules.iter() {
                 writer.serialize(schedule).map_err(|e| {
                     ScheduleError::GtfsAppError(format!(
                         "Failed to write to schedules file {}: {}",
@@ -361,12 +421,6 @@ pub fn process_bundle(
         }
 
         if let Some(ref mut writer) = geometries_writer {
-            let geometry = geometries.get(k).ok_or_else(|| {
-                ScheduleError::GtfsAppError(format!(
-                    "Failed to write to geometry file {}: geometry {k:?} not found",
-                    String::from(&schedules_filename)
-                ))
-            })?;
             writer
                 .serialize(geometry.to_wkt().to_string())
                 .map_err(|e| {
@@ -405,7 +459,7 @@ fn get_stop_location(stop: Arc<Stop>, gtfs: Arc<Gtfs>) -> Option<Point<f64>> {
         )
 }
 
-pub type MapMatchResult = ((usize, Point<f64>), (usize, Point<f64>));
+pub type MapMatchResult = ((VertexId, Point<f64>), (VertexId, Point<f64>));
 /// finds the vertex and point associated with src and dst StopTime entry.
 ///
 /// # Result
@@ -453,13 +507,13 @@ fn map_match(
 fn match_closest_graph_id(
     point: &Point<f64>,
     spatial_index: Arc<SpatialIndex>,
-) -> Result<usize, ScheduleError> {
-    let _point = Point::new(point.x() as f32, point.y() as f32);
+) -> Result<VertexId, ScheduleError> {
+    let point_f32 = Point::new(point.x() as f32, point.y() as f32);
 
     // This fails if: 1) The spatial index fails, or 2) it returns an edge
-    let nearest_result = spatial_index.nearest_graph_id(&_point)?;
+    let nearest_result = spatial_index.nearest_graph_id(&point_f32)?;
     match nearest_result {
-        NearestSearchResult::NearestVertex(vertex_id) => Ok(vertex_id.0),
+        NearestSearchResult::NearestVertex(vertex_id) => Ok(vertex_id),
         _ => Err(ScheduleError::GtfsAppError(format!(
             "could not find matching vertex for point {} in spatial index. consider expanding the distance tolerance or allowing for stop filtering.",
             point.to_wkt()
