@@ -1,3 +1,4 @@
+mod date_mapping_policy_config;
 mod distance_calculation_policy;
 mod missing_stop_matching_policy;
 mod processed_trip;
@@ -10,7 +11,8 @@ pub mod bundle_ops;
 pub mod date;
 mod date_mapping_policy;
 // pub mod date_ops;
-pub use date_mapping_policy::{DateMappingPolicy, DateMappingPolicyType};
+pub use date_mapping_policy::DateMappingPolicy;
+pub use date_mapping_policy_config::{DateMappingPolicyConfig, DateMappingPolicyType};
 pub use missing_stop_matching_policy::MissingStopLocationPolicy;
 pub use processed_trip::SortedTrip;
 pub use provider::GtfsProvider;

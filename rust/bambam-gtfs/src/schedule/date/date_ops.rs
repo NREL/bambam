@@ -3,9 +3,8 @@ use std::collections::BinaryHeap;
 use chrono::{Datelike, Days, NaiveDate};
 use gtfs_structures::{Calendar, CalendarDate, Exception};
 
-use crate::{
-    schedule::{date::DateCandidate, schedule_error::ScheduleError},
-    util::date_codec::app::APP_DATE_FORMAT,
+use crate::schedule::{
+    date::date_codec::app::APP_DATE_FORMAT, date::DateCandidate, schedule_error::ScheduleError,
 };
 
 /// tests intersection (inclusive) of some target date with a date range.

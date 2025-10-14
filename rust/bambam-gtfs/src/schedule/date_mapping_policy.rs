@@ -1,42 +1,35 @@
 use std::sync::Arc;
 
 use chrono::{Datelike, NaiveDate};
-use clap::ValueEnum;
 use gtfs_structures::{Exception, Gtfs};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
-use crate::schedule::date::date_ops;
-use crate::schedule::{schedule_error::ScheduleError, SortedTrip};
-use crate::util::date_codec::app::{
-    deserialize_naive_date, deserialize_optional_naive_date, APP_DATE_FORMAT,
+use crate::schedule::{
+    date::{date_codec::app::APP_DATE_FORMAT, date_ops, DateIterator},
+    DateMappingPolicyConfig,
 };
+use crate::schedule::{schedule_error::ScheduleError, SortedTrip};
 
-#[derive(Serialize, Deserialize, Clone, Debug, ValueEnum)]
-#[serde(rename_all = "snake_case")]
-pub enum DateMappingPolicyType {
-    ExactDay,
-    ExactRange,
-    MatchNearest,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[derive(Clone, Debug)]
 pub enum DateMappingPolicy {
-    #[serde(deserialize_with = "deserialize_naive_date")]
-    ExactDay(NaiveDate),
+    ExactDate(NaiveDate),
     ExactRange {
         /// start date in range
-        #[serde(deserialize_with = "deserialize_naive_date")]
         start_date: NaiveDate,
-        #[serde(deserialize_with = "deserialize_naive_date")]
         end_date: NaiveDate,
     },
-    MatchNearest {
-        #[serde(deserialize_with = "deserialize_naive_date")]
+    NearestDate {
+        date: NaiveDate,
+        /// limit to the number of days to search from the target date +-
+        /// to a viable date in the GTFS archive.
+        date_tolerance: u64,
+        /// if true, choose the closest date that matches the same day of the
+        /// week as our target date.
+        match_weekday: bool,
+    },
+    NearestRange {
         start_date: NaiveDate,
-        #[serde(deserialize_with = "deserialize_optional_naive_date")]
-        end_date: Option<NaiveDate>,
+        end_date: NaiveDate,
         /// limit to the number of days to search from the target date +-
         /// to a viable date in the GTFS archive.
         date_tolerance: u64,
@@ -46,24 +39,106 @@ pub enum DateMappingPolicy {
     },
 }
 
+impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
+    type Error = ScheduleError;
+
+    fn try_from(value: &DateMappingPolicyConfig) -> Result<Self, Self::Error> {
+        match value {
+            DateMappingPolicyConfig::ExactDate(date_str) => {
+                let date = NaiveDate::parse_from_str(&date_str, APP_DATE_FORMAT).map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "failure reading date for exact date mapping policy: {e}"
+                    ))
+                })?;
+                Ok(Self::ExactDate(date))
+            }
+            DateMappingPolicyConfig::ExactRange {
+                start_date,
+                end_date,
+            } => {
+                let start_date =
+                    NaiveDate::parse_from_str(&start_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date =
+                    NaiveDate::parse_from_str(&end_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::ExactRange {
+                    start_date,
+                    end_date,
+                })
+            }
+            DateMappingPolicyConfig::NearestDate {
+                date,
+                date_tolerance,
+                match_weekday,
+            } => {
+                let date = NaiveDate::parse_from_str(&date, APP_DATE_FORMAT).map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "failure reading date for exact date mapping policy: {e}"
+                    ))
+                })?;
+                Ok(Self::NearestDate {
+                    date,
+                    date_tolerance: *date_tolerance,
+                    match_weekday: *match_weekday,
+                })
+            }
+            DateMappingPolicyConfig::NearestRange {
+                start_date,
+                end_date,
+                date_tolerance,
+                match_weekday,
+            } => {
+                let start_date =
+                    NaiveDate::parse_from_str(&start_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date =
+                    NaiveDate::parse_from_str(&end_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::NearestRange {
+                    start_date,
+                    end_date,
+                    date_tolerance: *date_tolerance,
+                    match_weekday: *match_weekday,
+                })
+            }
+        }
+    }
+}
+
 impl DateMappingPolicy {
     /// create an iterator over the dates we want to generate transit
     /// schedules for.
     pub fn iter(&self) -> DateIterator {
         match self {
-            DateMappingPolicy::ExactDay(day) => DateIterator::new(*day, None),
+            DateMappingPolicy::ExactDate(day) => DateIterator::new(*day, None),
             DateMappingPolicy::ExactRange {
                 start_date,
                 end_date,
             } => DateIterator::new(*start_date, Some(*end_date)),
-            DateMappingPolicy::MatchNearest {
+            DateMappingPolicy::NearestDate { date, .. } => DateIterator::new(*date, None),
+            DateMappingPolicy::NearestRange {
                 start_date,
                 end_date,
                 ..
-            } => DateIterator::new(*start_date, *end_date),
+            } => DateIterator::new(*start_date, Some(*end_date)),
         }
     }
 
+    /// given some target date generated by the [`DateIterator`], we _pick_ a valid
+    /// date according to the [`DateMappingPolicy`] variant's implementation + arguments.
     pub fn pick_date(
         &self,
         target: &NaiveDate,
@@ -71,42 +146,19 @@ impl DateMappingPolicy {
         gtfs: Arc<Gtfs>,
     ) -> Result<NaiveDate, ScheduleError> {
         match self {
-            DateMappingPolicy::ExactDay(_) => pick_exact_date(target, trip, &gtfs),
+            DateMappingPolicy::ExactDate(_) => pick_exact_date(target, trip, &gtfs),
             DateMappingPolicy::ExactRange { .. } => pick_exact_date(target, trip, &gtfs),
-            DateMappingPolicy::MatchNearest {
+            DateMappingPolicy::NearestDate {
+                date_tolerance,
+                match_weekday,
+                ..
+            } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+            DateMappingPolicy::NearestRange {
                 date_tolerance,
                 match_weekday,
                 ..
             } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
         }
-    }
-}
-
-pub struct DateIterator {
-    current: Option<NaiveDate>,
-    end_inclusive: NaiveDate,
-}
-
-impl DateIterator {
-    pub fn new(start: NaiveDate, end: Option<NaiveDate>) -> DateIterator {
-        DateIterator {
-            current: Some(start),
-            end_inclusive: end.unwrap_or(start),
-        }
-    }
-}
-
-impl Iterator for DateIterator {
-    type Item = NaiveDate;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.current?;
-        if current > self.end_inclusive {
-            return None; // prevent unbounded iteration with faulty arguments
-        }
-        let next_current = date_ops::step_date(current, 1).ok();
-        self.current = next_current;
-        next_current
     }
 }
 

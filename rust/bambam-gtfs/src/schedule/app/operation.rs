@@ -4,8 +4,8 @@
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{
-    bundle_ops, DateMappingPolicy, DateMappingPolicyType, GtfsProvider, GtfsSummary,
-    MissingStopLocationPolicy,
+    bundle_ops, DateMappingPolicy, DateMappingPolicyConfig, DateMappingPolicyType, GtfsProvider,
+    GtfsSummary, MissingStopLocationPolicy,
 };
 use chrono::NaiveDate;
 use clap::Subcommand;
@@ -18,7 +18,6 @@ use routee_compass_core::model::map::SpatialIndex;
 use routee_compass_core::model::network::Vertex;
 use routee_compass_core::util::fs::read_utils;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{collections::HashSet, fs::File, io::Write, path::Path, time::Duration};
@@ -171,21 +170,25 @@ impl GtfsOperation {
                     *vertex_match_tolerance,
                 )
                 .expect("failed reading vertices and building spatial index");
-                let date_mapping_config = json![{
-                    "type": json![date_mapping_policy],
-                    "date_tolerance": json![date_mapping_date_tolerance],
-                    "match_weekday": json![date_mapping_match_weekday],
-                    "start_date": json![start_date.format("%m-%d-%Y").to_string()],
-                    "end_date": json![end_date.format("%m-%d-%Y").to_string()]
-                }];
+
+                // build the date mapping policy based on the CLI arguments
+                let date_mapping_config = DateMappingPolicyConfig::new(
+                    start_date,
+                    end_date,
+                    date_mapping_policy,
+                    *date_mapping_date_tolerance,
+                    *date_mapping_match_weekday,
+                )
+                .unwrap_or_else(|e| panic!("invalid date mapping arguments caused error '{}'", e));
                 let date_mapping_policy: DateMappingPolicy =
-                    serde_json::from_value(date_mapping_config.clone()).unwrap_or_else(|e| {
+                    DateMappingPolicy::try_from(&date_mapping_config).unwrap_or_else(|e| {
                         panic!(
                             "invalid date mapping arguments caused error '{}': {}",
                             e,
                             serde_json::to_string_pretty(&date_mapping_config).unwrap_or_default(),
                         )
                     });
+
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
                     bundle_ops::process_bundles(
