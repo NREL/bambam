@@ -4,7 +4,7 @@
     --input "boulder_co/ucb-gtfs.zip" \
     --starting-edge-list-id 1 \
     --parallelism 1 \
-    --date-mapping-policy match-nearest \
+    --date-mapping-policy nearest-date \
     --date-mapping-date-tolerance 7 \
     --date-mapping-match-weekday true \
     --output-directory "boulder_co/transit" \
