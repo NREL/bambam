@@ -26,6 +26,6 @@ impl Iterator for DateIterator {
         }
         let next_current = date_ops::step_date(current, 1).ok();
         self.current = next_current;
-        next_current
+        Some(current)
     }
 }
