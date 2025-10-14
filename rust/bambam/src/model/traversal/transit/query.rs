@@ -11,7 +11,7 @@ where
 {
     let date_str: String = String::deserialize(deserializer)?;
     chrono::NaiveDateTime::parse_from_str(&date_str, APP_DATETIME_FORMAT)
-        .map_err(|e| D::Error::custom(format!("Invalid datetime format: {}", e)))
+        .map_err(|e| D::Error::custom(format!("Invalid datetime format: {e}")))
 }
 
 #[derive(Serialize, Deserialize)]
