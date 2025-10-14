@@ -21,11 +21,14 @@ use std::{
 use uom::si::f64::Length;
 use wkt::ToWkt;
 
-use crate::schedule::{
-    batch_processing_error,
-    distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
-    schedule_error::ScheduleError,
-    DateMappingPolicy, MissingStopLocationPolicy, SortedTrip,
+use crate::{
+    schedule::{
+        batch_processing_error,
+        distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
+        schedule_error::ScheduleError,
+        DateMappingPolicy, MissingStopLocationPolicy, SortedTrip,
+    },
+    util::date_codec::app::APP_DATE_FORMAT,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -171,14 +174,23 @@ pub fn process_bundle(
         })
         .collect();
 
-    // Construct edge lists
+    // Construct accumulators.
+    // edges are incremented randomly within the target_date/trip/stop_times loop
     let mut edge_id: usize = 0;
+    // edges between VertexIds in the vertex set
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
+    // sequence of scheduled departures by route id between VertexIds in the vertex set
     let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
+    // if the [`DateMappingPolicy`] remapped any dates, it is stored here.
+    let mut date_mapping: HashMap<String, (NaiveDate, NaiveDate)> = HashMap::new();
 
     for target_date in date_mapping_policy.iter() {
         for trip in trips.values() {
             let picked_date = date_mapping_policy.pick_date(&target_date, trip, gtfs.clone())?;
+            if target_date != picked_date && !date_mapping.contains_key(&trip.service_id) {
+                // date mapping is organized service_id, not trip_id
+                date_mapping.insert(trip.service_id.clone(), (target_date, picked_date));
+            }
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
                 let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
                 let ((src_id, src_point), (dst_id, dst_point)) =
@@ -275,13 +287,22 @@ pub fn process_bundle(
     // Write to files
 
     // collect metadata for writing to file
+    let date_mapping_ser = date_mapping
+        .into_iter()
+        .map(|(service_id, (target, picked))| {
+            let target_str = target.format(APP_DATE_FORMAT).to_string();
+            let picked_str = picked.format(APP_DATE_FORMAT).to_string();
+            (service_id, (target_str, picked_str))
+        })
+        .collect::<HashMap<_, _>>();
     let metadata = json! [{
         "agencies": json![&gtfs.agencies],
         "feed_info": json![&gtfs.feed_info],
         "read_duration": json![&gtfs.read_duration],
         "calendar": json![&gtfs.calendar],
         "calendar_dates": json![&gtfs.calendar_dates],
-        "route_ids": json![gtfs.routes.keys().collect_vec()]
+        "route_ids": json![gtfs.routes.keys().collect_vec()],
+        "date_mapping": json![date_mapping_ser]
     }];
     let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
         ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
