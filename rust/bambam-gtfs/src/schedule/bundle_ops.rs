@@ -188,8 +188,8 @@ pub fn process_bundle(
         for trip in trips.values() {
             let picked_date = date_mapping_policy.pick_date(&target_date, trip, gtfs.clone())?;
             if target_date != picked_date && !date_mapping.contains_key(&trip.service_id) {
-                // date mapping is organized service_id, not trip_id
-                date_mapping.insert(trip.service_id.clone(), (target_date, picked_date));
+                // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
+                date_mapping.insert(trip.route_id.clone(), (target_date, picked_date));
             }
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
                 let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
@@ -298,13 +298,14 @@ pub fn process_bundle(
     // collect metadata for writing to file
     let date_mapping_ser = date_mapping
         .into_iter()
-        .map(|(service_id, (target, picked))| {
+        .map(|(route_id, (target, picked))| {
             let target_str = target.format(APP_DATE_FORMAT).to_string();
             let picked_str = picked.format(APP_DATE_FORMAT).to_string();
             let dates_ser = json![{"target": target_str, "picked": picked_str}];
-            (service_id, dates_ser)
+            (route_id, dates_ser)
         })
         .collect::<HashMap<_, _>>();
+
     let metadata = json! [{
         "agencies": json![&gtfs.agencies],
         "feed_info": json![&gtfs.feed_info],
