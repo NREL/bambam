@@ -1,25 +1,31 @@
 use chrono::{Duration, NaiveDate, NaiveDateTime};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
-use geo::Point;
-use gtfs_structures::{Calendar, Gtfs, Stop, StopTime, Trip};
+use geo::{LineString, Point};
+use gtfs_structures::{Exception, Gtfs, Stop, StopTime};
+use itertools::Itertools;
+use kdam::{Bar, BarBuilder, BarExt};
+use rayon::prelude::*;
 use routee_compass_core::model::{
     map::{NearestSearchResult, SpatialIndex},
     network::{Edge, EdgeConfig},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::{
-    collections::{BinaryHeap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fs::File,
     path::Path,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 use uom::si::f64::Length;
+use wkt::ToWkt;
 
 use crate::schedule::{
+    batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     schedule_error::ScheduleError,
-    MissingStopLocationPolicy,
+    MissingStopLocationPolicy, ProcessedTrip,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,6 +36,94 @@ struct ScheduleConfig {
     route_id: String,
 }
 
+/// multithreaded GTFS processing.
+pub fn process_bundles(
+    bundle_directory_path: &Path,
+    start_edge_list_id: &usize,
+    start_date: &NaiveDate,
+    end_date: &NaiveDate,
+    spatial_index: Arc<SpatialIndex>,
+    missing_stop_location_policy: &MissingStopLocationPolicy,
+    distance_calculation_policy: &DistanceCalculationPolicy,
+    output_directory: &Path,
+    overwrite: bool,
+    parallelism: usize,
+) -> Result<(), ScheduleError> {
+    let archive_paths = bundle_directory_path
+        .read_dir()
+        .map_err(|e| ScheduleError::GtfsAppError(format!("failure reading directory: {e}")))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| ScheduleError::GtfsAppError(format!("failure reading directory: {e}")))?;
+    let chunk_size = archive_paths.len() / std::cmp::max(1, parallelism);
+
+    // a progress bar shared across threads
+    let bar: Arc<Mutex<Bar>> = Arc::new(Mutex::new(
+        BarBuilder::default()
+            .desc("batch GTFS processing")
+            .total(archive_paths.len())
+            .animation("fillup")
+            .build()
+            .map_err(|e| {
+                ScheduleError::InternalError(format!("failure building progress bar: {e}"))
+            })?,
+    ));
+
+    let errors: Vec<ScheduleError> = archive_paths
+        .iter()
+        .enumerate()
+        .collect_vec()
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .map(|(edge_list_offset, dir_entry)| {
+                    if let Ok(mut bar) = bar.clone().lock() {
+                        let _ = bar.update(1);
+                    }
+                    let path = dir_entry.path();
+                    let bundle_file = path.to_str().ok_or_else(|| {
+                        ScheduleError::GtfsAppError(format!(
+                            "unable to convert directory entry into string: {dir_entry:?}"
+                        ))
+                    })?;
+                    let edge_list_id = *start_edge_list_id + edge_list_offset;
+                    process_bundle(
+                        bundle_file,
+                        &edge_list_id,
+                        start_date,
+                        end_date,
+                        spatial_index.clone(),
+                        missing_stop_location_policy,
+                        distance_calculation_policy,
+                        output_directory,
+                        overwrite,
+                    )
+                    .map_err(|e| {
+                        ScheduleError::GtfsAppError(format!("while processing {bundle_file}, {e}"))
+                    })
+                })
+                .collect_vec()
+        })
+        .collect_vec_list()
+        .into_iter()
+        .flat_map(|chunks| {
+            chunks
+                .into_iter()
+                .flat_map(|chunk| chunk.into_iter().flat_map(|r| r.err()))
+        })
+        .collect_vec();
+
+    eprintln!(); // end progress bar
+
+    if !errors.is_empty() {
+        Err(batch_processing_error(&errors))
+    } else {
+        Ok(())
+    }
+}
+
+/// read a single GTFS archive and prepare a Compass EdgeList dataset from it.
+/// trips with date outside of [start_date, end_date] are removed.
 pub fn process_bundle(
     bundle_file: &str,
     edge_list_id: &usize,
@@ -41,36 +135,68 @@ pub fn process_bundle(
     output_directory: &Path,
     overwrite: bool,
 ) -> Result<(), ScheduleError> {
-    let gtfs = Gtfs::new(bundle_file).map_err(ScheduleError::from)?;
-    let gtfs_arc = Arc::new(gtfs);
+    let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
-    // Get ordered StopTimes, RouteID and start_dates for each trip that intersects the dates
-    let mut trip_stop_times: HashMap<String, Vec<StopTime>> = HashMap::new();
-    let mut trip_start_dates: HashMap<String, NaiveDate> = HashMap::new();
-    let mut trip_routes: HashMap<String, String> = HashMap::new();
+    // collect metadata for writing to file
+    let metadata = json! [{
+        "agencies": json![&gtfs.agencies],
+        "feed_info": json![&gtfs.feed_info],
+        "read_duration": json![&gtfs.read_duration],
+        "calendar": json![&gtfs.calendar],
+        "calendar_dates": json![&gtfs.calendar_dates],
+        "route_ids": json![gtfs.routes.keys().collect_vec()]
+    }];
+    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
+        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
+    })?;
 
-    for (trip_id, trip) in gtfs_arc.clone().trips.iter() {
-        let trip_calendar = get_trip_calendar(trip, gtfs_arc.clone())?;
-        let trip_intersects =
-            (trip_calendar.start_date <= *end_date) && (*start_date <= trip_calendar.end_date);
+    // for O(1) lookup of Addition/Deletion in calendar_dates.txt by (service_id, date)
+    let gtfs_dates_lookup: Option<HashMap<String, HashMap<NaiveDate, Exception>>> =
+        if gtfs.calendar_dates.is_empty() {
+            None
+        } else {
+            let lookup = gtfs
+                .calendar_dates
+                .iter()
+                .map(|(service_id, dates)| {
+                    let inner = dates
+                        .iter()
+                        .map(|d| (d.date, d.exception_type))
+                        .collect::<HashMap<_, _>>();
+                    (service_id.clone(), inner)
+                })
+                .collect::<HashMap<_, _>>();
+            Some(lookup)
+        };
 
-        if trip_intersects {
-            trip_stop_times.insert(trip_id.clone(), get_ordered_stops(trip));
-            trip_routes.insert(trip_id.clone(), trip.route_id.to_owned());
-            trip_start_dates.insert(trip_id.clone(), trip_calendar.start_date);
+    // get trips that match our date range
+    let mut trips: HashMap<String, ProcessedTrip> = HashMap::new();
+    for t in gtfs.trips.values() {
+        let trip_data_opt =
+            ProcessedTrip::new(t, &gtfs, gtfs_dates_lookup.as_ref(), start_date, end_date)?;
+        if let Some(trip_data) = trip_data_opt {
+            let _ = trips.insert(trip_data.trip_id.clone(), trip_data);
         }
+    }
+    if trips.is_empty() {
+        let msg = format!(
+            "date range [{}, {}] did not match any trips",
+            start_date.format("%m-%d-%Y"),
+            end_date.format("%m-%d-%Y"),
+        );
+        return Err(ScheduleError::GtfsAppError(msg));
     }
 
     // Pre-compute lat,lon location of all stops
     // with `get_stop_location` which returns the lat,lon
     // or the parent's lat,lon if available
-    let stop_locations: HashMap<String, Option<Point<f64>>> = gtfs_arc
+    let stop_locations: HashMap<String, Option<Point<f64>>> = gtfs
         .stops
         .iter()
         .map(|(stop_id, stop)| {
             (
                 stop_id.clone(),
-                get_stop_location(stop.clone(), gtfs_arc.clone()),
+                get_stop_location(stop.clone(), gtfs.clone()),
             )
         })
         .collect();
@@ -79,55 +205,31 @@ pub fn process_bundle(
     let mut edge_id: usize = 0;
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
     let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
-    for (trip_id, stop_times) in trip_stop_times {
-        for (src, dst) in stop_times.windows(2).map(|w| (&w[0], &w[1])) {
-            let src_compass: usize;
-            let dst_compass: usize;
-            let src_point: Point<f64>;
-            let dst_point: Point<f64>;
-
-            // Since `stop_locations` is computed from `gtfs.stops`, this should never fail
-            let maybe_src = stop_locations.get(&src.stop.id).unwrap_or_else(|| {
-                panic!(
-                    "Attempted to get location for non existing stop: {}",
-                    src.stop.id
-                )
-            });
-            let maybe_dst = stop_locations.get(&dst.stop.id).unwrap_or_else(|| {
-                panic!(
-                    "Attempted to get location for non existing stop: {}",
-                    dst.stop.id
-                )
-            });
-
-            if let (Some(src_point_), Some(dst_point_)) = (maybe_src, maybe_dst) {
-                // If you can find both:
-                // Map to closest compass vertex
-                src_compass = match_closest_graph_id(src_point_, spatial_index.clone())?;
-                dst_compass = match_closest_graph_id(dst_point_, spatial_index.clone())?;
-
-                // These points are used to compute the distance
-                // Should we instead be using the graph node?
-                // For instance, what happens if src_compass == dst_compass?
-                src_point = src_point_.to_owned();
-                dst_point = dst_point_.to_owned();
-            } else {
-                // If any is missing:
-                match missing_stop_location_policy {
-                    MissingStopLocationPolicy::Fail => {
-                        return Err(ScheduleError::MissingStopLocationAndParentError(format!(
-                            "{} or {}",
-                            src.stop.id, dst.stop.id
-                        )))
+    let mut geometries: HashMap<(usize, usize), LineString> = HashMap::new();
+    for trip in trips.values() {
+        for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
+            let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
+            let ((src_id, src_point), (dst_id, dst_point)) =
+                match (map_match_result, missing_stop_location_policy) {
+                    (Some(result), _) => result,
+                    (None, MissingStopLocationPolicy::Fail) => {
+                        let msg = format!("{} or {}", src.stop.id, dst.stop.id);
+                        return Err(ScheduleError::MissingStopLocationAndParentError(msg));
                     }
-                    MissingStopLocationPolicy::DropStop => continue,
-                }
-            }
+                    (None, MissingStopLocationPolicy::DropStop) => continue,
+                };
 
             // This only gets to run if all previous conditions are met
-            if let std::collections::hash_map::Entry::Vacant(e) =
-                edges.entry((src_compass, dst_compass))
-            {
+            // it adds the edge if it has not yet been added.
+            let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
+                let geometry = match distance_calculation_policy {
+                    DistanceCalculationPolicy::Haversine => {
+                        LineString::new(vec![src_point.0, dst_point.0])
+                    }
+                    DistanceCalculationPolicy::Shape => todo!(),
+                    DistanceCalculationPolicy::Fallback => todo!(),
+                };
+
                 // Estimate distance
                 let distance: Length = match distance_calculation_policy {
                     DistanceCalculationPolicy::Haversine => compute_haversine(src_point, dst_point),
@@ -135,11 +237,12 @@ pub fn process_bundle(
                     DistanceCalculationPolicy::Fallback => todo!(),
                 };
 
-                let edge = Edge::new(*edge_list_id, edge_id, src_compass, dst_compass, distance);
-                e.insert(edge);
-                schedules.insert((src_compass, dst_compass), vec![]);
+                let edge = Edge::new(*edge_list_id, edge_id, src_id, dst_id, distance);
+                schedules.insert((src_id, dst_id), vec![]);
+                geometries.insert((src_id, dst_id), geometry);
                 edge_id += 1;
-            }
+                edge
+            });
 
             // Pick departure OR arrival time
             let raw_src_departure_time = match (src.departure_time, src.arrival_time) {
@@ -153,40 +256,42 @@ pub fn process_bundle(
                 (None, None) => Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone())),
             }?;
 
-            // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
-            let start_date = trip_start_dates
-                .get(&trip_id)
-                .expect("Attempted to get starting date of non existing trip");
-            let src_departure_time = start_date
+            // // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
+            let src_departure_offset = Duration::seconds(raw_src_departure_time as i64);
+            let src_departure_time = trip.start_date
                 .and_hms_opt(0, 0, 0)
                 .and_then(|datetime| {
-                    datetime.checked_add_signed(Duration::seconds(raw_src_departure_time as i64))
+                    datetime.checked_add_signed(src_departure_offset)
                 })
-                .ok_or(ScheduleError::OtherError(
-                    "Invalid Datetime from Date".to_string(),
-                ))?;
+                .ok_or_else(|| {
+                    let start_str = trip.start_date.format("%m-%d-%Y");
+                    let msg = format!("appending departure offset '{src_departure_offset}' to trip.start_date '{start_str}' produced an empty result (invalid combination)");
+                    ScheduleError::InvalidDataError(msg)
+                })?;
 
-            let dst_arrival_time = start_date
+            let dst_departure_offset = Duration::seconds(raw_dst_arrival_time as i64);
+            let dst_arrival_time = trip.start_date
                 .and_hms_opt(0, 0, 0)
                 .and_then(|datetime| {
-                    datetime.checked_add_signed(Duration::seconds(raw_dst_arrival_time as i64))
+                    datetime.checked_add_signed(dst_departure_offset)
                 })
-                .ok_or(ScheduleError::OtherError(
-                    "Invalid Datetime from Date".to_string(),
-                ))?;
+                .ok_or_else(|| {
+                    let start_str = trip.start_date.format("%m-%d-%Y");
+                    let msg = format!("appending departure offset '{dst_departure_offset}' to start_date '{start_str}' produced an empty result (invalid combination)");
+                    ScheduleError::InvalidDataError(msg)
+                })?;
 
             let schedule = ScheduleConfig {
-                edge_id,
+                edge_id: edge.edge_id.0,
                 src_departure_time,
                 dst_arrival_time,
-                route_id: trip_routes
-                    .get(&trip_id)
-                    .expect("Attemted to get route of non existing trip")
-                    .to_owned(),
+                route_id: trip.route_id.clone(),
             };
             schedules
-                .get_mut(&(src_compass, dst_compass))
-                .expect("Attempted to append to schedule for non existing edge")
+                .get_mut(&(src_id, dst_id))
+                .ok_or_else(||{
+                    ScheduleError::InternalError(format!("expected relation ({src_id})->({dst_id}) not created in 'schedules' collection"))
+                })?
                 .push(schedule);
         }
     }
@@ -198,8 +303,19 @@ pub fn process_bundle(
     }
 
     // Write to files
+    let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
+    std::fs::create_dir_all(output_directory).map_err(|e| {
+        let outdir = output_directory.to_str().unwrap_or_default();
+        ScheduleError::GtfsAppError(format!(
+            "unable to create output directory path '{outdir}': {e}"
+        ))
+    })?;
+    std::fs::write(output_directory.join(metadata_filename), &metadata_str).map_err(|e| {
+        ScheduleError::GtfsAppError(format!("failed writing GTFS Agency metadata: {e}"))
+    })?;
     let edges_filename = format!("edges-compass-{edge_list_id}.csv.gz");
     let schedules_filename = format!("edges-schedules-{edge_list_id}.csv.gz");
+    let geometries_filename = format!("edges-geometries-enumerated-{edge_list_id}.txt.gz");
     let mut edges_writer = create_writer(
         output_directory,
         &edges_filename,
@@ -214,14 +330,22 @@ pub fn process_bundle(
         QuoteStyle::Necessary,
         overwrite,
     );
+    let mut geometries_writer = create_writer(
+        output_directory,
+        &geometries_filename,
+        false,
+        QuoteStyle::Never,
+        overwrite,
+    );
 
-    for k in edge_keys {
-        let edge = edges.get(k).ok_or(ScheduleError::OtherError(
-            "Edge key not present in edges array".to_string(),
-        ))?;
-        let schedule_vec: &Vec<ScheduleConfig> = schedules.get(k).ok_or(
-            ScheduleError::OtherError("Edge key not present in schedules array".to_string()),
-        )?;
+    let edge_iterator = edges.iter().sorted_by_cached_key(|(_, e)| e.edge_id);
+    for (k, edge) in edge_iterator {
+        let schedule_vec: &Vec<ScheduleConfig> =
+            schedules
+                .get(k)
+                .ok_or(ScheduleError::InternalError(format!(
+                    "edge {k:?} not present in 'schedules' array"
+                )))?;
 
         if let Some(ref mut writer) = edges_writer {
             let edge_config = EdgeConfig {
@@ -231,7 +355,7 @@ pub fn process_bundle(
                 distance: edge.distance.get::<uom::si::length::meter>(),
             };
             writer.serialize(edge_config).map_err(|e| {
-                ScheduleError::OtherError(format!(
+                ScheduleError::GtfsAppError(format!(
                     "Failed to write to edges file {}: {}",
                     String::from(&edges_filename),
                     e
@@ -242,13 +366,31 @@ pub fn process_bundle(
         if let Some(ref mut writer) = schedules_writer {
             for schedule in schedule_vec.iter() {
                 writer.serialize(schedule).map_err(|e| {
-                    ScheduleError::OtherError(format!(
+                    ScheduleError::GtfsAppError(format!(
                         "Failed to write to schedules file {}: {}",
                         String::from(&schedules_filename),
                         e
                     ))
                 })?;
             }
+        }
+
+        if let Some(ref mut writer) = geometries_writer {
+            let geometry = geometries.get(k).ok_or_else(|| {
+                ScheduleError::GtfsAppError(format!(
+                    "Failed to write to geometry file {}: geometry {k:?} not found",
+                    String::from(&schedules_filename)
+                ))
+            })?;
+            writer
+                .serialize(geometry.to_wkt().to_string())
+                .map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "Failed to write to geometry file {}: {}",
+                        String::from(&edges_filename),
+                        e
+                    ))
+                })?;
         }
     }
     Ok(())
@@ -278,6 +420,51 @@ fn get_stop_location(stop: Arc<Stop>, gtfs: Arc<Gtfs>) -> Option<Point<f64>> {
         )
 }
 
+pub type MapMatchResult = ((usize, Point<f64>), (usize, Point<f64>));
+/// finds the vertex and point associated with src and dst StopTime entry.
+///
+/// # Result
+///
+/// the source and destination, each a tuple of (VertexId, Coordinate)
+fn map_match(
+    src: &StopTime,
+    dst: &StopTime,
+    stop_locations: &HashMap<String, Option<Point<f64>>>,
+    spatial_index: Arc<SpatialIndex>,
+) -> Result<Option<MapMatchResult>, ScheduleError> {
+    // Since `stop_locations` is computed from `gtfs.stops`, this should never fail
+    let maybe_src = stop_locations.get(&src.stop.id).ok_or_else(|| {
+        ScheduleError::MalformedGtfsError(format!(
+            "source stop_id '{}' is not associated with a geographic location in either it's stop row or any parent row (see 'parent_station' of GTFS Stops.txt)",
+            src.stop.id
+        ))
+    })?;
+    let maybe_dst = stop_locations.get(&dst.stop.id).ok_or_else(|| {
+        ScheduleError::MalformedGtfsError(format!(
+            "destination stop_id '{}' is not associated with a geographic location in either it's stop row or any parent row (see 'parent_station' of GTFS Stops.txt)",
+            dst.stop.id
+        ))
+    })?;
+
+    match (maybe_src, maybe_dst) {
+        (Some(src_point_), Some(dst_point_)) => {
+            // If you can find both:
+            // Map to closest compass vertex
+            let src_compass = match_closest_graph_id(src_point_, spatial_index.clone())?;
+            let dst_compass = match_closest_graph_id(dst_point_, spatial_index.clone())?;
+
+            // These points are used to compute the distance
+            // Should we instead be using the graph node?
+            // For instance, what happens if src_compass == dst_compass?
+            let src_point = src_point_.to_owned();
+            let dst_point = dst_point_.to_owned();
+            Ok(Some(((src_compass, src_point), (dst_compass, dst_point))))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// helper function for map matching stop locations to the graph.
 fn match_closest_graph_id(
     point: &Point<f64>,
     spatial_index: Arc<SpatialIndex>,
@@ -285,40 +472,14 @@ fn match_closest_graph_id(
     let _point = Point::new(point.x() as f32, point.y() as f32);
 
     // This fails if: 1) The spatial index fails, or 2) it returns an edge
-    match spatial_index
-        .nearest_graph_id(&_point)
-        .map_err(|e| ScheduleError::SpatialIndexMapError { source: e })?
-    {
+    let nearest_result = spatial_index.nearest_graph_id(&_point)?;
+    match nearest_result {
         NearestSearchResult::NearestVertex(vertex_id) => Ok(vertex_id.0),
-        _ => Err(ScheduleError::SpatialIndexIncorrectMapError),
+        _ => Err(ScheduleError::GtfsAppError(format!(
+            "could not find matching vertex for point {} in spatial index. consider expanding the distance tolerance or allowing for stop filtering.",
+            point.to_wkt()
+        ))),
     }
-}
-
-fn get_trip_calendar(trip: &Trip, gtfs: Arc<Gtfs>) -> Result<Box<Calendar>, ScheduleError> {
-    let calendar = gtfs
-        .get_calendar(&trip.service_id)
-        .map_err(|e| ScheduleError::InvalidCalendarError(format!("{e}")))?;
-
-    Ok(Box::from(calendar.clone()))
-}
-
-/// Returns an ordered (ascending) vector of [StopTime]. Internally uses [BinaryHeap] to sort. In order to return the
-/// [BinaryHeap] itself, [StopTime] would need to implement [Ord].
-fn get_ordered_stops(trip: &Trip) -> Vec<StopTime> {
-    // Get ordered indices
-    let stop_queue_order: BinaryHeap<(u32, usize)> = trip
-        .stop_times
-        .iter()
-        .enumerate()
-        .map(|(i, st)| (st.stop_sequence, i))
-        .collect();
-
-    // Map indices list into objects
-    stop_queue_order
-        .into_sorted_vec() // Ascending according to documentation
-        .iter()
-        .map(|(_, idx)| trip.stop_times[*idx].clone())
-        .collect()
 }
 
 /// helper function to build a filewriter for writing either .csv.gz or
@@ -342,37 +503,4 @@ fn create_writer(
         .quote_style(quote_style)
         .from_writer(buffer);
     Some(writer)
-}
-
-#[cfg(test)]
-mod test {
-    use crate::schedule::bundle_ops::get_ordered_stops;
-    use gtfs_structures::Gtfs;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_stop_orders_by_stop_sequence() {
-        // Load test gtfs
-        let test_bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("boulder_co")
-            .join("ucb-gtfs.zip");
-
-        let gtfs = Gtfs::new(
-            test_bundle
-                .to_str()
-                .unwrap_or_else(|| panic!("Failed to interpret {test_bundle:?} as string")),
-        )
-        .expect("Test bundle not found in boulder_co/ucb-gtfs.zip");
-
-        // Check that all stops for all trips are in ascending order
-        for (_, trip) in gtfs.trips {
-            assert!(get_ordered_stops(&trip)
-                .iter()
-                .map(|st| st.stop_sequence)
-                .collect::<Vec<u32>>()
-                .is_sorted());
-        }
-    }
 }
