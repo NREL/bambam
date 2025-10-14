@@ -45,7 +45,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
     fn try_from(value: &DateMappingPolicyConfig) -> Result<Self, Self::Error> {
         match value {
             DateMappingPolicyConfig::ExactDate(date_str) => {
-                let date = NaiveDate::parse_from_str(&date_str, APP_DATE_FORMAT).map_err(|e| {
+                let date = NaiveDate::parse_from_str(date_str, APP_DATE_FORMAT).map_err(|e| {
                     ScheduleError::GtfsAppError(format!(
                         "failure reading date for exact date mapping policy: {e}"
                     ))
@@ -57,13 +57,13 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 end_date,
             } => {
                 let start_date =
-                    NaiveDate::parse_from_str(&start_date, APP_DATE_FORMAT).map_err(|e| {
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading start_date for exact range mapping policy: {e}"
                         ))
                     })?;
                 let end_date =
-                    NaiveDate::parse_from_str(&end_date, APP_DATE_FORMAT).map_err(|e| {
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading end_date for exact range mapping policy: {e}"
                         ))
@@ -78,7 +78,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 date_tolerance,
                 match_weekday,
             } => {
-                let date = NaiveDate::parse_from_str(&date, APP_DATE_FORMAT).map_err(|e| {
+                let date = NaiveDate::parse_from_str(date, APP_DATE_FORMAT).map_err(|e| {
                     ScheduleError::GtfsAppError(format!(
                         "failure reading date for exact date mapping policy: {e}"
                     ))
@@ -96,13 +96,13 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 match_weekday,
             } => {
                 let start_date =
-                    NaiveDate::parse_from_str(&start_date, APP_DATE_FORMAT).map_err(|e| {
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading start_date for exact range mapping policy: {e}"
                         ))
                     })?;
                 let end_date =
-                    NaiveDate::parse_from_str(&end_date, APP_DATE_FORMAT).map_err(|e| {
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading end_date for exact range mapping policy: {e}"
                         ))
