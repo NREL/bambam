@@ -241,7 +241,7 @@ fn pick_nearest_date(
                 let is_add = calendar_date.exception_type == Exception::Added;
                 let matches_weekday_expectation =
                     !match_weekday || target.weekday() == calendar_date.date.weekday();
-                if matches_date && is_add & matches_weekday_expectation {
+                if matches_date && is_add && matches_weekday_expectation {
                     matches.push(calendar_date.date);
                 }
             }
