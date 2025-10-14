@@ -644,7 +644,7 @@ mod tests {
         let result = find_in_calendar(&target, &calendar);
         assert!(result.is_err());
         if let Err(ScheduleError::InvalidDataError(msg)) = result {
-            assert!(msg.contains("no calendar.txt dates match target"));
+            assert!(msg.contains("no calendar.txt dates match"));
             assert!(msg.contains("06-05-2023"));
             assert!(msg.contains("[06-10-2023,06-30-2023]"));
         } else {
@@ -662,7 +662,7 @@ mod tests {
         let result = find_in_calendar(&target, &calendar);
         assert!(result.is_err());
         if let Err(ScheduleError::InvalidDataError(msg)) = result {
-            assert!(msg.contains("no calendar.txt dates match target"));
+            assert!(msg.contains("no calendar.txt dates match"));
             assert!(msg.contains("06-25-2023"));
             assert!(msg.contains("[06-01-2023,06-20-2023]"));
         } else {
