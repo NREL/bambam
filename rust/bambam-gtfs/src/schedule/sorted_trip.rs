@@ -23,13 +23,7 @@ impl SortedTrip {
     /// in the Compass edge list.
     ///
     /// if this trip's date does not match the user date range, [`ProcessedTrip`] is not created.
-    pub fn new(
-        trip: &Trip,
-        // gtfs: &Gtfs,
-        // dates_lookup: Option<&HashMap<String, HashMap<NaiveDate, Exception>>>,
-        // start_date: &NaiveDate,
-        // end_date: &NaiveDate,
-    ) -> Result<Option<SortedTrip>, ScheduleError> {
+    pub fn new(trip: &Trip) -> Result<Option<SortedTrip>, ScheduleError> {
         let stop_times = get_ordered_stops(trip)?;
         let result = Self {
             trip_id: trip.id.clone(),
@@ -39,23 +33,6 @@ impl SortedTrip {
             // start_date,
         };
         Ok(Some(result))
-        // check for the "start date" that we can use to match
-        // let intersection_start_date_opt =
-        //     date_ops::find_trip_start_date(trip, gtfs, dates_lookup, start_date, end_date)?;
-        // match intersection_start_date_opt {
-        //     None => Ok(None),
-        //     Some(start_date) => {
-        //         let stop_times = get_ordered_stops(trip)?;
-        //         let result = Self {
-        //             trip_id: trip.id.clone(),
-        //             route_id: trip.route_id.clone(),
-        //             service_id: trip.service_id.clone(),
-        //             stop_times,
-        //             start_date,
-        //         };
-        //         Ok(Some(result))
-        //     }
-        // }
     }
 }
 
