@@ -2,7 +2,7 @@ use chrono::{Duration, NaiveDate};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::{LineString, Point};
-use gtfs_structures::{Exception, Gtfs, Stop, StopTime};
+use gtfs_structures::{Gtfs, Stop, StopTime};
 use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
@@ -20,6 +20,7 @@ use std::{
 use uom::si::f64::Length;
 use wkt::ToWkt;
 
+use super::date::date_codec::app::APP_DATE_FORMAT;
 use crate::schedule::{
     batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
@@ -311,28 +312,28 @@ pub fn process_bundle(
 
             // // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
             let src_departure_offset = Duration::seconds(raw_src_departure_time as i64);
-            let src_departure_time = trip.start_date
-                .and_hms_opt(0, 0, 0)
-                .and_then(|datetime| {
-                    datetime.checked_add_signed(src_departure_offset)
-                })
-                .ok_or_else(|| {
-                    let start_str = trip.start_date.format("%m-%d-%Y");
-                    let msg = format!("appending departure offset '{src_departure_offset}' to trip.start_date '{start_str}' produced an empty result (invalid combination)");
-                    ScheduleError::InvalidDataError(msg)
-                })?;
+            let src_departure_time = picked_date
+                    .and_hms_opt(0, 0, 0)
+                    .and_then(|datetime| {
+                        datetime.checked_add_signed(src_departure_offset)
+                    })
+                    .ok_or_else(|| {
+                        let picked_str = picked_date.format("%m-%d-%Y");
+                        let msg = format!("appending departure offset '{src_departure_offset}' to picked_date '{picked_str}' produced an empty result (invalid combination)");
+                        ScheduleError::InvalidDataError(msg)
+                    })?;
 
             let dst_departure_offset = Duration::seconds(raw_dst_arrival_time as i64);
-            let dst_arrival_time = trip.start_date
-                .and_hms_opt(0, 0, 0)
-                .and_then(|datetime| {
-                    datetime.checked_add_signed(dst_departure_offset)
-                })
-                .ok_or_else(|| {
-                    let start_str = trip.start_date.format("%m-%d-%Y");
-                    let msg = format!("appending departure offset '{dst_departure_offset}' to start_date '{start_str}' produced an empty result (invalid combination)");
-                    ScheduleError::InvalidDataError(msg)
-                })?;
+            let dst_arrival_time = picked_date
+                    .and_hms_opt(0, 0, 0)
+                    .and_then(|datetime| {
+                        datetime.checked_add_signed(dst_departure_offset)
+                    })
+                    .ok_or_else(|| {
+                        let picked_str = picked_date.format("%m-%d-%Y");
+                        let msg = format!("appending departure offset '{dst_departure_offset}' to picked_date '{picked_str}' produced an empty result (invalid combination)");
+                        ScheduleError::InvalidDataError(msg)
+                    })?;
 
             let schedule = ScheduleRow {
                 edge_id: gtfs_edge.edge.edge_id.0,
