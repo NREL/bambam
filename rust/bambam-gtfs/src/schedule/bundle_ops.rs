@@ -2,7 +2,7 @@ use chrono::{Duration, NaiveDate, NaiveDateTime};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use geo::{LineString, Point};
-use gtfs_structures::{Exception, Gtfs, Stop, StopTime};
+use gtfs_structures::{Gtfs, Stop, StopTime};
 use itertools::Itertools;
 use kdam::{Bar, BarBuilder, BarExt};
 use rayon::prelude::*;
@@ -21,11 +21,12 @@ use std::{
 use uom::si::f64::Length;
 use wkt::ToWkt;
 
+use super::date::date_codec::app::APP_DATE_FORMAT;
 use crate::schedule::{
     batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     schedule_error::ScheduleError,
-    MissingStopLocationPolicy, ProcessedTrip,
+    DateMappingPolicy, MissingStopLocationPolicy, SortedTrip,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,6 +46,7 @@ pub fn process_bundles(
     spatial_index: Arc<SpatialIndex>,
     missing_stop_location_policy: &MissingStopLocationPolicy,
     distance_calculation_policy: &DistanceCalculationPolicy,
+    date_mapping_policy: &DateMappingPolicy,
     output_directory: &Path,
     overwrite: bool,
     parallelism: usize,
@@ -95,6 +97,7 @@ pub fn process_bundles(
                         spatial_index.clone(),
                         missing_stop_location_policy,
                         distance_calculation_policy,
+                        date_mapping_policy,
                         output_directory,
                         overwrite,
                     )
@@ -132,48 +135,16 @@ pub fn process_bundle(
     spatial_index: Arc<SpatialIndex>,
     missing_stop_location_policy: &MissingStopLocationPolicy,
     distance_calculation_policy: &DistanceCalculationPolicy,
+    date_mapping_policy: &DateMappingPolicy,
     output_directory: &Path,
     overwrite: bool,
 ) -> Result<(), ScheduleError> {
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
-    // collect metadata for writing to file
-    let metadata = json! [{
-        "agencies": json![&gtfs.agencies],
-        "feed_info": json![&gtfs.feed_info],
-        "read_duration": json![&gtfs.read_duration],
-        "calendar": json![&gtfs.calendar],
-        "calendar_dates": json![&gtfs.calendar_dates],
-        "route_ids": json![gtfs.routes.keys().collect_vec()]
-    }];
-    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
-        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
-    })?;
-
-    // for O(1) lookup of Addition/Deletion in calendar_dates.txt by (service_id, date)
-    let gtfs_dates_lookup: Option<HashMap<String, HashMap<NaiveDate, Exception>>> =
-        if gtfs.calendar_dates.is_empty() {
-            None
-        } else {
-            let lookup = gtfs
-                .calendar_dates
-                .iter()
-                .map(|(service_id, dates)| {
-                    let inner = dates
-                        .iter()
-                        .map(|d| (d.date, d.exception_type))
-                        .collect::<HashMap<_, _>>();
-                    (service_id.clone(), inner)
-                })
-                .collect::<HashMap<_, _>>();
-            Some(lookup)
-        };
-
-    // get trips that match our date range
-    let mut trips: HashMap<String, ProcessedTrip> = HashMap::new();
+    // get trips that match our date range. sort their StopTimes by departure sequence.
+    let mut trips: HashMap<String, SortedTrip> = HashMap::new();
     for t in gtfs.trips.values() {
-        let trip_data_opt =
-            ProcessedTrip::new(t, &gtfs, gtfs_dates_lookup.as_ref(), start_date, end_date)?;
+        let trip_data_opt = SortedTrip::new(t)?;
         if let Some(trip_data) = trip_data_opt {
             let _ = trips.insert(trip_data.trip_id.clone(), trip_data);
         }
@@ -201,98 +172,118 @@ pub fn process_bundle(
         })
         .collect();
 
-    // Construct edge lists
+    // Construct accumulators.
+    // edges are incremented randomly within the target_date/trip/stop_times loop
     let mut edge_id: usize = 0;
+    // edges between VertexIds in the vertex set
     let mut edges: HashMap<(usize, usize), Edge> = HashMap::new();
+    // sequence of scheduled departures by route id between VertexIds in the vertex set
     let mut schedules: HashMap<(usize, usize), Vec<ScheduleConfig>> = HashMap::new();
+    // linestrings for each GTFS edge
     let mut geometries: HashMap<(usize, usize), LineString> = HashMap::new();
-    for trip in trips.values() {
-        for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
-            let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
-            let ((src_id, src_point), (dst_id, dst_point)) =
-                match (map_match_result, missing_stop_location_policy) {
-                    (Some(result), _) => result,
-                    (None, MissingStopLocationPolicy::Fail) => {
-                        let msg = format!("{} or {}", src.stop.id, dst.stop.id);
-                        return Err(ScheduleError::MissingStopLocationAndParentError(msg));
+    // if the [`DateMappingPolicy`] remapped any dates, it is stored here.
+    let mut date_mapping: HashMap<String, (NaiveDate, NaiveDate)> = HashMap::new();
+
+    for target_date in date_mapping_policy.iter() {
+        for trip in trips.values() {
+            let picked_date = date_mapping_policy.pick_date(&target_date, trip, gtfs.clone())?;
+            if target_date != picked_date && !date_mapping.contains_key(&trip.service_id) {
+                // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
+                date_mapping.insert(trip.route_id.clone(), (target_date, picked_date));
+            }
+            for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
+                let map_match_result = map_match(src, dst, &stop_locations, spatial_index.clone())?;
+                let ((src_id, src_point), (dst_id, dst_point)) =
+                    match (map_match_result, missing_stop_location_policy) {
+                        (Some(result), _) => result,
+                        (None, MissingStopLocationPolicy::Fail) => {
+                            let msg = format!("{} or {}", src.stop.id, dst.stop.id);
+                            return Err(ScheduleError::MissingStopLocationAndParentError(msg));
+                        }
+                        (None, MissingStopLocationPolicy::DropStop) => continue,
+                    };
+
+                // This only gets to run if all previous conditions are met
+                // it adds the edge if it has not yet been added.
+                let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
+                    let geometry = match distance_calculation_policy {
+                        DistanceCalculationPolicy::Haversine => {
+                            LineString::new(vec![src_point.0, dst_point.0])
+                        }
+                        DistanceCalculationPolicy::Shape => todo!(),
+                        DistanceCalculationPolicy::Fallback => todo!(),
+                    };
+
+                    // Estimate distance
+                    let distance: Length = match distance_calculation_policy {
+                        DistanceCalculationPolicy::Haversine => {
+                            compute_haversine(src_point, dst_point)
+                        }
+                        DistanceCalculationPolicy::Shape => todo!(),
+                        DistanceCalculationPolicy::Fallback => todo!(),
+                    };
+
+                    let edge = Edge::new(*edge_list_id, edge_id, src_id, dst_id, distance);
+                    schedules.insert((src_id, dst_id), vec![]);
+                    geometries.insert((src_id, dst_id), geometry);
+                    edge_id += 1;
+                    edge
+                });
+
+                // Pick departure OR arrival time
+                let raw_src_departure_time = match (src.departure_time, src.arrival_time) {
+                    (Some(departure), _) => Ok(departure),
+                    (None, Some(arrival)) => Ok(arrival),
+                    (None, None) => {
+                        Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone()))
                     }
-                    (None, MissingStopLocationPolicy::DropStop) => continue,
-                };
-
-            // This only gets to run if all previous conditions are met
-            // it adds the edge if it has not yet been added.
-            let edge = edges.entry((src_id, dst_id)).or_insert_with(|| {
-                let geometry = match distance_calculation_policy {
-                    DistanceCalculationPolicy::Haversine => {
-                        LineString::new(vec![src_point.0, dst_point.0])
+                }?;
+                let raw_dst_arrival_time = match (dst.arrival_time, dst.departure_time) {
+                    (Some(arrival), _) => Ok(arrival),
+                    (None, Some(departure)) => Ok(departure),
+                    (None, None) => {
+                        Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone()))
                     }
-                    DistanceCalculationPolicy::Shape => todo!(),
-                    DistanceCalculationPolicy::Fallback => todo!(),
+                }?;
+
+                // // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
+                let src_departure_offset = Duration::seconds(raw_src_departure_time as i64);
+                let src_departure_time = picked_date
+                    .and_hms_opt(0, 0, 0)
+                    .and_then(|datetime| {
+                        datetime.checked_add_signed(src_departure_offset)
+                    })
+                    .ok_or_else(|| {
+                        let picked_str = picked_date.format("%m-%d-%Y");
+                        let msg = format!("appending departure offset '{src_departure_offset}' to picked_date '{picked_str}' produced an empty result (invalid combination)");
+                        ScheduleError::InvalidDataError(msg)
+                    })?;
+
+                let dst_departure_offset = Duration::seconds(raw_dst_arrival_time as i64);
+                let dst_arrival_time = picked_date
+                    .and_hms_opt(0, 0, 0)
+                    .and_then(|datetime| {
+                        datetime.checked_add_signed(dst_departure_offset)
+                    })
+                    .ok_or_else(|| {
+                        let picked_str = picked_date.format("%m-%d-%Y");
+                        let msg = format!("appending departure offset '{dst_departure_offset}' to picked_date '{picked_str}' produced an empty result (invalid combination)");
+                        ScheduleError::InvalidDataError(msg)
+                    })?;
+
+                let schedule = ScheduleConfig {
+                    edge_id: edge.edge_id.0,
+                    src_departure_time,
+                    dst_arrival_time,
+                    route_id: trip.route_id.clone(),
                 };
-
-                // Estimate distance
-                let distance: Length = match distance_calculation_policy {
-                    DistanceCalculationPolicy::Haversine => compute_haversine(src_point, dst_point),
-                    DistanceCalculationPolicy::Shape => todo!(),
-                    DistanceCalculationPolicy::Fallback => todo!(),
-                };
-
-                let edge = Edge::new(*edge_list_id, edge_id, src_id, dst_id, distance);
-                schedules.insert((src_id, dst_id), vec![]);
-                geometries.insert((src_id, dst_id), geometry);
-                edge_id += 1;
-                edge
-            });
-
-            // Pick departure OR arrival time
-            let raw_src_departure_time = match (src.departure_time, src.arrival_time) {
-                (Some(departure), _) => Ok(departure),
-                (None, Some(arrival)) => Ok(arrival),
-                (None, None) => Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone())),
-            }?;
-            let raw_dst_arrival_time = match (dst.arrival_time, dst.departure_time) {
-                (Some(arrival), _) => Ok(arrival),
-                (None, Some(departure)) => Ok(departure),
-                (None, None) => Err(ScheduleError::MissingAllStopTimesError(src.stop.id.clone())),
-            }?;
-
-            // // The deserialization of Gtfs is in non-negative seconds (`deserialize_optional_time`)
-            let src_departure_offset = Duration::seconds(raw_src_departure_time as i64);
-            let src_departure_time = trip.start_date
-                .and_hms_opt(0, 0, 0)
-                .and_then(|datetime| {
-                    datetime.checked_add_signed(src_departure_offset)
-                })
-                .ok_or_else(|| {
-                    let start_str = trip.start_date.format("%m-%d-%Y");
-                    let msg = format!("appending departure offset '{src_departure_offset}' to trip.start_date '{start_str}' produced an empty result (invalid combination)");
-                    ScheduleError::InvalidDataError(msg)
-                })?;
-
-            let dst_departure_offset = Duration::seconds(raw_dst_arrival_time as i64);
-            let dst_arrival_time = trip.start_date
-                .and_hms_opt(0, 0, 0)
-                .and_then(|datetime| {
-                    datetime.checked_add_signed(dst_departure_offset)
-                })
-                .ok_or_else(|| {
-                    let start_str = trip.start_date.format("%m-%d-%Y");
-                    let msg = format!("appending departure offset '{dst_departure_offset}' to start_date '{start_str}' produced an empty result (invalid combination)");
-                    ScheduleError::InvalidDataError(msg)
-                })?;
-
-            let schedule = ScheduleConfig {
-                edge_id: edge.edge_id.0,
-                src_departure_time,
-                dst_arrival_time,
-                route_id: trip.route_id.clone(),
-            };
-            schedules
-                .get_mut(&(src_id, dst_id))
-                .ok_or_else(||{
-                    ScheduleError::InternalError(format!("expected relation ({src_id})->({dst_id}) not created in 'schedules' collection"))
-                })?
-                .push(schedule);
+                schedules
+                    .get_mut(&(src_id, dst_id))
+                    .ok_or_else(||{
+                        ScheduleError::InternalError(format!("expected relation ({src_id})->({dst_id}) not created in 'schedules' collection"))
+                    })?
+                    .push(schedule);
+            }
         }
     }
 
@@ -303,6 +294,30 @@ pub fn process_bundle(
     }
 
     // Write to files
+
+    // collect metadata for writing to file
+    let date_mapping_ser = date_mapping
+        .into_iter()
+        .map(|(route_id, (target, picked))| {
+            let target_str = target.format(APP_DATE_FORMAT).to_string();
+            let picked_str = picked.format(APP_DATE_FORMAT).to_string();
+            let dates_ser = json![{"target": target_str, "picked": picked_str}];
+            (route_id, dates_ser)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let metadata = json! [{
+        "agencies": json![&gtfs.agencies],
+        "feed_info": json![&gtfs.feed_info],
+        "read_duration": json![&gtfs.read_duration],
+        "calendar": json![&gtfs.calendar],
+        "calendar_dates": json![&gtfs.calendar_dates],
+        "route_ids": json![gtfs.routes.keys().collect_vec()],
+        "date_mapping": json![date_mapping_ser]
+    }];
+    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
+        ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
+    })?;
     let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
     std::fs::create_dir_all(output_directory).map_err(|e| {
         let outdir = output_directory.to_str().unwrap_or_default();
