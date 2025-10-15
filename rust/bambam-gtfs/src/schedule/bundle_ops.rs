@@ -20,7 +20,6 @@ use std::{
 use uom::si::f64::Length;
 use wkt::ToWkt;
 
-use super::date::date_codec::app::APP_DATE_FORMAT;
 use crate::schedule::{
     batch_processing_error,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
