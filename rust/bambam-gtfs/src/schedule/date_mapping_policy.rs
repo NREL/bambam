@@ -1,0 +1,273 @@
+use std::sync::Arc;
+
+use chrono::{Datelike, NaiveDate};
+use gtfs_structures::{Exception, Gtfs};
+use itertools::Itertools;
+
+use crate::schedule::{
+    date::{date_codec::app::APP_DATE_FORMAT, date_ops, DateIterator},
+    DateMappingPolicyConfig,
+};
+use crate::schedule::{schedule_error::ScheduleError, SortedTrip};
+
+#[derive(Clone, Debug)]
+pub enum DateMappingPolicy {
+    ExactDate(NaiveDate),
+    ExactRange {
+        /// start date in range
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    },
+    NearestDate {
+        date: NaiveDate,
+        /// limit to the number of days to search from the target date +-
+        /// to a viable date in the GTFS archive.
+        date_tolerance: u64,
+        /// if true, choose the closest date that matches the same day of the
+        /// week as our target date.
+        match_weekday: bool,
+    },
+    NearestRange {
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        /// limit to the number of days to search from the target date +-
+        /// to a viable date in the GTFS archive.
+        date_tolerance: u64,
+        /// if true, choose the closest date that matches the same day of the
+        /// week as our target date.
+        match_weekday: bool,
+    },
+}
+
+impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
+    type Error = ScheduleError;
+
+    fn try_from(value: &DateMappingPolicyConfig) -> Result<Self, Self::Error> {
+        match value {
+            DateMappingPolicyConfig::ExactDate(date_str) => {
+                let date = NaiveDate::parse_from_str(date_str, APP_DATE_FORMAT).map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "failure reading date for exact date mapping policy: {e}"
+                    ))
+                })?;
+                Ok(Self::ExactDate(date))
+            }
+            DateMappingPolicyConfig::ExactRange {
+                start_date,
+                end_date,
+            } => {
+                let start_date =
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date =
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for exact range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::ExactRange {
+                    start_date,
+                    end_date,
+                })
+            }
+            DateMappingPolicyConfig::NearestDate {
+                date,
+                date_tolerance,
+                match_weekday,
+            } => {
+                let date = NaiveDate::parse_from_str(date, APP_DATE_FORMAT).map_err(|e| {
+                    ScheduleError::GtfsAppError(format!(
+                        "failure reading date for nearest date mapping policy: {e}"
+                    ))
+                })?;
+                Ok(Self::NearestDate {
+                    date,
+                    date_tolerance: *date_tolerance,
+                    match_weekday: *match_weekday,
+                })
+            }
+            DateMappingPolicyConfig::NearestRange {
+                start_date,
+                end_date,
+                date_tolerance,
+                match_weekday,
+            } => {
+                let start_date =
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for nearest range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date =
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for nearest range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::NearestRange {
+                    start_date,
+                    end_date,
+                    date_tolerance: *date_tolerance,
+                    match_weekday: *match_weekday,
+                })
+            }
+        }
+    }
+}
+
+impl DateMappingPolicy {
+    /// create an iterator over the dates we want to generate transit
+    /// schedules for.
+    pub fn iter(&self) -> DateIterator {
+        match self {
+            DateMappingPolicy::ExactDate(day) => DateIterator::new(*day, None),
+            DateMappingPolicy::ExactRange {
+                start_date,
+                end_date,
+            } => DateIterator::new(*start_date, Some(*end_date)),
+            DateMappingPolicy::NearestDate { date, .. } => DateIterator::new(*date, None),
+            DateMappingPolicy::NearestRange {
+                start_date,
+                end_date,
+                ..
+            } => DateIterator::new(*start_date, Some(*end_date)),
+        }
+    }
+
+    /// given some target date generated by the [`DateIterator`], we _pick_ a valid
+    /// date according to the [`DateMappingPolicy`] variant's implementation + arguments.
+    pub fn pick_date(
+        &self,
+        target: &NaiveDate,
+        trip: &SortedTrip,
+        gtfs: Arc<Gtfs>,
+    ) -> Result<NaiveDate, ScheduleError> {
+        match self {
+            DateMappingPolicy::ExactDate(_) => pick_exact_date(target, trip, &gtfs),
+            DateMappingPolicy::ExactRange { .. } => pick_exact_date(target, trip, &gtfs),
+            DateMappingPolicy::NearestDate {
+                date_tolerance,
+                match_weekday,
+                ..
+            } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+            DateMappingPolicy::NearestRange {
+                date_tolerance,
+                match_weekday,
+                ..
+            } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+        }
+    }
+}
+
+/// confirm the target to exist as a valid date for this trip in the GTFS dataset.
+/// returns the target date if successful.
+fn pick_exact_date(
+    target: &NaiveDate,
+    trip: &SortedTrip,
+    gtfs: &Gtfs,
+) -> Result<NaiveDate, ScheduleError> {
+    let c_opt = gtfs.get_calendar(&trip.service_id).ok();
+    let cd_opt = gtfs.get_calendar_date(&trip.service_id).ok();
+    match (c_opt, cd_opt) {
+        (None, None) => {
+            let msg = format!("cannot pick date with trip_id '{}' as it does not match calendar or calendar dates", trip.trip_id);
+            Err(ScheduleError::MalformedGtfsError(msg))
+        }
+        (Some(c), None) => date_ops::find_in_calendar(target, c),
+        (None, Some(cd)) => date_ops::confirm_add_exception(target, cd),
+        (Some(c), Some(cd)) => match date_ops::find_in_calendar(target, c) {
+            Ok(_) => {
+                if date_ops::confirm_no_delete_exception(target, cd) {
+                    Ok(*target)
+                } else {
+                    Err(ScheduleError::InvalidDataError(format!(
+                    "date {} is valid for calendar.txt but has exception of deleted in calendar_dates.txt",
+                    target.format(APP_DATE_FORMAT)
+                )))
+                }
+            }
+            Err(ce) => date_ops::confirm_add_exception(target, cd)
+                .map_err(|e| ScheduleError::InvalidDataError(format!("{ce}, {e}"))),
+        },
+    }
+}
+
+/// for date policies that search for the nearest valid dates to the target date by a threshold
+/// and optionally enforce matching weekday.
+fn pick_nearest_date(
+    target: &NaiveDate,
+    trip: &SortedTrip,
+    gtfs: &Gtfs,
+    date_tolerance: u64,
+    match_weekday: bool,
+) -> Result<NaiveDate, ScheduleError> {
+    let c_opt = gtfs.get_calendar(&trip.service_id).ok();
+    let cd_opt = gtfs.get_calendar_date(&trip.service_id).ok();
+    match (c_opt, cd_opt) {
+        (None, None) => {
+            let msg = format!("cannot pick date with trip_id '{}' as it does not match calendar or calendar dates", trip.trip_id);
+            Err(ScheduleError::MalformedGtfsError(msg))
+        }
+        (None, Some(cd)) => {
+            date_ops::find_nearest_add_exception(target, cd, date_tolerance, match_weekday)
+        }
+        (Some(c), None) => {
+            let matches = date_ops::date_range_intersection(
+                target,
+                &c.start_date,
+                &c.end_date,
+                date_tolerance,
+                match_weekday,
+            )?;
+            matches.first().cloned().ok_or_else(|| {
+                let msg = date_ops::error_msg_suffix(target, &c.start_date, &c.end_date);
+                ScheduleError::InvalidDataError(format!("could not find any matching dates {msg}"))
+            })
+        }
+        (Some(c), Some(cd)) => {
+            // find all matches across calendar.txt and calendar_dates.txt
+            let mut matches = date_ops::date_range_intersection(
+                target,
+                &c.start_date,
+                &c.end_date,
+                date_tolerance,
+                match_weekday,
+            )?;
+            // apply exceptions in calendar_dates.txt to the matches
+            for calendar_date in cd.iter() {
+                let matches_date = calendar_date.date == *target;
+                let is_add = calendar_date.exception_type == Exception::Added;
+                let matches_weekday_expectation =
+                    !match_weekday || target.weekday() == calendar_date.date.weekday();
+                if matches_date && is_add && matches_weekday_expectation {
+                    matches.push(calendar_date.date);
+                }
+            }
+            let matches_minus_delete = matches
+                .into_iter()
+                .filter(|date_match| date_ops::confirm_no_delete_exception(date_match, cd))
+                .collect_vec();
+
+            // find the valid date that is closest to the target date
+            let min_distance_match = matches_minus_delete
+                .iter()
+                .map(|date| {
+                    let days = target.signed_duration_since(*date).abs().num_days();
+                    (days, date)
+                })
+                .min()
+                .map(|(_, d)| d)
+                .cloned();
+
+            min_distance_match.ok_or_else(|| {
+                ScheduleError::InvalidDataError(format!(
+                    "no match found across calendar + calendar_dates {}",
+                    date_ops::error_msg_suffix(target, &c.start_date, &c.end_date)
+                ))
+            })
+        }
+    }
+}
