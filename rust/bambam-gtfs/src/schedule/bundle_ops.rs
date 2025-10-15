@@ -218,16 +218,21 @@ pub fn process_bundle(
     // Construct edge lists
     let mut edge_id: EdgeId = EdgeId(0);
     let mut edges: HashMap<(VertexId, VertexId), GtfsEdge> = HashMap::new();
-    let mut date_mapping: HashMap<String, (NaiveDate, NaiveDate)> = HashMap::new();
+    let mut date_mapping: HashMap<String, HashMap<NaiveDate, NaiveDate>> = HashMap::new();
     for target_date in c.date_mapping_policy.iter() {
         for trip in trips.values() {
             // apply date mapping
             let picked_date = c
                 .date_mapping_policy
                 .pick_date(&target_date, trip, gtfs.clone())?;
-            if target_date != picked_date && !date_mapping.contains_key(&trip.service_id) {
+            if target_date != picked_date && !date_mapping.contains_key(&trip.route_id) {
                 // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
-                date_mapping.insert(trip.route_id.clone(), (target_date, picked_date));
+                date_mapping
+                    .entry(trip.route_id.clone())
+                    .and_modify(|dates| {
+                        dates.insert(target_date, picked_date);
+                    })
+                    .or_insert(HashMap::from([(target_date, picked_date)]));
             }
 
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
@@ -335,17 +340,6 @@ pub fn process_bundle(
         .sorted_by_cached_key(|e| e.edge.edge_id)
         .collect_vec();
 
-    // collect metadata for writing to file
-    let date_mapping_ser = date_mapping
-        .into_iter()
-        .map(|(route_id, (target, picked))| {
-            let target_str = target.format(APP_DATE_FORMAT).to_string();
-            let picked_str = picked.format(APP_DATE_FORMAT).to_string();
-            let dates_ser = json![{"target": target_str, "picked": picked_str}];
-            (route_id, dates_ser)
-        })
-        .collect::<HashMap<_, _>>();
-
     let metadata = json! [{
         "agencies": json![&gtfs.agencies],
         "feed_info": json![&gtfs.feed_info],
@@ -353,7 +347,7 @@ pub fn process_bundle(
         "calendar": json![&gtfs.calendar],
         "calendar_dates": json![&gtfs.calendar_dates],
         "route_ids": json![gtfs.routes.keys().collect_vec()],
-        "date_mapping": json![date_mapping_ser]
+        "date_mapping": json![date_mapping]
     }];
 
     let result = GtfsBundle {
