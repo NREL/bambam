@@ -30,6 +30,7 @@ impl MultimodalFrontierConstraint {
     /// validates an edge for traversal in a multimodal traversal
     pub fn valid_frontier(
         &self,
+        edge_mode: &str,
         edge: &Edge,
         state: &[StateVariable],
         state_model: &StateModel,
@@ -37,7 +38,6 @@ impl MultimodalFrontierConstraint {
         max_trip_legs: u64,
     ) -> Result<bool, FrontierModelError> {
         use MultimodalFrontierConstraint as MFC;
-        let edge_mode = ops::get_edge_list_mode(edge, mode_to_state)?;
 
         match self {
             MFC::AllowedModes(items) => {
@@ -60,9 +60,9 @@ impl MultimodalFrontierConstraint {
                         "while applying mode count frontier model constraint, {e}"
                     ))
                 })?;
-                if Some(edge_mode.as_str()) != active_mode {
+                if Some(edge_mode) != active_mode {
                     counts
-                        .entry(edge_mode.clone())
+                        .entry(edge_mode.to_string())
                         .and_modify(|cnt| *cnt += 1)
                         .or_insert(1);
                 }
@@ -115,8 +115,8 @@ impl MultimodalFrontierConstraint {
                         "while applying mode count frontier model constraint, {e}"
                     ))
                 })?;
-                if Some(edge_mode.as_str()) != active_mode {
-                    modes.push(edge_mode.clone());
+                if Some(edge_mode) != active_mode {
+                    modes.push(edge_mode.to_string());
                 }
                 let is_match = trie.contains(&modes);
                 Ok(is_match)

@@ -81,6 +81,7 @@ impl FrontierModel for MultimodalFrontierModel {
     ) -> Result<bool, FrontierModelError> {
         for constraint in self.engine.constraints.iter() {
             let valid = constraint.valid_frontier(
+                &self.engine.mode,
                 edge,
                 state,
                 state_model,
