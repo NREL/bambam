@@ -24,5 +24,6 @@ pub fn run(directory: &Path, base_config_filepath: &str) -> Result<(), GtfsConfi
     // TODO: for each unique set of (edges, schedules, metadata) in directory (or, create a manifest):
     //   1. step into [graph] to append the edge list file
     //   2. step into [search] to append traversal + frontier model configurations
+
     Ok(())
 }
