@@ -9,27 +9,28 @@ use regex::Regex;
 use routee_compass::app::compass::{CompassAppConfig, SearchConfig};
 use routee_compass_core::{
     config::OneOrMany,
-    model::network::{EdgeListConfig, EdgeListId},
+    model::{
+        network::{EdgeListConfig, EdgeListId},
+        traversal::default::distance::DistanceTraversalConfig,
+        unit::DistanceUnit,
+    },
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
     app::gtfs_config::gtfs_config_error::GtfsConfigError,
-    model::frontier::{
-        multimodal::{MultimodalFrontierConfig, MultimodalFrontierConstraintConfig},
-        time_limit::{TimeLimitConfig, TimeLimitFrontierConfig},
+    model::{
+        frontier::{
+            multimodal::{MultimodalFrontierConfig, MultimodalFrontierConstraintConfig},
+            time_limit::{TimeLimitConfig, TimeLimitFrontierConfig},
+        },
+        traversal::{
+            multimodal::MultimodalTraversalConfig,
+            transit::{ScheduleLoadingPolicy, TransitTraversalConfig},
+        },
     },
 };
-
-pub struct GtfsConfigArguments {
-    /// OS directory containing processed BAMBAM-GTFS files
-    pub directory: String,
-    /// path to the BAMBAM configuration file to augment with this set of GTFS data
-    pub base_config_filepath: String,
-    /// relative path for "*input_file" entries referenced within the BAMBAM configuration file
-    pub base_config_relative_path: String,
-}
 
 pub const METADATA_FILENAME_REGEX: &str = r#"edges-gtfs-metadata-(\d+).json"#;
 
@@ -45,19 +46,23 @@ pub fn metadata_filename(edge_list_id: EdgeListId) -> String {
     format!("edges-gtfs-metadata-{edge_list_id}.json")
 }
 
-pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
-    let base_str = std::fs::read_to_string(&args.base_config_filepath).map_err(|e| {
-        GtfsConfigError::ReadError {
-            filepath: args.base_config_filepath.clone(),
+/// executes a run of the GTFS configuration application.
+pub fn run(
+    directory: &str,
+    base_config_filepath: &str,
+    base_config_relative_path: Option<&str>,
+) -> Result<(), GtfsConfigError> {
+    let base_str =
+        std::fs::read_to_string(&base_config_filepath).map_err(|e| GtfsConfigError::ReadError {
+            filepath: base_config_filepath.to_string(),
             error: e.to_string(),
-        }
-    })?;
+        })?;
 
     // we will load and modify the base TOML configuration file. in particular,
     // we are modifying the `[[graph.edge_list]]` and `[[search]]` sections.
     let mut compass_conf: CompassAppConfig =
         toml::from_str(base_str.as_str()).map_err(|e| GtfsConfigError::ReadError {
-            filepath: args.base_config_filepath.clone(),
+            filepath: base_config_filepath.to_string(),
             error: e.to_string(),
         })?;
 
@@ -83,8 +88,8 @@ pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
     let constraints = mmfc.constraints.clone();
     let max_trip_legs = mmfc.max_trip_legs as usize;
 
-    let read_dir = std::fs::read_dir(&args.directory).map_err(|e| GtfsConfigError::ReadError {
-        filepath: args.directory.clone(),
+    let read_dir = std::fs::read_dir(&directory).map_err(|e| GtfsConfigError::ReadError {
+        filepath: directory.to_string(),
         error: e.to_string(),
     })?;
     let metadata_file_pattern = Regex::new(METADATA_FILENAME_REGEX).map_err(|e| {
@@ -94,7 +99,7 @@ pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
         .filter(|entry| entry_matches_pattern(entry, &metadata_file_pattern))
         .try_collect()
         .map_err(|e| GtfsConfigError::ReadError {
-            filepath: args.directory.clone(),
+            filepath: directory.to_string(),
             error: e.to_string(),
         })?;
 
@@ -105,8 +110,8 @@ pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
             let edge_list_id = get_edge_list_id(&metadata_file, &metadata_file_pattern)?;
             GtfsEdgeListEntry::new(
                 edge_list_id,
-                &args.directory,
-                &args.base_config_relative_path,
+                directory,
+                &base_config_relative_path.unwrap_or_default(),
             )
         })
         .try_collect()?;
@@ -115,7 +120,7 @@ pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
     let Some(first_gtfs_edge_list_id) = entries.first().map(|e| e.edge_list_id) else {
         return Err(GtfsConfigError::RunError(format!(
             "no metadata files found in directory {}",
-            args.directory
+            directory
         )));
     };
     let edge_list_id_offset = EdgeListId(start_edge_list_id - first_gtfs_edge_list_id.0);
@@ -168,13 +173,11 @@ pub fn run(args: &GtfsConfigArguments) -> Result<(), GtfsConfigError> {
         ))
     })?;
 
-    let conf_dir = Path::new(&args.base_config_filepath)
-        .parent()
-        .ok_or_else(|| {
-            GtfsConfigError::RunError(format!(
-                "base_config_filepath argument is invalid, has no 'parent'."
-            ))
-        })?;
+    let conf_dir = Path::new(&base_config_filepath).parent().ok_or_else(|| {
+        GtfsConfigError::RunError(format!(
+            "base_config_filepath argument is invalid, has no 'parent'."
+        ))
+    })?;
     let out_filepath = conf_dir.join("gtfs-config.toml");
     std::fs::write(&out_filepath, &result_conf).map_err(|e| {
         GtfsConfigError::RunError(format!(
@@ -193,16 +196,28 @@ pub fn get_frontier_model_arguments(
     base_conf: &CompassAppConfig,
 ) -> Result<(MultimodalFrontierConfig, TimeLimitFrontierConfig), GtfsConfigError> {
     for (edge_list_id, search) in base_conf.search.iter().enumerate() {
-        let models = search.traversal.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
+        let models = search.frontier.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
         let models_vec = models.as_array().ok_or_else(|| {
             GtfsConfigError::RunError(format!(
                 "traversal model key 'models' in edge list {edge_list_id} is not an array"
             ))
         })?;
-        let mmfc: MultimodalFrontierConfig =
-            find_expected_config(&models_vec, EdgeListId(edge_list_id), "multimodal")?;
-        let tlfc: TimeLimitFrontierConfig =
-            find_expected_config(&models_vec, EdgeListId(edge_list_id), "time_limit")?;
+        let mmfc: MultimodalFrontierConfig = find_expected_config(
+            &models_vec,
+            EdgeListId(edge_list_id),
+            "multimodal",
+        )
+        .map_err(|e| {
+            GtfsConfigError::RunError(format!("while getting frontier model arguments, {e}"))
+        })?;
+        let tlfc: TimeLimitFrontierConfig = find_expected_config(
+            &models_vec,
+            EdgeListId(edge_list_id),
+            "time_limit",
+        )
+        .map_err(|e| {
+            GtfsConfigError::RunError(format!("while getting frontier model arguments, {e}"))
+        })?;
 
         return Ok((mmfc, tlfc));
     }
@@ -211,6 +226,7 @@ pub fn get_frontier_model_arguments(
     )))
 }
 
+/// helper function for finding a deserializable configuration within a list of JSON values.
 pub fn find_expected_config<T>(
     models: &[serde_json::Value],
     edge_list_id: EdgeListId,
@@ -223,7 +239,7 @@ where
         .iter()
         .find(|c| {
             if let Some(t_val) = c.get("type") {
-                t_val.as_str() == Some("multimodal")
+                t_val.as_str() == Some(expected_name)
             } else {
                 false
             }
@@ -235,7 +251,8 @@ where
         })?;
     let result: T = serde_json::from_value(model_conf.clone()).map_err(|e| {
         GtfsConfigError::RunError(format!(
-            "failed to parse '{expected_name}' model config for edge list {edge_list_id}: {e}"
+            "failed to parse '{expected_name}' model config for edge list {edge_list_id}: {e}. JSON:\n{}",
+            serde_json::to_string_pretty(model_conf).unwrap_or_default()
         ))
     })?;
     Ok(result)
@@ -243,27 +260,62 @@ where
 
 /// finds what modes are already available via other edge lists in the config.
 /// assumes that each edge list has a "multimodal" TraversalModel type.
+/// enforces that the mode list matches the listing in the label model.
 pub fn get_available_modes(base_conf: &CompassAppConfig) -> Result<Vec<String>, GtfsConfigError> {
-    base_conf.search.iter().enumerate().map(|(edge_list_id, search)| {
-        let models = search.traversal.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
-        let models_vec = models.as_array().ok_or_else(|| GtfsConfigError::RunError(format!("traversal model key 'models' in edge list {edge_list_id} is not an array")))?;
-        let multimodal_config = models_vec.iter().find(|c| {
-            if let Some(t_val) = c.get("type") {
-                t_val.as_str() == Some("multimodal")
-            } else {
-                false
-            }
+    let lm_modes: Vec<String> = base_conf
+        .label
+        .get("modes")
+        .ok_or_else(|| {
+            GtfsConfigError::RunError(format!("label model does not have a 'modes' key"))
+        })?
+        .as_array()
+        .ok_or_else(|| {
+            GtfsConfigError::RunError(format!(
+                "label model 'modes' key does not have an array value"
+            ))
+        })?
+        .into_iter()
+        .enumerate()
+        .map(|(idx, v)| {
+            let v_str = v.as_str().ok_or_else(|| {
+                GtfsConfigError::RunError(format!(
+                    "label model '.modes[{idx}]' value is not a string"
+                ))
+            })?;
+            Ok(v_str.to_string())
         })
-            .ok_or_else(|| GtfsConfigError::RunError(format!("edge list {edge_list_id} has no multimodal traversal model")))?;
-        let this_mode_value = multimodal_config.get("this_mode")
-            .ok_or_else(|| GtfsConfigError::RunError(format!("'this_mode' key missing from multimodal traversal model in edge list {edge_list_id}")))?;
-        let this_mode_str = this_mode_value.as_str()
-            .ok_or_else(|| GtfsConfigError::RunError(format!("unable to read 'this_mode': {this_mode_value:?} as a string value for multimodal traversal model in edge list {edge_list_id}")))?;
-        Ok(this_mode_str.to_string())
-    })
-    .try_collect()
+        .try_collect()?;
+
+    // let tm_modes: Vec<String> = base_conf.search.iter().enumerate().map(|(edge_list_id, search)| {
+    //     let models = search.traversal.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
+    //     let models_vec = models.as_array().ok_or_else(|| GtfsConfigError::RunError(format!("traversal model key 'models' in edge list {edge_list_id} is not an array")))?;
+    //     let multimodal_config = models_vec.iter().find(|c| {
+    //         if let Some(t_val) = c.get("type") {
+    //             t_val.as_str() == Some("multimodal")
+    //         } else {
+    //             false
+    //         }
+    //     })
+    //         .ok_or_else(|| GtfsConfigError::RunError(format!("edge list {edge_list_id} has no multimodal traversal model")))?;
+    //     let this_mode_value = multimodal_config.get("this_mode")
+    //         .ok_or_else(|| GtfsConfigError::RunError(format!("'this_mode' key missing from multimodal traversal model in edge list {edge_list_id}")))?;
+    //     let this_mode_str = this_mode_value.as_str()
+    //         .ok_or_else(|| GtfsConfigError::RunError(format!("unable to read 'this_mode': {this_mode_value:?} as a string value for multimodal traversal model in edge list {edge_list_id}")))?;
+    //     Ok(this_mode_str.to_string())
+    // })
+    // .try_collect()?;
+
+    // if !(&lm_modes == &tm_modes) {
+    //     Err(GtfsConfigError::RunError(format!(
+    //         "label model modes do not match traversal model modes: \n{lm_modes:?}\n{tm_modes:?}"
+    //     )))
+    // } else {
+    //     Ok(tm_modes)
+    // }
+    Ok(lm_modes)
 }
 
+/// get a vector of strings from the metadata object by some key.
 pub fn get_metadata_vec(
     metadata: &serde_json::Value,
     key: &str,
@@ -278,6 +330,7 @@ pub fn get_metadata_vec(
     Ok(vec_of_strings)
 }
 
+/// generates the JSON fields expected for a transit traversal model
 pub fn gtfs_traversal_model_config(
     edges_schedules: &str,
     edges_metadata: &str,
@@ -288,25 +341,24 @@ pub fn gtfs_traversal_model_config(
     json![{
         "type": "combined",
         "models": [
-            { "type": "distance", "distance_unit": "miles" },
-            {
-                "type": "transit",
-                "edges_schedules_input_file": json![edges_schedules],
-                "gtfs_metadata_input_file": json![edges_metadata],
-                "schedule_loading_policy": "All"
+            DistanceTraversalConfig { distance_unit: Some(DistanceUnit::Miles) },
+            TransitTraversalConfig {
+                edges_schedules_input_file: edges_schedules.to_string(),
+                gtfs_metadata_input_file: edges_metadata.to_string(),
+                schedule_loading_policy: ScheduleLoadingPolicy::All
             },
-            {
-                "type": "multimodal",
-                "this_mode": "transit",
-                "available_modes": available_modes,
-                "available_route_ids": available_route_ids,
-                "use_route_ids": true,
-                "max_trip_legs": max_trip_legs
+            MultimodalTraversalConfig {
+                this_mode: "transit".to_string(),
+                available_modes: available_modes.to_vec(),
+                available_route_ids: available_route_ids.to_vec(),
+                max_trip_legs: max_trip_legs as u64,
+                use_route_ids: Some(true)
             }
         ]
     }]
 }
 
+/// generates the JSON fields expected for a transit frontier model
 pub fn gtfs_frontier_model_config(
     constraints: &[MultimodalFrontierConstraintConfig],
     time_limit: &TimeLimitConfig,
@@ -317,18 +369,16 @@ pub fn gtfs_frontier_model_config(
     json![{
         "type": "combined",
         "models": [
-            {
-                "type": "time_limit",
-                "time_limit": json![time_limit]
+            TimeLimitFrontierConfig {
+                time_limit: time_limit.clone(),
             },
-            {
-                "type": "multimodal",
-                "mode": "transit",
-                "constraints": json![constraints],
-                "available_modes": available_modes,
-                "available_route_ids": available_route_ids,
-                "use_route_ids": true,
-                "max_trip_legs": max_trip_legs
+            MultimodalFrontierConfig {
+                mode: "transit".to_string(),
+                constraints: constraints.to_vec(),
+                available_modes: available_modes.to_vec(),
+                available_route_ids: available_route_ids.to_vec(),
+                use_route_ids: true,
+                max_trip_legs: max_trip_legs as u64
             }
         ]
     }]
@@ -345,8 +395,8 @@ pub struct GtfsEdgeListEntry {
 impl GtfsEdgeListEntry {
     pub fn new(
         edge_list_id: EdgeListId,
-        gtfs_edge_list_directory: &String,
-        relative_path_to_gtfs_edge_list_directory: &String,
+        gtfs_edge_list_directory: &str,
+        relative_path_to_gtfs_edge_list_directory: &str,
     ) -> Result<GtfsEdgeListEntry, GtfsConfigError> {
         let path =
             Path::new(relative_path_to_gtfs_edge_list_directory).join(gtfs_edge_list_directory);
@@ -415,7 +465,7 @@ fn get_edge_list_id(entry: &DirEntry, pat: &Regex) -> Result<EdgeListId, GtfsCon
     let filename = filename_os.to_string_lossy();
     let pat_match = pat
         .captures(&filename)
-        .map(|g| g.get(0))
+        .map(|g| g.get(1)) // capture group 0 is the entire match, group 1 is just the edge list id
         .flatten()
         .ok_or_else(|| {
             GtfsConfigError::InternalError(format!(

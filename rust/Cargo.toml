@@ -59,7 +59,7 @@ shapefile = { version = "0.7.0", features = ["geo-types"] }
 skiplist = "0.5.1"
 thiserror = "2.0.12"
 tokio = "1.39.2"
-toml = { version = "0.8.20" }
+toml = { version = "0.9.8" }
 uom = { version = "0.36.0", features = ["serde"] }
 wkb = "0.9.0"
 wkt = { version = "0.13.0", features = ["serde"] }

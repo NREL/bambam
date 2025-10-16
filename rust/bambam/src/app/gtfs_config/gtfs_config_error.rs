@@ -2,7 +2,7 @@
 pub enum GtfsConfigError {
     #[error("failed reading '{filepath}': {error}")]
     ReadError { filepath: String, error: String },
-    #[error("failed to run bambam gtfs configuration script: {0}")]
+    #[error("{0}")]
     RunError(String),
     #[error("{0}")]
     InternalError(String),
