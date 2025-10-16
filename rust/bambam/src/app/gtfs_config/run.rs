@@ -47,6 +47,14 @@ pub fn metadata_filename(edge_list_id: EdgeListId) -> String {
 }
 
 /// executes a run of the GTFS configuration application.
+///
+/// the algorithm here can be seen as the following steps:
+///   1. read in some configuration file that doesn't have transit added
+///   2. copy some data from this config to duplicate across transit additions
+///   3. look for all gtfs metadata JSON files in a directory
+///   4. for each metadata file, look for the other expected files associated with the same edge list
+///   5. for each edge list bundle, inject graph, mapping, and search configuration
+///   6. re-write as a TOML file to the file system
 pub fn run(
     directory: &str,
     base_config_filepath: &str,
@@ -174,7 +182,9 @@ pub fn run(
     })?;
 
     let conf_dir = Path::new(&base_config_filepath).parent().ok_or_else(|| {
-        GtfsConfigError::RunError("base_config_filepath argument is invalid, has no 'parent'.".to_string())
+        GtfsConfigError::RunError(
+            "base_config_filepath argument is invalid, has no 'parent'.".to_string(),
+        )
     })?;
     let out_filepath = conf_dir.join("gtfs-config.toml");
     std::fs::write(&out_filepath, &result_conf).map_err(|e| {
@@ -268,7 +278,9 @@ pub fn get_available_modes(base_conf: &CompassAppConfig) -> Result<Vec<String>, 
         })?
         .as_array()
         .ok_or_else(|| {
-            GtfsConfigError::RunError("label model 'modes' key does not have an array value".to_string())
+            GtfsConfigError::RunError(
+                "label model 'modes' key does not have an array value".to_string(),
+            )
         })?
         .iter()
         .enumerate()
