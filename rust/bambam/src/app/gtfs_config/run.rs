@@ -53,7 +53,7 @@ pub fn run(
     base_config_relative_path: Option<&str>,
 ) -> Result<(), GtfsConfigError> {
     let base_str =
-        std::fs::read_to_string(&base_config_filepath).map_err(|e| GtfsConfigError::ReadError {
+        std::fs::read_to_string(base_config_filepath).map_err(|e| GtfsConfigError::ReadError {
             filepath: base_config_filepath.to_string(),
             error: e.to_string(),
         })?;
@@ -88,7 +88,7 @@ pub fn run(
     let constraints = mmfc.constraints.clone();
     let max_trip_legs = mmfc.max_trip_legs as usize;
 
-    let read_dir = std::fs::read_dir(&directory).map_err(|e| GtfsConfigError::ReadError {
+    let read_dir = std::fs::read_dir(directory).map_err(|e| GtfsConfigError::ReadError {
         filepath: directory.to_string(),
         error: e.to_string(),
     })?;
@@ -111,7 +111,7 @@ pub fn run(
             GtfsEdgeListEntry::new(
                 edge_list_id,
                 directory,
-                &base_config_relative_path.unwrap_or_default(),
+                base_config_relative_path.unwrap_or_default(),
             )
         })
         .try_collect()?;
@@ -174,15 +174,13 @@ pub fn run(
     })?;
 
     let conf_dir = Path::new(&base_config_filepath).parent().ok_or_else(|| {
-        GtfsConfigError::RunError(format!(
-            "base_config_filepath argument is invalid, has no 'parent'."
-        ))
+        GtfsConfigError::RunError("base_config_filepath argument is invalid, has no 'parent'.".to_string())
     })?;
     let out_filepath = conf_dir.join("gtfs-config.toml");
     std::fs::write(&out_filepath, &result_conf).map_err(|e| {
         GtfsConfigError::RunError(format!(
             "failure writing to {}: {e}",
-            out_filepath.to_string_lossy().to_string()
+            out_filepath.to_string_lossy()
         ))
     })?;
 
@@ -195,7 +193,7 @@ pub fn run(
 pub fn get_frontier_model_arguments(
     base_conf: &CompassAppConfig,
 ) -> Result<(MultimodalFrontierConfig, TimeLimitFrontierConfig), GtfsConfigError> {
-    for (edge_list_id, search) in base_conf.search.iter().enumerate() {
+    if let Some((edge_list_id, search)) = base_conf.search.iter().enumerate().next() {
         let models = search.frontier.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
         let models_vec = models.as_array().ok_or_else(|| {
             GtfsConfigError::RunError(format!(
@@ -203,7 +201,7 @@ pub fn get_frontier_model_arguments(
             ))
         })?;
         let mmfc: MultimodalFrontierConfig = find_expected_config(
-            &models_vec,
+            models_vec,
             EdgeListId(edge_list_id),
             "multimodal",
         )
@@ -211,7 +209,7 @@ pub fn get_frontier_model_arguments(
             GtfsConfigError::RunError(format!("while getting frontier model arguments, {e}"))
         })?;
         let tlfc: TimeLimitFrontierConfig = find_expected_config(
-            &models_vec,
+            models_vec,
             EdgeListId(edge_list_id),
             "time_limit",
         )
@@ -266,15 +264,13 @@ pub fn get_available_modes(base_conf: &CompassAppConfig) -> Result<Vec<String>, 
         .label
         .get("modes")
         .ok_or_else(|| {
-            GtfsConfigError::RunError(format!("label model does not have a 'modes' key"))
+            GtfsConfigError::RunError("label model does not have a 'modes' key".to_string())
         })?
         .as_array()
         .ok_or_else(|| {
-            GtfsConfigError::RunError(format!(
-                "label model 'modes' key does not have an array value"
-            ))
+            GtfsConfigError::RunError("label model 'modes' key does not have an array value".to_string())
         })?
-        .into_iter()
+        .iter()
         .enumerate()
         .map(|(idx, v)| {
             let v_str = v.as_str().ok_or_else(|| {
@@ -409,17 +405,17 @@ impl GtfsEdgeListEntry {
         if !&edges_filepath.is_file() {
             Err(GtfsConfigError::ReadError {
                 filepath: edges_filepath.to_string_lossy().to_string(),
-                error: format!("file not found"),
+                error: "file not found".to_string(),
             })
         } else if !&schedules_filepath.is_file() {
             Err(GtfsConfigError::ReadError {
                 filepath: edges_filepath.to_string_lossy().to_string(),
-                error: format!("file not found"),
+                error: "file not found".to_string(),
             })
         } else if !&metadata_filepath.is_file() {
             Err(GtfsConfigError::ReadError {
                 filepath: edges_filepath.to_string_lossy().to_string(),
-                error: format!("file not found"),
+                error: "file not found".to_string(),
             })
         } else {
             let metadata_string = std::fs::read_to_string(&metadata_filepath).map_err(|e| {
