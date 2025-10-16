@@ -317,8 +317,8 @@ impl App {
                 base_config: base_config_filepath,
                 inject_filepath: base_config_relative_path,
             } => bambam::app::gtfs_config::run(
-                &directory,
-                &base_config_filepath,
+                directory,
+                base_config_filepath,
                 base_config_relative_path.as_deref(),
             )
             .map_err(|e| e.to_string()),
