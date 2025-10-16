@@ -324,9 +324,9 @@ mod test {
             "transit".to_string(),
         ]));
         let max_trip_legs = 4;
-        let (mam, mfm, state_model, mut state) = test_setup(
+        let (mtm, mfm, state_model, mut state) = test_setup(
             vec![mode_constraint],
-            "walk",
+            "drive",
             &["walk", "bike", "drive", "tnc", "transit"],
             &[],
             max_trip_legs,
@@ -336,19 +336,12 @@ mod test {
             &["walk", "transit", "walk"],
             &mut state,
             &state_model,
-            &mam.mode_to_state,
+            &mtm.mode_to_state,
             max_trip_legs,
         );
 
-        // test a drive-mode traversal, which is not an allowed mode
-        let drive_edge_list = 2;
-        let edge = Edge::new(
-            drive_edge_list,
-            0,
-            0,
-            1,
-            Length::new::<uom::si::length::meter>(1000.0),
-        );
+        // test the drive-mode traversal model, which is not an allowed mode
+        let edge = Edge::new(2, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
         let is_valid = mfm
             .valid_frontier(&edge, None, &state, &state_model)
             .expect("test failed");
@@ -541,9 +534,9 @@ mod test {
             ("bike".to_string(), 1),
         ]));
         let max_trip_legs = 2;
-        let (mam, mfm, state_model, state) = test_setup(
+        let (walk_mtm, walk_mfm, state_model, state) = test_setup(
             vec![mode_constraint],
-            "bike", // Start with bike mode to avoid walk
+            "walk", // Start with bike mode to avoid walk
             &["walk", "bike"],
             &[],
             max_trip_legs,
@@ -551,7 +544,7 @@ mod test {
 
         // Test that walk-mode edge is invalid when walk has 0 limit
         let walk_edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-        let is_valid = mfm
+        let is_valid = walk_mfm
             .valid_frontier(&walk_edge, None, &state, &state_model)
             .expect("test failed");
         assert!(!is_valid);
@@ -567,16 +560,16 @@ mod test {
         let max_trip_legs = 3;
         let (mam, mfm, state_model, state) = test_setup(
             vec![mode_constraint],
-            "walk",
+            "drive",
             &["walk", "bike", "drive"], // drive is not in the limits
             &[],
             max_trip_legs,
         );
 
-        // Test drive-mode edge when drive is not in limits
-        let drive_edge = Edge::new(2, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+        // Test drive-mode edge traversal model when drive is not in limits
+        let dummy_edge = Edge::new(2, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
         let is_valid = mfm
-            .valid_frontier(&drive_edge, None, &state, &state_model)
+            .valid_frontier(&dummy_edge, None, &state, &state_model)
             .expect("test failed");
         assert!(!is_valid);
     }
@@ -791,42 +784,22 @@ mod test {
                 "walk".to_string(), // bike not allowed
             ])),
         ];
-        let (mam, mfm, state_model, mut state) =
-            test_setup(constraints, "walk", &["walk", "bike"], &[], max_trip_legs);
+        let (bike_mtm, bike_mfm, state_model, mut state) =
+            test_setup(constraints, "bike", &["walk", "bike"], &[], max_trip_legs);
 
         inject_trip_legs(
             &["walk"],
             &mut state,
             &state_model,
-            &mam.mode_to_state,
+            &bike_mtm.mode_to_state,
             max_trip_legs,
         );
 
         let bike_edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-        let is_valid = mfm
+        let is_valid = bike_mfm
             .valid_frontier(&bike_edge, None, &state, &state_model)
             .expect("test failed");
         assert!(!is_valid); // Should fail due to AllowedModes constraint
-    }
-
-    #[test]
-    fn test_invalid_edge_list_id() {
-        // Test behavior with invalid edge list ID
-        let max_trip_legs = 2;
-        let (mam, mfm, state_model, state) = test_setup(
-            vec![MultimodalFrontierConstraint::AllowedModes(HashSet::from([
-                "walk".to_string(),
-            ]))],
-            "walk",
-            &["walk"],
-            &[],
-            max_trip_legs,
-        );
-
-        // Create edge with invalid edge list ID (beyond available modes)
-        let invalid_edge = Edge::new(999, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-        let result = mfm.valid_frontier(&invalid_edge, None, &state, &state_model);
-        assert!(result.is_err()); // Should return an error for invalid edge list ID
     }
 
     #[test]
@@ -869,9 +842,9 @@ mod test {
     fn test_max_trip_legs_would_exceed_limit() {
         // Test transition from valid state to invalid state when adding a new mode
         let max_trip_legs = 1;
-        let (mam, mfm, state_model, mut state) = test_setup(
+        let (bike_mtm, bike_mfm, state_model, mut state) = test_setup(
             vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
-            "walk",
+            "bike",
             &["walk", "bike"],
             &[],
             max_trip_legs,
@@ -882,13 +855,13 @@ mod test {
             &["walk"],
             &mut state,
             &state_model,
-            &mam.mode_to_state,
+            &bike_mtm.mode_to_state,
             max_trip_legs,
         );
 
         // Test adding a different mode edge, which would create a second leg and exceed the limit
         let bike_edge = Edge::new(1, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
-        let is_valid = mfm
+        let is_valid = bike_mfm
             .valid_frontier(&bike_edge, None, &state, &state_model)
             .expect("test failed");
         assert!(!is_valid); // Should be invalid as this would create a second leg
