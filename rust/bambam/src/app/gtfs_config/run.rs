@@ -12,6 +12,7 @@ use routee_compass::app::compass::{CompassAppConfig, SearchConfig};
 use routee_compass_core::{
     config::OneOrMany,
     model::{
+        map::MapModelGeometryConfig,
         network::{EdgeListConfig, EdgeListId},
         traversal::default::distance::DistanceTraversalConfig,
         unit::DistanceUnit,
@@ -43,6 +44,10 @@ pub fn edges_filename(edge_list_id: EdgeListId) -> String {
 
 pub fn schedules_filename(edge_list_id: EdgeListId) -> String {
     format!("edges-schedules-{edge_list_id}.csv.gz")
+}
+
+pub fn geometries_filename(edge_list_id: EdgeListId) -> String {
+    format!("edges-geometries-enumerated-{edge_list_id}.txt.gz")
 }
 
 pub fn metadata_filename(edge_list_id: EdgeListId) -> String {
@@ -80,6 +85,8 @@ pub fn run(
     // temporary collections to modify when updating the base config
     let mut conf_graph_edge_lists: Vec<EdgeListConfig> =
         compass_conf.graph.edge_list.iter().cloned().collect_vec();
+    let mut conf_geometries: Vec<MapModelGeometryConfig> =
+        compass_conf.mapping.geometry.iter().cloned().collect_vec();
     let mut conf_search: Vec<SearchConfig> = compass_conf.search.iter().cloned().collect_vec();
 
     // used to deal with any offset value between base edge list ids and GTFS edge list ids
@@ -146,11 +153,15 @@ pub fn run(
         let index = edge_list_id_fix.0;
 
         // update [[graph.edge_list]]
-        //   1. step into [graph] to append the edge list file
         let edge_list_config = EdgeListConfig {
             input_file: entry.edges_input_file.to_string_lossy().to_string(),
         };
         conf_graph_edge_lists.push(edge_list_config);
+
+        // update [[mapping.geometry]]
+        conf_geometries.push(MapModelGeometryConfig::FromLinestrings {
+            geometry_input_file: entry.geometries_input_file.to_string_lossy().to_string(),
+        });
 
         //   2. step into [search] to append traversal + frontier model configurations
         let edges_schedules_path = entry.schedules_input_file.to_string_lossy().to_string();
@@ -179,6 +190,7 @@ pub fn run(
     // update base configuration and write to output file
     compass_conf.graph.edge_list = OneOrMany::Many(conf_graph_edge_lists);
     compass_conf.search = OneOrMany::Many(conf_search);
+    compass_conf.mapping.geometry = OneOrMany::Many(conf_geometries);
 
     let result_conf = toml::to_string_pretty(&compass_conf).map_err(|e| {
         GtfsConfigError::RunError(format!(
@@ -444,6 +456,7 @@ pub struct GtfsEdgeListEntry {
     pub edge_list_id: EdgeListId,
     pub edges_input_file: PathBuf,
     pub schedules_input_file: PathBuf,
+    pub geometries_input_file: PathBuf,
     pub metadata_input_file: PathBuf,
     pub metadata: serde_json::Value,
 }
@@ -460,6 +473,8 @@ impl GtfsEdgeListEntry {
         let edges_filepath = path.join(edges_filename);
         let schedules_filename = schedules_filename(edge_list_id);
         let schedules_filepath = path.join(schedules_filename);
+        let geometries_filename = geometries_filename(edge_list_id);
+        let geometries_filepath = path.join(geometries_filename);
         let metadata_filename = metadata_filename(edge_list_id);
         let metadata_filepath = path.join(metadata_filename);
         if !&edges_filepath.is_file() {
@@ -469,12 +484,17 @@ impl GtfsEdgeListEntry {
             })
         } else if !&schedules_filepath.is_file() {
             Err(GtfsConfigError::ReadError {
-                filepath: edges_filepath.to_string_lossy().to_string(),
+                filepath: schedules_filepath.to_string_lossy().to_string(),
+                error: "file not found".to_string(),
+            })
+        } else if !&geometries_filepath.is_file() {
+            Err(GtfsConfigError::ReadError {
+                filepath: geometries_filepath.to_string_lossy().to_string(),
                 error: "file not found".to_string(),
             })
         } else if !&metadata_filepath.is_file() {
             Err(GtfsConfigError::ReadError {
-                filepath: edges_filepath.to_string_lossy().to_string(),
+                filepath: metadata_filepath.to_string_lossy().to_string(),
                 error: "file not found".to_string(),
             })
         } else {
@@ -493,6 +513,7 @@ impl GtfsEdgeListEntry {
                 edge_list_id,
                 edges_input_file: edges_filepath,
                 schedules_input_file: schedules_filepath,
+                geometries_input_file: geometries_filepath,
                 metadata_input_file: metadata_filepath,
                 metadata,
             };
