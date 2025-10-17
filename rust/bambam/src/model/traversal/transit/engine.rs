@@ -76,9 +76,7 @@ impl TransitTraversalEngine {
                 (route_id, next_route_departure)
             })
             .min_by_key(|(_, &departure)| departure)
-            .ok_or(TraversalModelError::InternalError(format!(
-                "Failed to find minimum of vector of departures"
-            )))
+            .ok_or(TraversalModelError::InternalError("Failed to find minimum of vector of departures".to_string()))
             .map(|(&route, &departure)| (route, departure))
     }
 }
@@ -103,17 +101,15 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
             .date_mapping
             .into_iter()
             .map(|(k, hash_map)| match route_id_to_state.get_label(&k) {
-                Some(route_id) => Ok((route_id.clone(), hash_map)),
+                Some(route_id) => Ok((*route_id, hash_map)),
                 None => Err(TraversalModelError::BuildError(format!(
-                    "failed to find label for categorical value: {}",
-                    k
+                    "failed to find label for categorical value: {k}"
                 ))),
             })
             .collect::<Result<_, _>>()
             .map_err(|e| {
                 TraversalModelError::BuildError(format!(
-                    "failed to construct date mapping after matching route_id (str) to i64: {}",
-                    e
+                    "failed to construct date mapping after matching route_id (str) to i64: {e}"
                 ))
             })?;
 
