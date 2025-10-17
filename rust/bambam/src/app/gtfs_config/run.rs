@@ -3,7 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use config::Config;
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use itertools::Itertools;
@@ -14,7 +13,6 @@ use routee_compass_core::{
     model::{
         map::MapModelGeometryConfig,
         network::{EdgeListConfig, EdgeListId},
-        traversal::default::distance::DistanceTraversalConfig,
         unit::DistanceUnit,
     },
 };
