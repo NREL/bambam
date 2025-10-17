@@ -4,10 +4,10 @@ use serde::Deserializer;
 use serde::{Deserialize, Serialize};
 
 pub const APP_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-pub const APP_DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
+pub const APP_DATE_FORMAT: &str = "%Y-%m-%d";
 
 pub fn naive_date_to_str(date_str: &str) -> ParseResult<NaiveDate> {
-    chrono::NaiveDate::parse_from_str(date_str, APP_DATETIME_FORMAT)
+    chrono::NaiveDate::parse_from_str(date_str, APP_DATE_FORMAT)
 }
 
 pub fn deserialize_naive_datetime<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
