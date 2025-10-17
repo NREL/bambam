@@ -12,7 +12,7 @@ use routee_compass_core::model::{
 };
 use serde_json::json;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::File,
     path::Path,
     sync::{Arc, Mutex},
@@ -218,21 +218,13 @@ pub fn process_bundle(
     let mut edge_id: EdgeId = EdgeId(0);
     let mut edges: HashMap<(VertexId, VertexId), GtfsEdge> = HashMap::new();
     let mut date_mapping: HashMap<String, HashMap<NaiveDate, NaiveDate>> = HashMap::new();
+    let mut fq_route_ids: HashSet<String> = HashSet::new();
     for target_date in c.date_mapping_policy.iter() {
         for trip in trips.values() {
             // apply date mapping
             let picked_date = c
                 .date_mapping_policy
                 .pick_date(&target_date, trip, gtfs.clone())?;
-            if target_date != picked_date && !date_mapping.contains_key(&trip.route_id) {
-                // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
-                date_mapping
-                    .entry(trip.route_id.clone())
-                    .and_modify(|dates| {
-                        dates.insert(target_date, picked_date);
-                    })
-                    .or_insert(HashMap::from([(target_date, picked_date)]));
-            }
 
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
                 let map_match_result =
@@ -323,12 +315,32 @@ pub fn process_bundle(
                             ScheduleError::InvalidDataError(msg)
                         })?;
 
+                let route = gtfs.routes.get(&trip.route_id).ok_or_else(|| {
+                    ScheduleError::MalformedGtfsError(format!(
+                        "trip {} has route id {} which is missing from the archive",
+                        trip.trip_id, trip.route_id
+                    ))
+                })?;
                 let schedule = ScheduleRow {
                     edge_id: gtfs_edge.edge.edge_id.0,
                     src_departure_time,
                     dst_arrival_time,
                     route_id: trip.route_id.clone(),
+                    service_id: trip.service_id.clone(),
+                    agency_id: route.agency_id.clone(),
                 };
+                let fq_route_id = schedule.get_fully_qualified_route_id();
+                if target_date != picked_date && !date_mapping.contains_key(&fq_route_id) {
+                    // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
+                    date_mapping
+                        .entry(fq_route_id.clone())
+                        .and_modify(|dates| {
+                            dates.insert(target_date, picked_date);
+                        })
+                        .or_insert(HashMap::from([(target_date, picked_date)]));
+                }
+
+                fq_route_ids.insert(fq_route_id);
                 gtfs_edge.add_schedule(schedule);
             }
         }
@@ -345,7 +357,7 @@ pub fn process_bundle(
         "read_duration": json![&gtfs.read_duration],
         "calendar": json![&gtfs.calendar],
         "calendar_dates": json![&gtfs.calendar_dates],
-        "route_ids": json![gtfs.routes.keys().collect_vec()],
+        "fq_route_ids": json![fq_route_ids],
         "date_mapping": json![date_mapping]
     }];
 
