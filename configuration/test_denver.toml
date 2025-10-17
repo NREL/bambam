@@ -141,9 +141,8 @@ time_unit = "minutes"
 type = "multimodal"
 this_mode = "walk"
 available_modes = ["walk"]
-available_route_ids = []
 max_trip_legs = 1
-use_route_ids = false
+# route_id_input_file = ""
 
 [search.frontier]
 type = "combined"
@@ -157,11 +156,10 @@ type = "multimodal"
 constraints = [
     { allowed_modes = ["walk"]},
 ]
-mode = "walk"
+this_mode = "walk"
 available_modes = ["walk"]
-available_route_ids = []
 max_trip_legs = 1
-use_route_ids = false
+# route_id_input_file = ""
 
 [[search.frontier.models]]
 type = "time_limit"
