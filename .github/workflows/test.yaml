@@ -40,4 +40,5 @@ jobs:
 
       - name: End-to-end GTFS BAMBAM test
         run: |
+          cargo build -r --manifest-path rust/Cargo.toml
           ./script/run_gtfs_test.sh
