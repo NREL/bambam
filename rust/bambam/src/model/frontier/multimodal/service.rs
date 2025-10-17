@@ -36,7 +36,7 @@ impl MultimodalFrontierService {
             .map(MultimodalFrontierConstraint::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         let engine = MultimodalFrontierEngine {
-            mode: config.mode,
+            mode: config.this_mode,
             constraints,
             max_trip_legs: config.max_trip_legs,
             mode_to_state,

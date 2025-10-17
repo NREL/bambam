@@ -1,6 +1,7 @@
 //! GTFS archive pre-processing scripts for bambam-gtfs transit modeling.
 //! see [https://github.com/MobilityData/mobility-database-catalogs] for
 //! information on the mobility database catalog listing.
+use crate::schedule::bundle_ops::ProcessBundlesConfig;
 use crate::schedule::distance_calculation_policy::DistanceCalculationPolicy;
 use crate::schedule::schedule_error::ScheduleError;
 use crate::schedule::{
@@ -107,6 +108,9 @@ pub enum GtfsOperation {
 
         #[arg(long, default_value_t = true)]
         overwrite: bool,
+
+        #[arg(long, default_value_t = true)]
+        ignore_bad_gtfs: bool,
     },
 }
 
@@ -161,6 +165,7 @@ impl GtfsOperation {
                 output_directory,
                 overwrite,
                 parallelism,
+                ignore_bad_gtfs,
                 date_mapping_policy,
                 date_mapping_date_tolerance,
                 date_mapping_match_weekday,
@@ -189,40 +194,29 @@ impl GtfsOperation {
                         )
                     });
 
+                let config = Arc::new(ProcessBundlesConfig {
+                    start_date: *start_date,
+                    end_date: *end_date,
+                    spatial_index,
+                    starting_edge_list_id: *starting_edge_list_id,
+                    missing_stop_location_policy: missing_stop_location_policy.clone(),
+                    distance_calculation_policy: distance_calculation_policy.clone(),
+                    date_mapping_policy: date_mapping_policy.clone(),
+                    output_directory: output_directory.clone(),
+                    overwrite: *overwrite,
+                });
+
                 let input_path = Path::new(input);
                 if input_path.is_dir() {
-                    bundle_ops::process_bundles(
-                        input_path,
-                        starting_edge_list_id,
-                        start_date,
-                        end_date,
-                        spatial_index,
-                        missing_stop_location_policy,
-                        distance_calculation_policy,
-                        &date_mapping_policy,
-                        Path::new(output_directory),
-                        *overwrite,
-                        *parallelism,
-                    )
-                    .unwrap_or_else(|e| {
-                        log::error!("failure running preprocess-bundle: {e}");
-                    })
+                    bundle_ops::batch_process(input_path, *parallelism, config, *ignore_bad_gtfs)
+                        .unwrap_or_else(|e| {
+                            log::error!("failure running preprocess-bundle: {e}");
+                        })
                 } else {
-                    bundle_ops::process_bundle(
-                        input,
-                        starting_edge_list_id,
-                        start_date,
-                        end_date,
-                        spatial_index,
-                        missing_stop_location_policy,
-                        distance_calculation_policy,
-                        &date_mapping_policy,
-                        Path::new(output_directory),
-                        *overwrite,
-                    )
-                    .unwrap_or_else(|e| {
-                        log::error!("failure running preprocess-bundle: {e}");
-                    })
+                    let bundle = bundle_ops::process_bundle(input, config.clone())
+                        .expect("failure processing GTFS bundle");
+                    bundle_ops::write_bundle(&bundle, config.clone(), config.starting_edge_list_id)
+                        .expect("failure writing GTFS bundle");
                 }
             }
         }

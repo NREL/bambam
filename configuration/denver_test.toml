@@ -157,7 +157,7 @@ type = "multimodal"
 constraints = [
     { allowed_modes = ["walk"]},
 ]
-mode = "walk"
+this_mode = "walk"
 available_modes = ["walk"]
 available_route_ids = []
 max_trip_legs = 1

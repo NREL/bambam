@@ -14,7 +14,10 @@ module load bzip2
     --input /home/$USER/data/bam/gtfs/2025-10-08 \
     --starting-edge-list-id 1 \
     --parallelism 50 \
-    --output-directory "/projects/mepcore/data/out/rfitzger/2025-10-08-gtfs" \
+    --output-directory "/projects/mepcore/data/out/rfitzger/2025-10-15-gtfs" \
     --vertices-compass-filename "/projects/mepcore/lib/routee-compass-tomtom/data/tomtom_national/vertices-complete.csv.gz" \
     --start-date 09-01-2025 \
-    --end-date 09-01-2025
+    --end-date 09-01-2025 \
+    --date-mapping-policy nearest-date \
+    --date-mapping-date-tolerance 365 \
+    --date-mapping-match-weekday true \
