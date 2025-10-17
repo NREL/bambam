@@ -75,7 +75,7 @@ impl TransitTraversalEngine {
                 (route_id, next_route_departure)
             })
             .min_by_key(|(_, &departure)| departure)
-            .ok_or(TraversalModelError::InternalError("Failed to find minimum of vector of departures".to_string()))
+            .ok_or(TraversalModelError::InternalError("Failed to find minimum departure across routes".to_string()))
             .map(|(&route, &departure)| (route, departure))
     }
 }
