@@ -67,7 +67,7 @@ mod test {
     use crate::model::traversal::multimodal::MultimodalTraversalModel;
     #[test]
     fn test_empty() {
-        let mtm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[], true)
+        let mtm = MultimodalTraversalModel::new_local("walk", 1, &["walk"], &[])
             .expect("test invariant failed");
         let state_model = StateModel::new(mtm.output_features());
         let state = state_model
@@ -92,7 +92,6 @@ mod test {
             max_trip_legs,
             &["walk", "bike", "drive", "tnc", "transit"],
             &[],
-            true,
         )
         .expect("test invariant failed");
         let sm = StateModel::new(am.output_features());

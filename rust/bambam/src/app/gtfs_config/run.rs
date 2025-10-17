@@ -1,9 +1,11 @@
 use std::{
-    fs::DirEntry,
+    fs::{DirEntry, File},
     path::{Path, PathBuf},
 };
 
 use config::Config;
+use csv::QuoteStyle;
+use flate2::{write::GzEncoder, Compression};
 use itertools::Itertools;
 use regex::Regex;
 use routee_compass::app::compass::{CompassAppConfig, SearchConfig};
@@ -33,6 +35,7 @@ use crate::{
 };
 
 pub const METADATA_FILENAME_REGEX: &str = r#"edges-gtfs-metadata-(\d+).json"#;
+pub const FQ_ROUTE_IDS_FILENAME: &str = "fq-route-ids-enumerated.txt.gz";
 
 pub fn edges_filename(edge_list_id: EdgeListId) -> String {
     format!("edges-compass-{edge_list_id}.csv.gz")
@@ -133,6 +136,8 @@ pub fn run(
     };
     let edge_list_id_offset = EdgeListId(start_edge_list_id - first_gtfs_edge_list_id.0);
 
+    let fq_route_ids_filepath = write_fq_route_id_file(directory, &entries)?;
+
     for entry in entries.into_iter() {
         //   0. fix the edge list id, if needed.
         // this allows the source config + the GTFS import to have different ideas of what
@@ -150,19 +155,19 @@ pub fn run(
         //   2. step into [search] to append traversal + frontier model configurations
         let edges_schedules_path = entry.schedules_input_file.to_string_lossy().to_string();
         let edges_metadata_path = entry.metadata_input_file.to_string_lossy().to_string();
-        let available_route_ids = get_metadata_vec(&entry.metadata, "route_ids")?;
+        let available_route_ids = get_metadata_vec(&entry.metadata, "fq_route_ids")?;
         let tm_conf = gtfs_traversal_model_config(
             &edges_schedules_path,
             &edges_metadata_path,
             &available_modes,
-            &available_route_ids,
+            &fq_route_ids_filepath,
             max_trip_legs,
         );
         let fm_conf = gtfs_frontier_model_config(
             &constraints,
             &time_limit,
             &available_modes,
-            &available_route_ids,
+            &fq_route_ids_filepath,
             max_trip_legs,
         );
         conf_search.push(SearchConfig {
@@ -195,6 +200,41 @@ pub fn run(
     })?;
 
     Ok(())
+}
+
+/// collect all fully-qualified route ids as a contiguous vector for enumeration and write to disk,
+/// returning the path to the new file, or an error.
+fn write_fq_route_id_file(
+    directory: &str,
+    entries: &[GtfsEdgeListEntry],
+) -> Result<PathBuf, GtfsConfigError> {
+    let dir_path = Path::new(directory);
+    let file_path = dir_path.join(FQ_ROUTE_IDS_FILENAME);
+    let fq_route_ids: Vec<String> = entries
+        .iter()
+        .map(|entry| get_metadata_vec(&entry.metadata, "fq_route_ids"))
+        .collect::<Result<Vec<Vec<_>>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect_vec();
+    if let Some(mut writer) = create_writer(
+        dir_path,
+        FQ_ROUTE_IDS_FILENAME,
+        false,
+        QuoteStyle::Necessary,
+        true,
+    ) {
+        for route_id in fq_route_ids.into_iter() {
+            writer.serialize(&route_id).map_err(|e| {
+                GtfsConfigError::RunError(format!("failed writing to {FQ_ROUTE_IDS_FILENAME}: {e}"))
+            })?;
+        }
+        Ok(file_path)
+    } else {
+        Err(GtfsConfigError::RunError(String::from(
+            "unable to create write operation for fully-qualified route ids file",
+        )))
+    }
 }
 
 /// grabs frontier configuration to copy to GTFS edge lists. assumes that, if there exist
@@ -293,33 +333,6 @@ pub fn get_available_modes(base_conf: &CompassAppConfig) -> Result<Vec<String>, 
             Ok(v_str.to_string())
         })
         .try_collect()?;
-
-    // let tm_modes: Vec<String> = base_conf.search.iter().enumerate().map(|(edge_list_id, search)| {
-    //     let models = search.traversal.get("models").ok_or_else(|| GtfsConfigError::RunError(format!("key 'models' missing from traversal model configuration in edge list {edge_list_id}")))?;
-    //     let models_vec = models.as_array().ok_or_else(|| GtfsConfigError::RunError(format!("traversal model key 'models' in edge list {edge_list_id} is not an array")))?;
-    //     let multimodal_config = models_vec.iter().find(|c| {
-    //         if let Some(t_val) = c.get("type") {
-    //             t_val.as_str() == Some("multimodal")
-    //         } else {
-    //             false
-    //         }
-    //     })
-    //         .ok_or_else(|| GtfsConfigError::RunError(format!("edge list {edge_list_id} has no multimodal traversal model")))?;
-    //     let this_mode_value = multimodal_config.get("this_mode")
-    //         .ok_or_else(|| GtfsConfigError::RunError(format!("'this_mode' key missing from multimodal traversal model in edge list {edge_list_id}")))?;
-    //     let this_mode_str = this_mode_value.as_str()
-    //         .ok_or_else(|| GtfsConfigError::RunError(format!("unable to read 'this_mode': {this_mode_value:?} as a string value for multimodal traversal model in edge list {edge_list_id}")))?;
-    //     Ok(this_mode_str.to_string())
-    // })
-    // .try_collect()?;
-
-    // if !(&lm_modes == &tm_modes) {
-    //     Err(GtfsConfigError::RunError(format!(
-    //         "label model modes do not match traversal model modes: \n{lm_modes:?}\n{tm_modes:?}"
-    //     )))
-    // } else {
-    //     Ok(tm_modes)
-    // }
     Ok(lm_modes)
 }
 
@@ -343,7 +356,7 @@ pub fn gtfs_traversal_model_config(
     edges_schedules: &str,
     edges_metadata: &str,
     available_modes: &[String],
-    available_route_ids: &[String],
+    fq_route_ids_filepath: &Path,
     max_trip_legs: usize,
 ) -> serde_json::Value {
     json![{
@@ -358,9 +371,8 @@ pub fn gtfs_traversal_model_config(
             MultimodalTraversalConfig {
                 this_mode: "transit".to_string(),
                 available_modes: available_modes.to_vec(),
-                available_route_ids: available_route_ids.to_vec(),
+                route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
                 max_trip_legs: max_trip_legs as u64,
-                use_route_ids: Some(true)
             }
         ]
     }]
@@ -371,7 +383,7 @@ pub fn gtfs_frontier_model_config(
     constraints: &[MultimodalFrontierConstraintConfig],
     time_limit: &TimeLimitConfig,
     available_modes: &[String],
-    available_route_ids: &[String],
+    fq_route_ids_filepath: &Path,
     max_trip_legs: usize,
 ) -> serde_json::Value {
     json![{
@@ -381,11 +393,10 @@ pub fn gtfs_frontier_model_config(
                 time_limit: time_limit.clone(),
             },
             MultimodalFrontierConfig {
-                mode: "transit".to_string(),
+                this_mode: "transit".to_string(),
                 constraints: constraints.to_vec(),
                 available_modes: available_modes.to_vec(),
-                available_route_ids: available_route_ids.to_vec(),
-                use_route_ids: true,
+                route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
                 max_trip_legs: max_trip_legs as u64
             }
         ]
@@ -487,4 +498,27 @@ fn get_edge_list_id(entry: &DirEntry, pat: &Regex) -> Result<EdgeListId, GtfsCon
         ))
     })?;
     Ok(EdgeListId(edge_list_id))
+}
+
+/// helper function to build a filewriter for writing either .csv.gz or
+/// .txt.gz files for compass datasets while respecting the user's overwrite
+/// preferences and properly formatting WKT outputs.
+fn create_writer(
+    directory: &Path,
+    filename: &str,
+    has_headers: bool,
+    quote_style: QuoteStyle,
+    overwrite: bool,
+) -> Option<csv::Writer<GzEncoder<File>>> {
+    let filepath = directory.join(filename);
+    if filepath.exists() && !overwrite {
+        return None;
+    }
+    let file = File::create(filepath).unwrap();
+    let buffer = GzEncoder::new(file, Compression::default());
+    let writer = csv::WriterBuilder::new()
+        .has_headers(has_headers)
+        .quote_style(quote_style)
+        .from_writer(buffer);
+    Some(writer)
 }

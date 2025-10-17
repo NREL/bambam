@@ -1,8 +1,11 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
-use routee_compass_core::model::{
-    frontier::{FrontierModel, FrontierModelError, FrontierModelService},
-    state::StateModel,
+use routee_compass_core::{
+    model::{
+        frontier::{FrontierModel, FrontierModelError, FrontierModelService},
+        state::StateModel,
+    },
+    util::fs::{read_decoders, read_utils},
 };
 
 use crate::model::{
@@ -24,24 +27,31 @@ impl MultimodalFrontierService {
         let mode_mapping = MultimodalMapping::new(&config.available_modes).map_err(|e| {
             FrontierModelError::BuildError(format!("while building mode mapping: {e}"))
         })?;
-        let route_id_mapping =
-            MultimodalMapping::new(&config.available_route_ids).map_err(|e| {
-                FrontierModelError::BuildError(format!("while building route_id mapping: {e}"))
-            })?;
+        let route_id_to_state = match &config.route_ids_input_file {
+            Some(input_file) => {
+                let rmap =
+                    MultimodalStateMapping::from_enumerated_category_file(Path::new(&input_file))
+                        .map_err(|e| {
+                        FrontierModelError::BuildError(format!(
+                            "failure building route id mapping from input file {input_file}: {e}"
+                        ))
+                    })?;
+                Arc::new(Some(rmap))
+            }
+            None => Arc::new(None),
+        };
         let mode_to_state = Arc::new(mode_mapping);
-        let route_id_to_state = Arc::new(route_id_mapping);
         let constraints = config
             .constraints
             .iter()
             .map(MultimodalFrontierConstraint::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         let engine = MultimodalFrontierEngine {
-            mode: config.mode,
+            mode: config.this_mode,
             constraints,
             max_trip_legs: config.max_trip_legs,
             mode_to_state,
             route_id_to_state,
-            use_route_ids: config.use_route_ids,
         };
         let service = MultimodalFrontierService {
             engine: Arc::new(engine),
