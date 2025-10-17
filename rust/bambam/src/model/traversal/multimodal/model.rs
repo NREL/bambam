@@ -148,7 +148,7 @@ impl TraversalModel for MultimodalTraversalModel {
                 state_model,
                 &self.mode,
                 leg_idx,
-                &route_id_to_state,
+                route_id_to_state,
                 self.max_trip_legs,
             )?;
         }
@@ -250,7 +250,7 @@ impl MultimodalTraversalModel {
                     state_json,
                     &route_key,
                     idx,
-                    &route_id_to_state,
+                    route_id_to_state,
                 )?;
             }
         }

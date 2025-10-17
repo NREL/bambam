@@ -38,12 +38,12 @@ impl FullyQualifiedScheduleRow {
         FullyQualifiedScheduleRow {
             fully_qualified_id,
             edge_list_id,
-            edge_id: row.edge_id.clone(),
+            edge_id: row.edge_id,
             route_id: row.route_id.clone(),
             service_id: row.service_id.clone(),
             agency_id: row.agency_id.clone(),
-            src_departure_time: row.src_departure_time.clone(),
-            dst_arrival_time: row.dst_arrival_time.clone(),
+            src_departure_time: row.src_departure_time,
+            dst_arrival_time: row.dst_arrival_time,
         }
     }
 }

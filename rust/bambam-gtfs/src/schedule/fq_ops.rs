@@ -26,8 +26,8 @@ pub fn get_fully_qualified_route_id(
         FQ_ROUTE_ID_SEPARATOR,
         service_id
     );
-    let name_cleaned = name.replace(",", "_");
-    name_cleaned
+    
+    name.replace(",", "_")
 }
 
 pub const FQ_METADATA_FIELDNAME: &str = "fq_route_ids";
