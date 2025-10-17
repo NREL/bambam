@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MultimodalFrontierConfig {
     /// name of the mode associated with this edge list
-    pub mode: String,
+    pub this_mode: String,
     /// constraints to apply when in this mode
     pub constraints: Vec<MultimodalFrontierConstraintConfig>,
     /// modes that can be used on this trip
