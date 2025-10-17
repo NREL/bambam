@@ -1,7 +1,6 @@
 [graph]
 edge_list = [
     { input_file = "boulder_co/edges-compass.csv.gz" },
-    { input_file = "boulder_co/transit/edges-compass-1.csv.gz" },
 ]
 vertex_list_input_file = "boulder_co/vertices-compass.csv.gz"
 

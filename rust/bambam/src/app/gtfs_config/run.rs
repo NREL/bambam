@@ -374,18 +374,34 @@ pub fn gtfs_traversal_model_config(
     json![{
         "type": "combined",
         "models": [
-            DistanceTraversalConfig { distance_unit: Some(DistanceUnit::Miles) },
-            TransitTraversalConfig {
-                edges_schedules_input_file: edges_schedules.to_string(),
-                gtfs_metadata_input_file: edges_metadata.to_string(),
-                schedule_loading_policy: ScheduleLoadingPolicy::All
+            {
+                "type": "distance",
+                "distance_unit": "miles"
             },
-            MultimodalTraversalConfig {
-                this_mode: "transit".to_string(),
-                available_modes: available_modes.to_vec(),
-                route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
-                max_trip_legs: max_trip_legs as u64,
+            {
+                "type": "transit",
+                "edges_schedules_input_file": edges_schedules.to_string(),
+                "gtfs_metadata_input_file": edges_metadata.to_string(),
+                "schedule_loading_policy": ScheduleLoadingPolicy::All
+            },
+            // TransitTraversalConfig {
+            //     edges_schedules_input_file: edges_schedules.to_string(),
+            //     gtfs_metadata_input_file: edges_metadata.to_string(),
+            //     schedule_loading_policy: ScheduleLoadingPolicy::All
+            // },
+            {
+                "type": "multimodal",
+                "this_mode": "transit".to_string(),
+                "available_modes": available_modes.to_vec(),
+                "route_ids_input_file": Some(fq_route_ids_filepath.to_string_lossy().to_string()),
+                "max_trip_legs": max_trip_legs as u64,
             }
+            // MultimodalTraversalConfig {
+            //     this_mode: "transit".to_string(),
+            //     available_modes: available_modes.to_vec(),
+            //     route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
+            //     max_trip_legs: max_trip_legs as u64,
+            // }
         ]
     }]
 }
@@ -401,16 +417,25 @@ pub fn gtfs_frontier_model_config(
     json![{
         "type": "combined",
         "models": [
-            TimeLimitFrontierConfig {
-                time_limit: time_limit.clone(),
-            },
-            MultimodalFrontierConfig {
-                this_mode: "transit".to_string(),
-                constraints: constraints.to_vec(),
-                available_modes: available_modes.to_vec(),
-                route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
-                max_trip_legs: max_trip_legs as u64
+            {
+                "type": "time_limit",
+                "time_limit": { "time": time_limit.time, "time_unit": time_limit.time_unit }},
+            {
+                "type": "multimodal",
+                "this_mode": "transit",
+                "constraints": constraints.to_vec(),
+                "available_modes": available_modes.to_vec(),
+                "route_ids_input_file": Some(fq_route_ids_filepath.to_string_lossy().to_string()),
+                "max_trip_legs": max_trip_legs as u64
             }
+            // // it would be great to use this directly but we need to include the "type" tag in a custom serializer
+            // MultimodalFrontierConfig {
+            //     this_mode: "transit".to_string(),
+            //     constraints: constraints.to_vec(),
+            //     available_modes: available_modes.to_vec(),
+            //     route_ids_input_file: Some(fq_route_ids_filepath.to_string_lossy().to_string()),
+            //     max_trip_legs: max_trip_legs as u64
+            // }
         ]
     }]
 }
