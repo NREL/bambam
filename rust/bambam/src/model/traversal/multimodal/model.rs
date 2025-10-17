@@ -294,11 +294,7 @@ mod test {
         let mtm = MultimodalTraversalModel::new_local("walk", max_trip_legs, &["walk"], &[])
             .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mtm.output_features());
-        let route_id_to_state = mtm
-            .route_id_to_state
-            .as_ref()
-            .clone()
-            .expect("test invariant failed");
+        let route_id_to_state = MultimodalStateMapping::empty(); // no route ids
 
         let mut state = state_model
             .initial_state(None)
@@ -505,12 +501,8 @@ mod test {
         let this_mode = "walk";
 
         let (tm, test_tm, state_model, state) =
-            build_test_assets(&available_modes, &[], max_trip_legs, this_mode);
-        let route_id_to_state = tm
-            .route_id_to_state
-            .as_ref()
-            .clone()
-            .expect("test invariant failed");
+            build_test_assets(&available_modes, &["A", "B", "C"], max_trip_legs, this_mode);
+        let mapping = MultimodalStateMapping::empty(); // no route ids
 
         // as a head check, we can also inspect the serialized access state JSON in the logs
         print_state(&state, &state_model);
@@ -536,9 +528,8 @@ mod test {
                 .unwrap_or_else(|_| panic!("unable to get leg distance for leg {leg_idx}"));
             let time = state_ops::get_leg_time(&state, leg_idx, &state_model)
                 .unwrap_or_else(|_| panic!("unable to get leg time for leg {leg_idx}"));
-            let route_id =
-                state_ops::get_leg_route_id(&state, leg_idx, &state_model, &route_id_to_state)
-                    .unwrap_or_else(|_| panic!("unable to get leg route_id for leg {leg_idx}"));
+            let route_id = state_ops::get_leg_route_id(&state, leg_idx, &state_model, &mapping)
+                .unwrap_or_else(|_| panic!("unable to get leg route_id for leg {leg_idx}"));
             assert_eq!(dist.value, 0.0);
             assert_eq!(time.value, 0.0);
             assert_eq!(route_id, None);

@@ -191,7 +191,19 @@ pub fn run(
             "base_config_filepath argument is invalid, has no 'parent'.".to_string(),
         )
     })?;
-    let out_filepath = conf_dir.join("gtfs-config.toml");
+    let mut out_filename = Path::new(base_config_filepath)
+        .file_stem()
+        .ok_or_else(|| {
+            GtfsConfigError::RunError(format!(
+                "base config filepath '{}' has no file stem!",
+                base_config_filepath
+            ))
+        })?
+        .to_string_lossy()
+        .into_owned();
+    out_filename.push_str("_gtfs.toml");
+
+    let out_filepath = conf_dir.join(out_filename);
     std::fs::write(&out_filepath, &result_conf).map_err(|e| {
         GtfsConfigError::RunError(format!(
             "failure writing to {}: {e}",
