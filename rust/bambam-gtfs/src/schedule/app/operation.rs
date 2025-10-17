@@ -184,7 +184,7 @@ impl GtfsOperation {
                     *date_mapping_date_tolerance,
                     *date_mapping_match_weekday,
                 )
-                .unwrap_or_else(|e| panic!("invalid date mapping arguments caused error '{}'", e));
+                .unwrap_or_else(|e| panic!("invalid date mapping arguments caused error '{e}'"));
                 let date_mapping_policy: DateMappingPolicy =
                     DateMappingPolicy::try_from(&date_mapping_config).unwrap_or_else(|e| {
                         panic!(

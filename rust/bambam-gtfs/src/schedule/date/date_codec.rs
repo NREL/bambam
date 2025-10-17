@@ -13,7 +13,7 @@ pub mod app {
     {
         let date_str: String = String::deserialize(deserializer)?;
         chrono::NaiveDate::parse_from_str(&date_str, APP_DATE_FORMAT)
-            .map_err(|e| D::Error::custom(format!("Invalid date format: {}", e)))
+            .map_err(|e| D::Error::custom(format!("Invalid date format: {e}")))
     }
 
     pub fn deserialize_optional_naive_date<'de, D>(
@@ -28,7 +28,7 @@ pub mod app {
         }
         chrono::NaiveDate::parse_from_str(&date_str, APP_DATE_FORMAT)
             .map(Some)
-            .map_err(|e| D::Error::custom(format!("Invalid date format: {}", e)))
+            .map_err(|e| D::Error::custom(format!("Invalid date format: {e}")))
     }
 }
 
@@ -46,7 +46,7 @@ pub mod gtfs {
     {
         let date_str: String = String::deserialize(deserializer)?;
         chrono::NaiveDate::parse_from_str(&date_str, GTFS_DATE_FORMAT)
-            .map_err(|e| D::Error::custom(format!("Invalid date format: {}", e)))
+            .map_err(|e| D::Error::custom(format!("Invalid date format: {e}")))
     }
 
     pub fn deserialize_optional_naive_date<'de, D>(
@@ -61,6 +61,6 @@ pub mod gtfs {
         }
         chrono::NaiveDate::parse_from_str(&date_str, GTFS_DATE_FORMAT)
             .map(Some)
-            .map_err(|e| D::Error::custom(format!("Invalid date format: {}", e)))
+            .map_err(|e| D::Error::custom(format!("Invalid date format: {e}")))
     }
 }
