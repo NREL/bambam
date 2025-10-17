@@ -127,10 +127,10 @@ impl TraversalModel for TransitTraversalModel {
                 self.start_datetime, travel_seconds
             )))?;
 
-        let next_departure: Departure = self
+        let (next_route, next_departure) = self
             .engine
             .get_next_departure(current_edge_id.as_usize(), &current_datetime)?;
-        let next_departure_route_id = next_departure.route_id;
+        let next_departure_route_id = next_route;
 
         // NOTE: wait_time is "time waiting in the transit stop" OR "time waiting sitting on the bus during scheduled dwell time"
         let wait_time = Time::new::<uom::si::time::second>(

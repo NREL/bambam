@@ -16,7 +16,7 @@ use crate::model::{
         schedule_loading_policy::{self, ScheduleLoadingPolicy},
     },
 };
-use chrono::NaiveDateTime;
+use chrono::{NaiveDate, NaiveDateTime};
 use flate2::bufread::GzDecoder;
 use routee_compass_core::{model::traversal::TraversalModelError, util::fs::read_utils};
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,8 @@ use skiplist::OrderedSkipList;
 use uom::si::f64::Time;
 
 pub struct TransitTraversalEngine {
-    pub edge_schedules: Box<[Schedule]>,
+    pub edge_schedules: Box<[HashMap<i64, Schedule>]>,
+    pub date_mapping: HashMap<i64, HashMap<NaiveDate, NaiveDate>>,
 }
 
 impl TransitTraversalEngine {
@@ -32,30 +33,52 @@ impl TransitTraversalEngine {
         &self,
         edge_id: usize,
         current_time: &NaiveDateTime,
-    ) -> Result<Departure, TraversalModelError> {
-        let departures_skiplist =
+    ) -> Result<(i64, Departure), TraversalModelError> {
+        let departures_skiplists =
             self.edge_schedules
                 .get(edge_id)
                 .ok_or(TraversalModelError::InternalError(format!(
                     "EdgeId {edge_id} exceeds schedules length"
                 )))?;
 
-        // We need to create the struct shell to be able to search the
-        // skiplist. I tried several other approaches but I think this is the cleanest
-        let search_departure = Departure {
-            route_id: 0,
-            src_departure_time: *current_time,
-            dst_arrival_time: *current_time,
-        };
+        // Collect next departure for each skiplist
+        let infinity_datetime =
+            Departure::infinity_from(*current_time).ok_or(TraversalModelError::InternalError(
+                format!("Failed to model infinity from {current_time}"),
+            ))?;
 
-        Ok(departures_skiplist
-            .lower_bound(std::ops::Bound::Included(&search_departure))
-            .unwrap_or(&Departure::infinity_from(*current_time).ok_or(
-                TraversalModelError::InternalError(format!(
-                    "Failed to model infinity from {current_time}"
-                )),
-            )?)
-            .clone())
+        // Iterate over all
+        departures_skiplists
+            .iter()
+            .map(|(route_id, skiplist)| {
+                // Map date
+                let search_datetime = self
+                    .date_mapping
+                    .get(route_id)
+                    .and_then(|date_map| date_map.get(&current_time.date()))
+                    .unwrap_or(&current_time.date())
+                    .and_time(current_time.time());
+
+                // Query the skiplist
+                // We need to create the struct shell to be able to search the
+                // skiplist. I tried several other approaches but I think this is the cleanest
+                let search_departure = Departure {
+                    src_departure_time: search_datetime,
+                    dst_arrival_time: search_datetime,
+                };
+                // get next or infinity. if infinity cannot be created: error
+                let next_route_departure = skiplist
+                    .lower_bound(std::ops::Bound::Included(&search_departure))
+                    .unwrap_or(&infinity_datetime);
+
+                // Return next departure for route
+                (route_id, next_route_departure)
+            })
+            .min_by_key(|(_, &departure)| departure)
+            .ok_or(TraversalModelError::InternalError(
+                "Failed to find minimum departure across routes".to_string(),
+            ))
+            .map(|(&route, &departure)| (route, departure))
     }
 }
 
@@ -72,13 +95,32 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
                 TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
             })?;
 
-        let route_id_to_state = Arc::new(MultimodalMapping::new(&metadata.route_ids)?);
+        let route_id_to_state = Arc::new(MultimodalStateMapping::new(&metadata.route_ids)?);
+
+        // re-map hash map keys from categorical to i64 label
+        let date_mapping = metadata
+            .date_mapping
+            .into_iter()
+            .map(|(k, hash_map)| match route_id_to_state.get_label(&k) {
+                Some(route_id) => Ok((*route_id, hash_map)),
+                None => Err(TraversalModelError::BuildError(format!(
+                    "failed to find label for categorical value: {k}"
+                ))),
+            })
+            .collect::<Result<_, _>>()
+            .map_err(|e| {
+                TraversalModelError::BuildError(format!(
+                    "failed to construct date mapping after matching route_id (str) to i64: {e}"
+                ))
+            })?;
+
         Ok(Self {
             edge_schedules: read_schedules_from_file(
                 value.edges_schedules_input_file,
                 route_id_to_state.clone(),
                 value.schedule_loading_policy,
             )?,
+            date_mapping,
         })
     }
 }
@@ -97,7 +139,7 @@ fn read_schedules_from_file(
     filename: String,
     route_mapping: Arc<MultimodalStateMapping>,
     schedule_loading_policy: ScheduleLoadingPolicy,
-) -> Result<Box<[Schedule]>, TraversalModelError> {
+) -> Result<Box<[HashMap<i64, Schedule>]>, TraversalModelError> {
     // Reading csv
     let rows: Box<[RawScheduleRow]> = read_utils::from_csv(&Path::new(&filename), true, None, None)
         .map_err(|e| {
@@ -105,7 +147,7 @@ fn read_schedules_from_file(
         })?;
 
     // Deserialize rows according to their edge_id
-    let mut schedules: HashMap<usize, Schedule> = HashMap::new();
+    let mut schedules: HashMap<usize, HashMap<i64, Schedule>> = HashMap::new();
     for record in rows {
         let route_i64 =
             route_mapping
@@ -116,11 +158,14 @@ fn read_schedules_from_file(
                 )))?;
 
         // This step creates an empty skiplist for every edge we see, even if we don't load any departures to it
-        let schedule_skiplist = schedules.entry(record.edge_id).or_default();
+        let schedule_skiplist = schedules
+            .entry(record.edge_id)
+            .or_default()
+            .entry(*route_i64)
+            .or_default();
         schedule_loading_policy.insert_if_valid(
             schedule_skiplist,
             Departure {
-                route_id: *route_i64,
                 src_departure_time: record.src_departure_time,
                 dst_arrival_time: record.dst_arrival_time,
             },
@@ -139,7 +184,7 @@ fn read_schedules_from_file(
                     "Invalid schedules file. Missing edge_id {i} when the maximum edge_id is {n_edges}"
                 )))
         })
-        .collect::<Result<Vec<Schedule>, TraversalModelError>>()?;
+        .collect::<Result<Vec<HashMap<i64, Schedule>>, TraversalModelError>>()?;
 
     Ok(out.into_boxed_slice())
 }
@@ -152,6 +197,7 @@ mod test {
         schedule::{Departure, Schedule},
     };
     use chrono::{Months, NaiveDateTime};
+    use std::collections::HashMap;
     use std::str::FromStr;
 
     fn internal_date(string: &str) -> NaiveDateTime {
@@ -166,51 +212,68 @@ mod test {
         // Route 2:
         // 16:15 - 16:45 (A-B) -> 16:45 - 17:00 (B-A)
 
-        let schedules: Vec<Schedule> = vec![
-            Schedule::from_iter(
-                vec![
-                    Departure {
-                        route_id: 0,
-                        src_departure_time: internal_date("160000"),
-                        dst_arrival_time: internal_date("160500"),
-                    },
-                    Departure {
-                        route_id: 0,
-                        src_departure_time: internal_date("162500"),
-                        dst_arrival_time: internal_date("163000"),
-                    },
-                    Departure {
-                        route_id: 1,
-                        src_departure_time: internal_date("161500"),
-                        dst_arrival_time: internal_date("164500"),
-                    },
-                ]
-                .into_iter(),
-            ),
-            Schedule::from_iter(
-                vec![
-                    Departure {
-                        route_id: 0,
-                        src_departure_time: internal_date("160500"),
-                        dst_arrival_time: internal_date("161000"),
-                    },
-                    Departure {
-                        route_id: 0,
-                        src_departure_time: internal_date("163000"),
-                        dst_arrival_time: internal_date("163500"),
-                    },
-                    Departure {
-                        route_id: 1,
-                        src_departure_time: internal_date("164500"),
-                        dst_arrival_time: internal_date("170000"),
-                    },
-                ]
-                .into_iter(),
-            ),
+        let schedules: Vec<HashMap<i64, Schedule>> = vec![
+            HashMap::from([
+                (
+                    0,
+                    Schedule::from_iter(
+                        vec![
+                            Departure {
+                                src_departure_time: internal_date("160000"),
+                                dst_arrival_time: internal_date("160500"),
+                            },
+                            Departure {
+                                src_departure_time: internal_date("162500"),
+                                dst_arrival_time: internal_date("163000"),
+                            },
+                        ]
+                        .into_iter(),
+                    ),
+                ),
+                (
+                    1,
+                    Schedule::from_iter(
+                        vec![Departure {
+                            src_departure_time: internal_date("161500"),
+                            dst_arrival_time: internal_date("164500"),
+                        }]
+                        .into_iter(),
+                    ),
+                ),
+            ]),
+            HashMap::from([
+                (
+                    0,
+                    Schedule::from_iter(
+                        vec![
+                            Departure {
+                                src_departure_time: internal_date("160500"),
+                                dst_arrival_time: internal_date("161000"),
+                            },
+                            Departure {
+                                src_departure_time: internal_date("163000"),
+                                dst_arrival_time: internal_date("163500"),
+                            },
+                        ]
+                        .into_iter(),
+                    ),
+                ),
+                (
+                    1,
+                    Schedule::from_iter(
+                        vec![Departure {
+                            src_departure_time: internal_date("164500"),
+                            dst_arrival_time: internal_date("170000"),
+                        }]
+                        .into_iter(),
+                    ),
+                ),
+            ]),
         ];
 
         TransitTraversalEngine {
             edge_schedules: schedules.into_boxed_slice(),
+            date_mapping: HashMap::new(),
         }
     }
 
@@ -220,38 +283,48 @@ mod test {
 
         let mut current_edge: usize = 0;
         let mut current_time = internal_date("155000");
-        let mut next_departure = engine
+        let mut next_tuple = engine
             .get_next_departure(current_edge, &current_time)
             .unwrap();
+        let mut next_route = next_tuple.0;
+        let mut next_departure = next_tuple.1;
 
-        assert_eq!(next_departure.route_id, 0);
+        assert_eq!(next_route, 0);
         assert_eq!(next_departure.src_departure_time, internal_date("160000"));
 
         // Traverse 3 times the next edge
         for i in 0..3 {
-            next_departure = engine
+            next_tuple = engine
                 .get_next_departure(current_edge, &current_time)
                 .unwrap();
+            next_route = next_tuple.0;
+            next_departure = next_tuple.1;
+
             current_time = next_departure.dst_arrival_time;
             current_edge = 1 - current_edge;
         }
 
         // At 16:15, the next departure changes route
         // That is because route 0 is dwelling until 16:25
-        assert_eq!(next_departure.route_id, 1);
+        assert_eq!(next_route, 1);
         assert_eq!(current_time, internal_date("164500"));
 
         // Ride transit one more time
-        next_departure = engine
+        next_tuple = engine
             .get_next_departure(current_edge, &current_time)
             .unwrap();
+        next_route = next_tuple.0;
+        next_departure = next_tuple.1;
+
         current_time = next_departure.dst_arrival_time;
         current_edge = 1 - current_edge;
 
         // If we wait now, we will find there are no more departures
-        next_departure = engine
+        next_tuple = engine
             .get_next_departure(current_edge, &current_time)
             .unwrap();
+        next_route = next_tuple.0;
+        next_departure = next_tuple.1;
         assert_eq!(
             next_departure.src_departure_time,
             Departure::infinity_from(current_time)
