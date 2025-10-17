@@ -51,7 +51,7 @@ impl MultimodalStateMapping {
         let contents = read_utils::read_raw_file(filepath, read_decoders::string, None, None)
             .map_err(|e| {
                 StateModelError::BuildError(format!(
-                    "failure reading enumerated category mappiny from {}: {e}",
+                    "failure reading enumerated category mapping from {}: {e}",
                     filepath.to_string_lossy()
                 ))
             })?;
