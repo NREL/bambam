@@ -14,7 +14,16 @@ This software is in a [**beta**](https://en.wikipedia.org/wiki/Software_release_
 
 # Usage
 
-For this initial open-source release, BAMBAM is provided as a set of command line tools, installed using cargo (via [rustup](rustup.rs)): `cargo build --release --manifest-path rust/Cargo.toml`. We can list the command arguments (will document app as "RouteE Compass"):
+For this initial open-source release, BAMBAM is provided as a set of command line tools, installed using cargo (via [rustup](rustup.rs)): `cargo build --release --manifest-path rust/Cargo.toml`. Compilation generates the following command line utilities:
+
+  - **bambam** - runs the access model
+  - **bambam_util** - runs specific support utilities
+  - **bambam_gtfs** - [GTFS](https://gtfs.org/documentation/schedule/reference/) analysis and import script
+  - **bambam_osm** - [OpenStreetMap](https://www.openstreetmap.org/) import script
+
+### bambam
+
+We can list the command arguments (will document app as "RouteE Compass"):
 
 ```
 $ ./rust/target/release/bambam --help
@@ -31,30 +40,35 @@ Options:
   -V, --version                Print version
 ```
 
-## Prerequisites
+# Example
 
-Use RouteE Compass to download a road network in the vectorized Compass format. Simplest workflow via the [RouteE Compass Python](https://nrel.github.io/routee-compass/installation.html) package (using OSMNx for downloading OSM networks). 
+Before running any examples, run the setup command(s):
 
-```python
-import osmnx as ox
-from nrel.routee.compass.io import generate_compass_dataset
-
-g = ox.graph_from_place("Denver, Colorado, USA", network_type="drive")
-generate_compass_dataset(g, output_directory="denver_co")
+``` sh
+$ ./script/setup_test_bambam.sh
+$ ./script/setup_test_bambam_osm.sh
 ```
 
-Copy the test configuration into the generated denver_co directory:
+### Denver
 
-```
-$ cp configuration/denver_test.toml denver_co/denver_test.toml
-```
-
-## Run
-
-To run bambam, use the `bambam` command and provide the imported network:
+This test uses drive-mode traversal to report opportunities in the Denver Metro region:
 
 ```
 $ RUST_LOG=info ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file query/denver_extent.json
+```
+
+### Boulder
+
+This test uses walk-transit traversal to report opportunities near University of Colorado Boulder. First, process the GTFS archive:
+
+```sh
+$ RUST_LOG=info ./configuration/bambam-gtfs/local-exact-range.sh
+```
+
+Now run BAMBAM using the boulder_test.toml configuration file and a small study area extent:
+
+```sh
+$ RUST_LOG=info ./rust/target/release/bambam --config-file configuration/boulder_test.toml --query-file query/boulder_broadway_and_euclid.json
 ```
 
 # Roadmap
