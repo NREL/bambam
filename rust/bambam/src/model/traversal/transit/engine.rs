@@ -9,7 +9,6 @@ use std::{
 
 use crate::model::{
     state::{MultimodalMapping, MultimodalStateMapping},
-    transit_new::departure,
     traversal::transit::{
         config::TransitTraversalConfig,
         metadata::GtfsArchiveMetadata,
