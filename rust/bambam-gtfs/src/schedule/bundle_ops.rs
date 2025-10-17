@@ -24,6 +24,7 @@ use crate::schedule::{
     batch_processing_error,
     date::DateMapping,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
+    fq_ops,
     fq_schedule_row::FullyQualifiedScheduleRow,
     schedule_error::ScheduleError,
     DateMappingPolicy, MissingStopLocationPolicy, ScheduleRow, SortedTrip,
@@ -391,7 +392,9 @@ pub fn write_bundle(
     // update the metadata with fully-qualified route ids
     let mut metadata = bundle.metadata.clone();
     let date_mapping = construct_fq_date_mapping(&bundle.date_mapping, edge_list_id);
+    let fq_route_ids = construct_fq_route_id_list(bundle, edge_list_id);
     metadata["date_mapping"] = json![date_mapping];
+    metadata["fq_route_ids"] = json![fq_route_ids];
 
     let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
         ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
@@ -490,6 +493,28 @@ fn get_stop_location(stop: Arc<Stop>, gtfs: Arc<Gtfs>) -> Option<Point<f64>> {
                 _ => None,
             },
         )
+}
+
+/// helper function that creates a list of all unique, fully-qualified route ids in this
+/// bundle, sorted lexicagraphically.
+fn construct_fq_route_id_list(bundle: &GtfsBundle, edge_list_id: usize) -> Vec<String> {
+    bundle
+        .edges
+        .iter()
+        .flat_map(|e| {
+            e.schedules.iter().map(|s| {
+                fq_ops::get_fully_qualified_route_id(
+                    s.agency_id.as_deref(),
+                    &s.route_id,
+                    &s.service_id,
+                    edge_list_id,
+                )
+            })
+        })
+        .collect::<HashSet<_>>() // dedup unordered
+        .into_iter()
+        .sorted()
+        .collect_vec()
 }
 
 /// helper function to build the nested map for date mapping using the fully-qualified route ids

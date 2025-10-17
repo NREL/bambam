@@ -1,5 +1,7 @@
 /// the concatenation of the edge list, agency, service, and route id.
 ///
+/// names are cleaned of commas for CSV compatibility.
+///
 /// in order to allow for deconstruction of this fully-qualified name,
 /// we use a non-standard separator of multiple characters, as per the
 /// GTFS specification, ID types can contain any UTF-8 characters. see
@@ -14,7 +16,7 @@ pub fn get_fully_qualified_route_id(
         Some(id) => id,
         None => EMPTY_AGENCY_PLACEHOLDER,
     };
-    format!(
+    let name = format!(
         "{}{}{}{}{}{}{}",
         edge_list_id,
         FQ_ROUTE_ID_SEPARATOR,
@@ -23,8 +25,12 @@ pub fn get_fully_qualified_route_id(
         route_id,
         FQ_ROUTE_ID_SEPARATOR,
         service_id
-    )
+    );
+    let name_cleaned = name.replace(",", "_");
+    name_cleaned
 }
+
+pub const FQ_METADATA_FIELDNAME: &str = "fq_route_ids";
 
 pub const FQ_ROUTE_ID_SEPARATOR: &str = "->";
 
