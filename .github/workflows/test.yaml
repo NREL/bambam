@@ -34,6 +34,10 @@ jobs:
           ./script/setup_test_bambam.sh  
           ./script/setup_test_bambam_osm.sh
 
-      - name: Test
+      - name: Cargo test
         run: |
           cargo test --workspace --verbose --manifest-path rust/Cargo.toml
+
+      - name: End-to-end GTFS BAMBAM test
+        run: |
+          ./script/run_gtfs_test.sh
