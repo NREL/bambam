@@ -41,7 +41,6 @@ impl TraversalModel for MultimodalTraversalModel {
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
-        let leg_modes = (0..self.max_trip_legs).map(variable::leg_mode_input_feature);
         let mut features = vec![
             InputFeature::Distance {
                 name: fieldname::EDGE_DISTANCE.to_string(),
@@ -55,7 +54,6 @@ impl TraversalModel for MultimodalTraversalModel {
         if self.route_id_to_state.is_some() {
             features.push(variable::route_id_input_feature());
         }
-        features.extend(leg_modes);
         features
     }
 
@@ -291,8 +289,9 @@ mod test {
     fn test_initialize_trip_access() {
         let test_mode = "walk";
         let max_trip_legs = 1;
-        let mtm = MultimodalTraversalModel::new_local("walk", max_trip_legs, &["walk"], &[])
-            .expect("test invariant failed, model constructor had error");
+        let mtm =
+            MultimodalTraversalModel::new_local("walk", max_trip_legs, &["walk"], &["A", "B", "C"])
+                .expect("test invariant failed, model constructor had error");
         let state_model = StateModel::new(mtm.output_features());
         let route_id_to_state = MultimodalStateMapping::empty(); // no route ids
 
