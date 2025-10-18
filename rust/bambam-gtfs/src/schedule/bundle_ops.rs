@@ -12,7 +12,7 @@ use routee_compass_core::model::{
 };
 use serde_json::json;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::File,
     path::Path,
     sync::{Arc, Mutex},
@@ -22,7 +22,10 @@ use wkt::ToWkt;
 
 use crate::schedule::{
     batch_processing_error,
+    date::DateMapping,
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
+    fq_ops,
+    fq_schedule_row::FullyQualifiedScheduleRow,
     schedule_error::ScheduleError,
     DateMappingPolicy, MissingStopLocationPolicy, ScheduleRow, SortedTrip,
 };
@@ -44,6 +47,7 @@ pub struct ProcessBundlesConfig {
 pub struct GtfsBundle {
     pub edges: Vec<GtfsEdge>,
     pub metadata: serde_json::Value,
+    pub date_mapping: HashSet<DateMapping>,
 }
 
 pub struct GtfsEdge {
@@ -217,22 +221,13 @@ pub fn process_bundle(
     // Construct edge lists
     let mut edge_id: EdgeId = EdgeId(0);
     let mut edges: HashMap<(VertexId, VertexId), GtfsEdge> = HashMap::new();
-    let mut date_mapping: HashMap<String, HashMap<NaiveDate, NaiveDate>> = HashMap::new();
+    let mut date_mapping: HashSet<DateMapping> = HashSet::new();
     for target_date in c.date_mapping_policy.iter() {
         for trip in trips.values() {
             // apply date mapping
             let picked_date = c
                 .date_mapping_policy
                 .pick_date(&target_date, trip, gtfs.clone())?;
-            if target_date != picked_date && !date_mapping.contains_key(&trip.route_id) {
-                // date mapping is organized by ServiceId, but our TraversalModel expects RouteId
-                date_mapping
-                    .entry(trip.route_id.clone())
-                    .and_modify(|dates| {
-                        dates.insert(target_date, picked_date);
-                    })
-                    .or_insert(HashMap::from([(target_date, picked_date)]));
-            }
 
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
                 let map_match_result =
@@ -323,13 +318,34 @@ pub fn process_bundle(
                             ScheduleError::InvalidDataError(msg)
                         })?;
 
-                let schedule = ScheduleRow {
-                    edge_id: gtfs_edge.edge.edge_id.0,
+                let route = gtfs.routes.get(&trip.route_id).ok_or_else(|| {
+                    ScheduleError::MalformedGtfsError(format!(
+                        "trip {} has route id {} which is missing from the archive",
+                        trip.trip_id, trip.route_id
+                    ))
+                })?;
+
+                // update schedules + date mapping
+                let schedule = ScheduleRow::new(
+                    gtfs_edge.edge.edge_id.0,
+                    trip.route_id.clone(),
+                    trip.service_id.clone(),
+                    route.agency_id.clone(),
                     src_departure_time,
                     dst_arrival_time,
-                    route_id: trip.route_id.clone(),
-                };
+                );
                 gtfs_edge.add_schedule(schedule);
+
+                if target_date != picked_date {
+                    let dm = DateMapping {
+                        agency_id: route.agency_id.clone(),
+                        route_id: trip.route_id.clone(),
+                        service_id: trip.service_id.clone(),
+                        target_date,
+                        picked_date,
+                    };
+                    let _ = date_mapping.insert(dm);
+                }
             }
         }
     }
@@ -345,13 +361,12 @@ pub fn process_bundle(
         "read_duration": json![&gtfs.read_duration],
         "calendar": json![&gtfs.calendar],
         "calendar_dates": json![&gtfs.calendar_dates],
-        "route_ids": json![gtfs.routes.keys().collect_vec()],
-        "date_mapping": json![date_mapping]
     }];
 
     let result = GtfsBundle {
         edges: edges_sorted,
         metadata,
+        date_mapping,
     };
 
     Ok(result)
@@ -365,6 +380,7 @@ pub fn write_bundle(
 ) -> Result<(), ScheduleError> {
     // Write to files
     let output_directory = Path::new(&c.output_directory);
+
     let metadata_filename = format!("edges-gtfs-metadata-{edge_list_id}.json");
     std::fs::create_dir_all(output_directory).map_err(|e| {
         let outdir = output_directory.to_str().unwrap_or_default();
@@ -372,7 +388,15 @@ pub fn write_bundle(
             "unable to create output directory path '{outdir}': {e}"
         ))
     })?;
-    let metadata_str = serde_json::to_string_pretty(&bundle.metadata).map_err(|e| {
+
+    // update the metadata with fully-qualified route ids
+    let mut metadata = bundle.metadata.clone();
+    let date_mapping = construct_fq_date_mapping(&bundle.date_mapping, edge_list_id);
+    let fq_route_ids = construct_fq_route_id_list(bundle, edge_list_id);
+    metadata["date_mapping"] = json![date_mapping];
+    metadata["fq_route_ids"] = json![fq_route_ids];
+
+    let metadata_str = serde_json::to_string_pretty(&metadata).map_err(|e| {
         ScheduleError::GtfsAppError(format!("failure writing GTFS Agencies as JSON string: {e}"))
     })?;
     std::fs::write(output_directory.join(metadata_filename), &metadata_str).map_err(|e| {
@@ -421,7 +445,8 @@ pub fn write_bundle(
 
         if let Some(ref mut writer) = schedules_writer {
             for schedule in schedules.iter() {
-                writer.serialize(schedule).map_err(|e| {
+                let fq_schedule = FullyQualifiedScheduleRow::new(schedule, edge_list_id);
+                writer.serialize(fq_schedule).map_err(|e| {
                     ScheduleError::GtfsAppError(format!(
                         "Failed to write to schedules file {}: {}",
                         String::from(&schedules_filename),
@@ -468,6 +493,46 @@ fn get_stop_location(stop: Arc<Stop>, gtfs: Arc<Gtfs>) -> Option<Point<f64>> {
                 _ => None,
             },
         )
+}
+
+/// helper function that creates a list of all unique, fully-qualified route ids in this
+/// bundle, sorted lexicagraphically.
+fn construct_fq_route_id_list(bundle: &GtfsBundle, edge_list_id: usize) -> Vec<String> {
+    bundle
+        .edges
+        .iter()
+        .flat_map(|e| {
+            e.schedules.iter().map(|s| {
+                fq_ops::get_fully_qualified_route_id(
+                    s.agency_id.as_deref(),
+                    &s.route_id,
+                    &s.service_id,
+                    edge_list_id,
+                )
+            })
+        })
+        .collect::<HashSet<_>>() // dedup unordered
+        .into_iter()
+        .sorted()
+        .collect_vec()
+}
+
+/// helper function to build the nested map for date mapping using the fully-qualified route ids
+fn construct_fq_date_mapping(
+    dms: &HashSet<DateMapping>,
+    edge_list_id: usize,
+) -> HashMap<String, HashMap<NaiveDate, NaiveDate>> {
+    dms.iter()
+        .map(|dm| {
+            (
+                dm.get_fully_qualified_id(edge_list_id),
+                (dm.target_date, dm.picked_date),
+            )
+        })
+        .into_group_map()
+        .into_iter()
+        .map(|(k, pairs)| (k, pairs.into_iter().collect()))
+        .collect()
 }
 
 pub type MapMatchResult = ((VertexId, Point<f64>), (VertexId, Point<f64>));

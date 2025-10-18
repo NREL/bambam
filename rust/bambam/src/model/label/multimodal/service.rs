@@ -38,6 +38,10 @@ impl LabelModelService for MultimodalLabelService {
 }
 
 impl MultimodalLabelService {
+    pub fn new(config: MultimodalLabelConfig) -> Self {
+        Self { config }
+    }
+
     /// get the max trip legs from the query or fallback to the service config
     pub fn get_max_trip_legs(
         &self,

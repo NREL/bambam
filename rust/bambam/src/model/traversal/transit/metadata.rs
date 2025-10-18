@@ -34,8 +34,8 @@ where
 // We can add more to this as needed
 #[derive(Serialize, Deserialize)]
 pub struct GtfsArchiveMetadata {
-    /// List of unique route identifiers used in the schedules
-    pub route_ids: Vec<String>,
+    /// List of unique (fully-qualified) route identifiers used in the schedules
+    pub fq_route_ids: Vec<String>,
     /// Mapping from target date to available date for each route_id
     #[serde(deserialize_with = "deserialize_date_mapping")]
     pub date_mapping: HashMap<String, HashMap<NaiveDate, NaiveDate>>,

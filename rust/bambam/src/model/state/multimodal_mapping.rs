@@ -1,10 +1,14 @@
-use routee_compass_core::model::{
-    label::Label,
-    state::{StateModelError, StateVariable},
+use routee_compass_core::{
+    model::{
+        label::Label,
+        state::{StateModelError, StateVariable},
+    },
+    util::fs::{read_decoders, read_utils},
 };
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    path::Path,
 };
 
 /// stores the bijection from categorical name to an enumeration label compatible
@@ -40,6 +44,19 @@ impl<T> Categorical for T where T: Eq + std::hash::Hash + Clone + Debug {}
 impl<U> IndexType for U where
     U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug
 {
+}
+
+impl MultimodalStateMapping {
+    pub fn from_enumerated_category_file(filepath: &Path) -> Result<Self, StateModelError> {
+        let contents = read_utils::read_raw_file(filepath, read_decoders::string, None, None)
+            .map_err(|e| {
+                StateModelError::BuildError(format!(
+                    "failure reading enumerated category mapping from {}: {e}",
+                    filepath.to_string_lossy()
+                ))
+            })?;
+        MultimodalMapping::new(&contents)
+    }
 }
 
 impl<T, U> MultimodalMapping<T, U>
