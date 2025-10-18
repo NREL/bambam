@@ -6,6 +6,7 @@ use std::{
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
 use itertools::Itertools;
+use kdam::tqdm;
 use regex::Regex;
 use routee_compass::app::compass::{CompassAppConfig, SearchConfig};
 use routee_compass_core::{
@@ -104,6 +105,7 @@ pub fn run(
     let constraints = mmfc.constraints.clone();
     let max_trip_legs = mmfc.max_trip_legs as usize;
 
+    log::info!("finding metadata files in {}", directory);
     let read_dir = std::fs::read_dir(directory).map_err(|e| GtfsConfigError::ReadError {
         filepath: directory.to_string(),
         error: e.to_string(),
@@ -140,10 +142,17 @@ pub fn run(
         )));
     };
     let edge_list_id_offset = EdgeListId(start_edge_list_id - first_gtfs_edge_list_id.0);
-
     let fq_route_ids_filepath = write_fq_route_id_file(directory, &entries)?;
 
-    for entry in entries.into_iter() {
+    let n_entries = entries.len();
+    let entries_iter = tqdm!(
+        entries.into_iter(),
+        total = n_entries,
+        desc = "processing GTFS edge lists"
+    );
+    log::info!("found {n_entries} metadata files.");
+
+    for entry in entries_iter {
         //   0. fix the edge list id, if needed.
         // this allows the source config + the GTFS import to have different ideas of what
         // index the GTFS edge lists should begin at
