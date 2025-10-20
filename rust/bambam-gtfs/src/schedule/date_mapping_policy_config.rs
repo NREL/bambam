@@ -133,12 +133,12 @@ impl DateMappingPolicyConfig {
             Type::NearestDateTimeRange => {
                 let start_time = start_time.cloned().ok_or_else(|| {
                     ScheduleError::GtfsAppError(String::from(
-                        "must provide start_time for exact date time range policy",
+                        "must provide start_time for nearest date time range policy",
                     ))
                 })?;
                 let end_time = end_time.cloned().ok_or_else(|| {
                     ScheduleError::GtfsAppError(String::from(
-                        "must provide end_time for exact date time range policy",
+                        "must provide end_time for nearest date time range policy",
                     ))
                 })?;
                 let match_weekday = date_mapping_match_weekday.ok_or_else(|| ScheduleError::GtfsAppError(String::from("for nearest-date mapping, must specify 'match_weekday' as 'true' or 'false'")))?;
