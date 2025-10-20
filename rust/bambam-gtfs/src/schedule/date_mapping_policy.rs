@@ -422,12 +422,10 @@ fn test_dst_arrival(
 ) -> bool {
     let src_departure: Option<NaiveTime> = src
         .departure_time
-        .map(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0))
-        .flatten();
+        .and_then(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0));
     let dst_arrival: Option<NaiveTime> = dst
         .arrival_time
-        .map(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0))
-        .flatten();
+        .and_then(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0));
 
     match (src_departure, dst_arrival) {
         (None, None) => {
