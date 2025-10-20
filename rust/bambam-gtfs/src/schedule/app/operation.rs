@@ -82,11 +82,11 @@ pub enum GtfsOperation {
         #[arg(long)]
         vertices_compass_filename: String,
 
-        #[arg(long, value_parser = parse_naive_date)]
-        start_date: NaiveDate,
+        #[arg(long)]
+        start_date: String,
 
-        #[arg(long, value_parser = parse_naive_date)]
-        end_date: NaiveDate,
+        #[arg(long)]
+        end_date: String,
 
         #[arg(long, default_value_t = 325.)]
         vertex_match_tolerance: f64,
@@ -195,8 +195,8 @@ impl GtfsOperation {
                     });
 
                 let config = Arc::new(ProcessBundlesConfig {
-                    start_date: *start_date,
-                    end_date: *end_date,
+                    start_date: start_date.clone(),
+                    end_date: end_date.clone(),
                     spatial_index,
                     starting_edge_list_id: *starting_edge_list_id,
                     missing_stop_location_policy: missing_stop_location_policy.clone(),

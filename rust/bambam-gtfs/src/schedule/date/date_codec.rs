@@ -6,6 +6,7 @@ pub mod app {
     use serde::{de::Error, Deserialize, Deserializer};
 
     pub const APP_DATE_FORMAT: &str = "%m-%d-%Y";
+    pub const APP_TIME_FORMAT: &str = "%H:%M:%S";
 
     pub fn deserialize_naive_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
     where

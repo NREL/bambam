@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, NaiveDate, NaiveTime};
 use gtfs_structures::{Exception, Gtfs};
 use itertools::Itertools;
 
 use crate::schedule::{
-    date::{date_codec::app::APP_DATE_FORMAT, date_ops, DateIterator},
+    date::{
+        date_codec::app::{APP_DATE_FORMAT, APP_TIME_FORMAT},
+        date_ops, DateIterator,
+    },
     DateMappingPolicyConfig,
 };
 use crate::schedule::{schedule_error::ScheduleError, SortedTrip};
@@ -13,7 +16,7 @@ use crate::schedule::{schedule_error::ScheduleError, SortedTrip};
 #[derive(Clone, Debug)]
 pub enum DateMappingPolicy {
     ExactDate(NaiveDate),
-    ExactRange {
+    ExactDateRange {
         /// start date in range
         start_date: NaiveDate,
         end_date: NaiveDate,
@@ -27,9 +30,28 @@ pub enum DateMappingPolicy {
         /// week as our target date.
         match_weekday: bool,
     },
-    NearestRange {
+    NearestDateRange {
         start_date: NaiveDate,
         end_date: NaiveDate,
+        /// limit to the number of days to search from the target date +-
+        /// to a viable date in the GTFS archive.
+        date_tolerance: u64,
+        /// if true, choose the closest date that matches the same day of the
+        /// week as our target date.
+        match_weekday: bool,
+    },
+    ExactDatetimeRange {
+        /// start datetime in range
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        start_time: NaiveTime,
+        end_time: NaiveTime,
+    },
+    NearestDatetimeRange {
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        start_time: NaiveTime,
+        end_time: NaiveTime,
         /// limit to the number of days to search from the target date +-
         /// to a viable date in the GTFS archive.
         date_tolerance: u64,
@@ -52,7 +74,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 })?;
                 Ok(Self::ExactDate(date))
             }
-            DateMappingPolicyConfig::ExactRange {
+            DateMappingPolicyConfig::ExactDateRange {
                 start_date,
                 end_date,
             } => {
@@ -68,7 +90,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                             "failure reading end_date for exact range mapping policy: {e}"
                         ))
                     })?;
-                Ok(Self::ExactRange {
+                Ok(Self::ExactDateRange {
                     start_date,
                     end_date,
                 })
@@ -89,7 +111,7 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                     match_weekday: *match_weekday,
                 })
             }
-            DateMappingPolicyConfig::NearestRange {
+            DateMappingPolicyConfig::NearestDateRange {
                 start_date,
                 end_date,
                 date_tolerance,
@@ -107,9 +129,87 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                             "failure reading end_date for nearest range mapping policy: {e}"
                         ))
                     })?;
-                Ok(Self::NearestRange {
+                Ok(Self::NearestDateRange {
                     start_date,
                     end_date,
+                    date_tolerance: *date_tolerance,
+                    match_weekday: *match_weekday,
+                })
+            }
+            DateMappingPolicyConfig::ExactDateTimeRange {
+                start_date,
+                end_date,
+                start_time,
+                end_time,
+            } => {
+                let start_date =
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for exact date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date =
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for exact date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let start_time =
+                    NaiveTime::parse_from_str(start_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_time for exact date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_time =
+                    NaiveTime::parse_from_str(end_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_time for exact date time range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::ExactDatetimeRange {
+                    start_date,
+                    end_date,
+                    start_time,
+                    end_time,
+                })
+            }
+            DateMappingPolicyConfig::NearestDateTimeRange {
+                start_date,
+                end_date,
+                start_time,
+                end_time,
+                date_tolerance,
+                match_weekday,
+            } => {
+                let start_date = NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT)
+                    .map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date = NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT)
+                    .map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let start_time =
+                    NaiveTime::parse_from_str(start_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_time for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_time =
+                    NaiveTime::parse_from_str(end_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_time for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                Ok(Self::NearestDatetimeRange {
+                    start_date,
+                    end_date,
+                    start_time,
+                    end_time,
                     date_tolerance: *date_tolerance,
                     match_weekday: *match_weekday,
                 })
@@ -124,12 +224,22 @@ impl DateMappingPolicy {
     pub fn iter(&self) -> DateIterator {
         match self {
             DateMappingPolicy::ExactDate(day) => DateIterator::new(*day, None),
-            DateMappingPolicy::ExactRange {
+            DateMappingPolicy::ExactDateRange {
                 start_date,
                 end_date,
             } => DateIterator::new(*start_date, Some(*end_date)),
             DateMappingPolicy::NearestDate { date, .. } => DateIterator::new(*date, None),
-            DateMappingPolicy::NearestRange {
+            DateMappingPolicy::NearestDateRange {
+                start_date,
+                end_date,
+                ..
+            } => DateIterator::new(*start_date, Some(*end_date)),
+            DateMappingPolicy::ExactDatetimeRange {
+                start_date,
+                end_date,
+                ..
+            } => DateIterator::new(*start_date, Some(*end_date)),
+            DateMappingPolicy::NearestDatetimeRange {
                 start_date,
                 end_date,
                 ..
@@ -147,17 +257,44 @@ impl DateMappingPolicy {
     ) -> Result<NaiveDate, ScheduleError> {
         match self {
             DateMappingPolicy::ExactDate(_) => pick_exact_date(target, trip, &gtfs),
-            DateMappingPolicy::ExactRange { .. } => pick_exact_date(target, trip, &gtfs),
+            DateMappingPolicy::ExactDateRange { .. } => pick_exact_date(target, trip, &gtfs),
             DateMappingPolicy::NearestDate {
                 date_tolerance,
                 match_weekday,
                 ..
             } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
-            DateMappingPolicy::NearestRange {
+            DateMappingPolicy::NearestDateRange {
                 date_tolerance,
                 match_weekday,
                 ..
             } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+            DateMappingPolicy::ExactDatetimeRange { .. } => pick_exact_date(target, trip, &gtfs),
+            DateMappingPolicy::NearestDatetimeRange {
+                date_tolerance,
+                match_weekday,
+                ..
+            } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+        }
+    }
+
+    /// confirms if a time for a trip stop is within the user-configured time of day range.
+    /// always true when time ranges are not provided.
+    pub fn within_time_range(&self, time: &NaiveTime) -> bool {
+        match self {
+            DateMappingPolicy::ExactDate(_) => true,
+            DateMappingPolicy::ExactDateRange { .. } => true,
+            DateMappingPolicy::NearestDate { .. } => true,
+            DateMappingPolicy::NearestDateRange { .. } => true,
+            DateMappingPolicy::ExactDatetimeRange {
+                start_time,
+                end_time,
+                ..
+            } => start_time <= time && time <= end_time,
+            DateMappingPolicy::NearestDatetimeRange {
+                start_time,
+                end_time,
+                ..
+            } => start_time <= time && time <= end_time,
         }
     }
 }
