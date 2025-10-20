@@ -95,7 +95,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
                 TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
             })?;
 
-        let route_id_to_state = Arc::new(MultimodalStateMapping::new(&metadata.route_ids)?);
+        let route_id_to_state = Arc::new(MultimodalStateMapping::new(&metadata.fq_route_ids)?);
 
         // re-map hash map keys from categorical to i64 label
         let date_mapping = metadata
@@ -125,14 +125,6 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-struct RawScheduleRow {
-    edge_id: usize,
-    pub route_id: String,
-    pub src_departure_time: NaiveDateTime,
-    pub dst_arrival_time: NaiveDateTime,
-}
-
 /// This function assumes that edge_id's are dense. If any edge_id is skipped, the transformation from
 /// a HashMap into Vec<Schedule> will fail
 fn read_schedules_from_file(
@@ -141,21 +133,20 @@ fn read_schedules_from_file(
     schedule_loading_policy: ScheduleLoadingPolicy,
 ) -> Result<Box<[HashMap<i64, Schedule>]>, TraversalModelError> {
     // Reading csv
-    let rows: Box<[RawScheduleRow]> = read_utils::from_csv(&Path::new(&filename), true, None, None)
-        .map_err(|e| {
+    let rows: Box<[super::RawScheduleRow]> =
+        read_utils::from_csv(&Path::new(&filename), true, None, None).map_err(|e| {
             TraversalModelError::BuildError(format!("Error creating reader to schedules file: {e}"))
         })?;
 
     // Deserialize rows according to their edge_id
     let mut schedules: HashMap<usize, HashMap<i64, Schedule>> = HashMap::new();
     for record in rows {
-        let route_i64 =
-            route_mapping
-                .get_label(&record.route_id)
-                .ok_or(TraversalModelError::BuildError(format!(
-                    "Cannot find route id mapping for string {}",
-                    record.route_id.clone()
-                )))?;
+        let route_i64 = route_mapping.get_label(&record.fully_qualified_id).ok_or(
+            TraversalModelError::BuildError(format!(
+                "Cannot find route id mapping for string {}",
+                record.fully_qualified_id.clone()
+            )),
+        )?;
 
         // This step creates an empty skiplist for every edge we see, even if we don't load any departures to it
         let schedule_skiplist = schedules

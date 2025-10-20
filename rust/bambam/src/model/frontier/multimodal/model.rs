@@ -40,24 +40,29 @@ impl MultimodalFrontierModel {
                 ))
             })?;
 
-        let route_id_to_state = MultimodalMapping::new(
-            &route_ids
-                .iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>(),
-        )
-        .map_err(|e| {
-            FrontierModelError::BuildError(format!(
-                "while building local MultimodalFrontierModel, failure constructing route id mapping: {e}"
+        let route_id_to_state = match route_ids {
+            [] => None,
+            _ => {
+                let mapping = MultimodalMapping::new(
+                    &route_ids
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>(),
+                )
+                .map_err(|e| {
+                    FrontierModelError::BuildError(format!(
+                "while building MultimodalFrontierModel, failure constructing mode mapping: {e}"
             ))
-        })?;
+                })?;
+                Some(mapping)
+            }
+        };
         let engine = MultimodalFrontierEngine {
             mode: mode.to_string(),
             constraints,
             mode_to_state: Arc::new(mode_to_state),
             route_id_to_state: Arc::new(route_id_to_state),
             max_trip_legs,
-            use_route_ids,
         };
 
         let mmm = MultimodalFrontierModel::new(Arc::new(engine));
@@ -473,7 +478,7 @@ mod test {
         StateModel,
         Vec<StateVariable>,
     ) {
-        let mtm = MultimodalTraversalModel::new_local(this_mode, max_trip_legs, modes, &[], true)
+        let mtm = MultimodalTraversalModel::new_local(this_mode, max_trip_legs, modes, &[])
             .expect("test invariant failed");
         let state_model = StateModel::new(mtm.output_features());
         let mfm = MultimodalFrontierModel::new_local(
