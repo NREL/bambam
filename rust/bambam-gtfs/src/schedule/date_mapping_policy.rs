@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::{Datelike, NaiveDate, NaiveTime};
-use gtfs_structures::{Exception, Gtfs};
+use gtfs_structures::{Exception, Gtfs, StopTime};
 use itertools::Itertools;
 
 use crate::schedule::{
@@ -279,7 +279,10 @@ impl DateMappingPolicy {
 
     /// confirms if a time for a trip stop is within the user-configured time of day range.
     /// always true when time ranges are not provided.
-    pub fn within_time_range(&self, time: &NaiveTime) -> bool {
+    ///
+    /// assumes if we are matching times that we are picking a range within a 24-hour period without
+    /// a change of dates.
+    pub fn within_time_range(&self, src: &StopTime, dst: &StopTime) -> bool {
         match self {
             DateMappingPolicy::ExactDate(_) => true,
             DateMappingPolicy::ExactDateRange { .. } => true,
@@ -289,12 +292,12 @@ impl DateMappingPolicy {
                 start_time,
                 end_time,
                 ..
-            } => start_time <= time && time <= end_time,
+            } => test_dst_arrival(src, dst, start_time, end_time),
             DateMappingPolicy::NearestDatetimeRange {
                 start_time,
                 end_time,
                 ..
-            } => start_time <= time && time <= end_time,
+            } => test_dst_arrival(src, dst, start_time, end_time),
         }
     }
 }
@@ -405,6 +408,37 @@ fn pick_nearest_date(
                     date_ops::error_msg_suffix(target, &c.start_date, &c.end_date)
                 ))
             })
+        }
+    }
+}
+
+/// helper function to check if a source and destination stop time pair is within some time range.
+/// does not fail if times are not specified, but instead optimisically returns true.
+fn test_dst_arrival(
+    src: &StopTime,
+    dst: &StopTime,
+    start_time: &NaiveTime,
+    end_time: &NaiveTime,
+) -> bool {
+    let src_departure: Option<NaiveTime> = src
+        .departure_time
+        .map(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0))
+        .flatten();
+    let dst_arrival: Option<NaiveTime> = dst
+        .arrival_time
+        .map(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0))
+        .flatten();
+
+    match (src_departure, dst_arrival) {
+        (None, None) => {
+            true // nothing to compare, fail optimistically
+        }
+        (None, Some(arrival)) => start_time <= &arrival && &arrival <= end_time,
+        (Some(departure), None) => start_time <= &departure && &departure <= end_time,
+        (Some(arr), Some(dep)) => {
+            let arr_ok = start_time <= &arr && &arr <= end_time;
+            let dep_ok = start_time <= &dep && &dep <= end_time;
+            arr_ok && dep_ok
         }
     }
 }

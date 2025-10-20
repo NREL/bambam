@@ -8,7 +8,6 @@ use crate::schedule::{
     bundle_ops, DateMappingPolicy, DateMappingPolicyConfig, DateMappingPolicyType, GtfsProvider,
     GtfsSummary, MissingStopLocationPolicy,
 };
-use chrono::NaiveDate;
 use clap::Subcommand;
 use geo::{Coord, LineString};
 use gtfs_structures::Gtfs;
@@ -88,6 +87,12 @@ pub enum GtfsOperation {
         #[arg(long)]
         end_date: String,
 
+        #[arg(long)]
+        start_time: Option<String>,
+
+        #[arg(long)]
+        end_time: Option<String>,
+
         #[arg(long, default_value_t = 325.)]
         vertex_match_tolerance: f64,
 
@@ -114,13 +119,13 @@ pub enum GtfsOperation {
     },
 }
 
-/// helper function for date deserialization in clap
-fn parse_naive_date(s: &str) -> Result<NaiveDate, String> {
-    let fmt = "%m-%d-%Y";
-    NaiveDate::parse_from_str(s, fmt).map_err(|e| {
-        format!("failed reading date value '{s}'. required format: '{fmt}'. error: {e}")
-    })
-}
+// /// helper function for date deserialization in clap
+// fn parse_naive_date(s: &str) -> Result<NaiveDate, String> {
+//     let fmt = "%m-%d-%Y";
+//     NaiveDate::parse_from_str(s, fmt).map_err(|e| {
+//         format!("failed reading date value '{s}'. required format: '{fmt}'. error: {e}")
+//     })
+// }
 
 impl GtfsOperation {
     pub fn run(&self) {
@@ -159,6 +164,8 @@ impl GtfsOperation {
                 vertices_compass_filename,
                 start_date,
                 end_date,
+                start_time,
+                end_time,
                 vertex_match_tolerance,
                 missing_stop_location_policy,
                 distance_calculation_policy,
@@ -180,6 +187,8 @@ impl GtfsOperation {
                 let date_mapping_config = DateMappingPolicyConfig::new(
                     start_date,
                     end_date,
+                    start_time.as_ref(),
+                    end_time.as_ref(),
                     date_mapping_policy,
                     *date_mapping_date_tolerance,
                     *date_mapping_match_weekday,

@@ -22,7 +22,7 @@ use wkt::ToWkt;
 
 use crate::schedule::{
     batch_processing_error,
-    date::DateMapping,
+    date::{date_codec::app::APP_DATE_FORMAT, DateMapping},
     distance_calculation_policy::{compute_haversine, DistanceCalculationPolicy},
     fq_ops,
     fq_schedule_row::FullyQualifiedScheduleRow,
@@ -33,8 +33,8 @@ use crate::schedule::{
 /// configures the run of the GTFS import
 #[derive(Clone)]
 pub struct ProcessBundlesConfig {
-    pub start_date: NaiveDate,
-    pub end_date: NaiveDate,
+    pub start_date: String,
+    pub end_date: String,
     pub starting_edge_list_id: usize,
     pub spatial_index: Arc<SpatialIndex>,
     pub missing_stop_location_policy: MissingStopLocationPolicy,
@@ -186,7 +186,18 @@ pub fn process_bundle(
     c: Arc<ProcessBundlesConfig>,
 ) -> Result<GtfsBundle, ScheduleError> {
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
-
+    let start_date = NaiveDate::parse_from_str(&c.start_date, APP_DATE_FORMAT).map_err(|e| {
+        ScheduleError::GtfsAppError(format!(
+            "unable to parse start date {} using date format {APP_DATE_FORMAT}: {e}",
+            c.start_date
+        ))
+    })?;
+    let end_date = NaiveDate::parse_from_str(&c.end_date, APP_DATE_FORMAT).map_err(|e| {
+        ScheduleError::GtfsAppError(format!(
+            "unable to parse end date {} using date format {APP_DATE_FORMAT}: {e}",
+            c.end_date
+        ))
+    })?;
     // get trips that match our date range
     let mut trips: HashMap<String, SortedTrip> = HashMap::new();
     for t in gtfs.trips.values() {
@@ -198,8 +209,8 @@ pub fn process_bundle(
     if trips.is_empty() {
         let msg = format!(
             "date range [{}, {}] did not match any trips",
-            c.start_date.format("%m-%d-%Y"),
-            c.end_date.format("%m-%d-%Y"),
+            start_date.format("%m-%d-%Y"),
+            end_date.format("%m-%d-%Y"),
         );
         return Err(ScheduleError::GtfsAppError(msg));
     }
@@ -230,6 +241,9 @@ pub fn process_bundle(
                 .pick_date(&target_date, trip, gtfs.clone())?;
 
             for (src, dst) in trip.stop_times.windows(2).map(|w| (&w[0], &w[1])) {
+                if !c.date_mapping_policy.within_time_range(src, dst) {
+                    continue;
+                }
                 let map_match_result =
                     map_match(src, dst, &stop_locations, c.spatial_index.clone())?;
                 let ((src_id, src_point), (dst_id, dst_point)) =
