@@ -86,6 +86,11 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
     type Error = TraversalModelError;
 
     fn try_from(value: TransitTraversalConfig) -> Result<Self, Self::Error> {
+        log::debug!(
+            "loading transit traversal model from {}",
+            value.gtfs_metadata_input_file
+        );
+
         // Deserialize metadata and extract route_ids
         let file = File::open(value.gtfs_metadata_input_file).map_err(|e| {
             TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
@@ -96,9 +101,13 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
             })?;
 
         let route_id_to_state = Arc::new(MultimodalStateMapping::new(&metadata.fq_route_ids)?);
+        log::debug!(
+            "loaded {} fq route ids into mapping",
+            route_id_to_state.n_categories()
+        );
 
         // re-map hash map keys from categorical to i64 label
-        let date_mapping = metadata
+        let date_mapping: HashMap<i64, HashMap<NaiveDate, NaiveDate>> = metadata
             .date_mapping
             .into_iter()
             .map(|(k, hash_map)| match route_id_to_state.get_label(&k) {
@@ -113,13 +122,16 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
                     "failed to construct date mapping after matching route_id (str) to i64: {e}"
                 ))
             })?;
+        log::debug!("loaded date mapping with {} entries", date_mapping.len());
+
+        let edge_schedules = read_schedules_from_file(
+            value.edges_schedules_input_file,
+            route_id_to_state.clone(),
+            value.schedule_loading_policy,
+        )?;
 
         Ok(Self {
-            edge_schedules: read_schedules_from_file(
-                value.edges_schedules_input_file,
-                route_id_to_state.clone(),
-                value.schedule_loading_policy,
-            )?,
+            edge_schedules,
             date_mapping,
         })
     }
@@ -137,6 +149,8 @@ fn read_schedules_from_file(
         read_utils::from_csv(&Path::new(&filename), true, None, None).map_err(|e| {
             TraversalModelError::BuildError(format!("Error creating reader to schedules file: {e}"))
         })?;
+
+    log::debug!("{filename} - loaded {} raw schedule rows", rows.len());
 
     // Deserialize rows according to their edge_id
     let mut schedules: HashMap<usize, HashMap<i64, Schedule>> = HashMap::new();
@@ -162,12 +176,16 @@ fn read_schedules_from_file(
             },
         );
     }
+    log::debug!(
+        "{filename} - built schedule lookup for {} routes",
+        schedules.len()
+    );
 
     // Observe total number of keys (edge_ids)
     let n_edges = schedules.keys().len();
 
     // Re-arrange all into a dense boxed slice
-    let mut out = (0..n_edges)
+    let out = (0..n_edges)
         .map(|i| {
             schedules
                 .remove(&i) // TIL: `remove` returns an owned value, consuming the hashmap
@@ -176,6 +194,11 @@ fn read_schedules_from_file(
                 )))
         })
         .collect::<Result<Vec<HashMap<i64, Schedule>>, TraversalModelError>>()?;
+
+    log::debug!(
+        "{filename} - built skip lists for {} routes",
+        schedules.len()
+    );
 
     Ok(out.into_boxed_slice())
 }
