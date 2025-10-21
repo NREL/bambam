@@ -61,7 +61,7 @@ mod test {
             .parent()
             .expect("test invariant failed: repo 'rust' dir has no parent")
             .join("configuration")
-            .join("denver_test.toml");
+            .join("test_denver.toml");
         let query_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .expect("test invariant failed: repo 'rust/bambam' dir has no parent")

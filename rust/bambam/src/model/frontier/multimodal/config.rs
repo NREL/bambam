@@ -9,10 +9,9 @@ pub struct MultimodalFrontierConfig {
     pub constraints: Vec<MultimodalFrontierConstraintConfig>,
     /// modes that can be used on this trip
     pub available_modes: Vec<String>,
-    /// route ids that can be used on this trip
-    pub available_route_ids: Vec<String>,
-    /// true if this edge list uses route ids
-    pub use_route_ids: bool,
+    /// all route ids available in multimodal search. this ordering will be used
+    /// to generate an enumeration used in state modeling.
+    pub route_ids_input_file: Option<String>,
     /// maximum number of legs allowed in a trip
     pub max_trip_legs: u64,
 }
