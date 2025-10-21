@@ -413,6 +413,7 @@ fn pick_nearest_date(
 }
 
 /// helper function to check if a source and destination stop time pair is within some time range.
+/// false if either time value exists but is outside of [0, 86399].
 /// does not fail if times are not specified, but instead optimisically returns true.
 fn test_dst_arrival(
     src: &StopTime,
@@ -420,23 +421,24 @@ fn test_dst_arrival(
     start_time: &NaiveTime,
     end_time: &NaiveTime,
 ) -> bool {
-    let src_departure: Option<NaiveTime> = src
-        .departure_time
-        .and_then(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0));
-    let dst_arrival: Option<NaiveTime> = dst
-        .arrival_time
-        .and_then(|t| NaiveTime::from_num_seconds_from_midnight_opt(t, 0));
-
-    match (src_departure, dst_arrival) {
-        (None, None) => {
-            true // nothing to compare, fail optimistically
-        }
-        (None, Some(arrival)) => start_time <= &arrival && &arrival <= end_time,
-        (Some(departure), None) => start_time <= &departure && &departure <= end_time,
-        (Some(arr), Some(dep)) => {
-            let arr_ok = start_time <= &arr && &arr <= end_time;
-            let dep_ok = start_time <= &dep && &dep <= end_time;
-            arr_ok && dep_ok
+    let is_within_time_range = |t: &NaiveTime| start_time <= t && t <= end_time;
+    match (src.departure_time, dst.arrival_time) {
+        (None, None) => true,
+        (None, Some(arr)) => match NaiveTime::from_num_seconds_from_midnight_opt(arr, 0) {
+            Some(t) => is_within_time_range(&t),
+            None => false,
+        },
+        (Some(dep), None) => match NaiveTime::from_num_seconds_from_midnight_opt(dep, 0) {
+            Some(t) => is_within_time_range(&t),
+            None => false,
+        },
+        (Some(dep), Some(arr)) => {
+            let dep_t = NaiveTime::from_num_seconds_from_midnight_opt(dep, 0);
+            let arr_t = NaiveTime::from_num_seconds_from_midnight_opt(arr, 0);
+            match (dep_t, arr_t) {
+                (Some(t0), Some(t1)) => is_within_time_range(&t0) && is_within_time_range(&t1),
+                _ => false,
+            }
         }
     }
 }
