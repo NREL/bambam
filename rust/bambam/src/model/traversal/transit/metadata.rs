@@ -15,6 +15,7 @@ pub struct GtfsArchiveMetadata {
     /// direct output of GTFS feed_info.txt
     pub feed_info: Vec<Value>,
     /// time required to read this archive using bambam-gtfs
+    #[serde(deserialize_with = "deserialize_duration")]
     pub read_duration: Duration,
     /// direct output of GTFS calendar.txt by service_id
     pub calendar: Value,
@@ -25,6 +26,24 @@ pub struct GtfsArchiveMetadata {
     pub date_mapping: HashMap<String, HashMap<NaiveDate, NaiveDate>>,
     /// List of unique (fully-qualified) route identifiers used in the schedules
     pub fq_route_ids: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct DurationJson {
+    pub secs: i64,
+    pub nanos: u32,
+}
+
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let DurationJson { secs, nanos } = DurationJson::deserialize(deserializer)?;
+    chrono::Duration::new(secs, nanos).ok_or_else(|| {
+        D::Error::custom(format!(
+            "invalid duration value with secs {secs}, nanos {nanos}"
+        ))
+    })
 }
 
 fn deserialize_date_mapping<'de, D>(
