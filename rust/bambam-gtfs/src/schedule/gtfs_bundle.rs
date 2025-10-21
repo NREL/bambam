@@ -18,6 +18,6 @@ impl GtfsBundle {
                 return false;
             }
         }
-        return true;
+        true
     }
 }

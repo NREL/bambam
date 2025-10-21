@@ -381,7 +381,7 @@ fn process_schedule(
     }
 
     // match this stop time pair to the graph or apply optional fallback policy
-    let map_match_result = map_match(src, dst, &stop_locations, c.spatial_index.clone())?;
+    let map_match_result = map_match(src, dst, stop_locations, c.spatial_index.clone())?;
     let ((src_id, src_point), (dst_id, dst_point)) =
         match (map_match_result, &c.missing_stop_location_policy) {
             (Some(result), _) => result,
