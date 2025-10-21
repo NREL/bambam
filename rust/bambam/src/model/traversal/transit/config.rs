@@ -15,4 +15,7 @@ pub struct TransitTraversalConfig {
     pub gtfs_metadata_input_file: String,
     /// policy by which to prune departures when reading schedules
     pub schedule_loading_policy: ScheduleLoadingPolicy,
+    /// if provided, overrides the metadata entry for fully-qualified
+    /// route ids, in the case of running multiple transit models simultaneously.
+    pub route_ids_input_file: Option<String>,
 }

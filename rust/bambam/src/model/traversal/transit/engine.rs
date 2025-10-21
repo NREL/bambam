@@ -91,7 +91,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
             value.gtfs_metadata_input_file
         );
 
-        // Deserialize metadata and extract route_ids
+        // Deserialize metadata file
         let file = File::open(value.gtfs_metadata_input_file).map_err(|e| {
             TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
         })?;
@@ -100,7 +100,13 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
                 TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
             })?;
 
-        let route_id_to_state = Arc::new(MultimodalStateMapping::new(&metadata.fq_route_ids)?);
+        let route_id_to_state = match value.route_ids_input_file {
+            Some(route_ids_input_file) => MultimodalStateMapping::from_enumerated_category_file(
+                Path::new(&route_ids_input_file),
+            )?,
+            None => MultimodalStateMapping::new(&metadata.fq_route_ids)?,
+        };
+
         log::debug!(
             "loaded {} fq route ids into mapping",
             route_id_to_state.n_categories()
@@ -126,7 +132,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
 
         let edge_schedules = read_schedules_from_file(
             value.edges_schedules_input_file,
-            route_id_to_state.clone(),
+            Arc::new(route_id_to_state),
             value.schedule_loading_policy,
         )?;
 
