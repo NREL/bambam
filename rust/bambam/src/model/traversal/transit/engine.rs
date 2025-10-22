@@ -11,7 +11,7 @@ use crate::model::{
     state::{MultimodalMapping, MultimodalStateMapping},
     traversal::transit::{
         config::TransitTraversalConfig,
-        metadata::GtfsArchiveMetadata,
+        metadata::{self, GtfsArchiveMetadata},
         schedule::{Departure, Schedule},
         schedule_loading_policy::{self, ScheduleLoadingPolicy},
     },
@@ -100,7 +100,7 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
                 TraversalModelError::BuildError(format!("Failed to read metadata file: {e}"))
             })?;
 
-        let route_id_to_state = match value.route_ids_input_file {
+        let route_id_to_state = match &value.route_ids_input_file {
             Some(route_ids_input_file) => MultimodalStateMapping::from_enumerated_category_file(
                 Path::new(&route_ids_input_file),
             )?,
@@ -112,22 +112,8 @@ impl TryFrom<TransitTraversalConfig> for TransitTraversalEngine {
             route_id_to_state.n_categories()
         );
 
-        // re-map hash map keys from categorical to i64 label
-        let date_mapping: HashMap<i64, HashMap<NaiveDate, NaiveDate>> = metadata
-            .date_mapping
-            .into_iter()
-            .map(|(k, hash_map)| match route_id_to_state.get_label(&k) {
-                Some(route_id) => Ok((*route_id, hash_map)),
-                None => Err(TraversalModelError::BuildError(format!(
-                    "failed to find label for categorical value: {k}"
-                ))),
-            })
-            .collect::<Result<_, _>>()
-            .map_err(|e| {
-                TraversalModelError::BuildError(format!(
-                    "failed to construct date mapping after matching route_id (str) to i64: {e}"
-                ))
-            })?;
+        // re-map hash map keys from categorical to i64 label.
+        let date_mapping = build_label_to_date_mapping(&metadata, &route_id_to_state)?;
         log::debug!("loaded date mapping with {} entries", date_mapping.len());
 
         let edge_schedules = read_schedules_from_file(
@@ -207,6 +193,35 @@ fn read_schedules_from_file(
     );
 
     Ok(out.into_boxed_slice())
+}
+
+/// helper function to construct a mapping from categorical label (a i64 StateVariable)
+/// into a date mapping.
+fn build_label_to_date_mapping(
+    metadata: &GtfsArchiveMetadata,
+    route_id_to_state: &MultimodalStateMapping,
+) -> Result<HashMap<i64, HashMap<NaiveDate, NaiveDate>>, TraversalModelError> {
+    let mapped = metadata
+            .fq_route_ids
+            .iter()
+            .map(|route_id| {
+                let label = route_id_to_state.get_label(route_id)
+                    .ok_or_else(|| {
+                        // this is only possible if the fq_route_ids are not the same as the dataset
+                        // that created the state mapping.
+                        TraversalModelError::BuildError(
+                            "fully-qualified route id '{route_id}' has no entry in enumeration table from file".to_string()
+                        )
+                    })?;
+                let mapping = match metadata.date_mapping.get(route_id) {
+                    None => return Ok(None),
+                    Some(mapping) => mapping,
+                };
+                Ok(Some((*label, mapping.clone())))
+            })
+            .collect::<Result<Vec<_>, TraversalModelError>>()?;
+    let result = mapped.into_iter().flatten().collect();
+    Ok(result)
 }
 
 #[cfg(test)]
