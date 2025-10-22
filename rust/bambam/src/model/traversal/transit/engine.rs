@@ -187,10 +187,7 @@ fn read_schedules_from_file(
         })
         .collect::<Result<Vec<HashMap<i64, Schedule>>, TraversalModelError>>()?;
 
-    log::debug!(
-        "{filename} - built skip lists for {} routes",
-        schedules.len()
-    );
+    log::debug!("{filename} - built skip lists for {} routes", out.len());
 
     Ok(out.into_boxed_slice())
 }
