@@ -558,8 +558,9 @@ fn get_edge_list_id(entry: &DirEntry, pat: &Regex) -> Result<EdgeListId, GtfsCon
         })?;
     let edge_list_id = pat_match.as_str().parse::<usize>().map_err(|e| {
         GtfsConfigError::InternalError(format!(
-            "while extracting EdgeListId, value {} was not a valid usize",
-            pat_match.as_str()
+            "while extracting EdgeListId, value {} was not a valid usize: {}",
+            pat_match.as_str(),
+            e
         ))
     })?;
     Ok(EdgeListId(edge_list_id))
