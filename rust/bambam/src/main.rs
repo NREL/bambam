@@ -1,14 +1,7 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
-
 use bambam::model::builder;
 use clap::Parser;
 use routee_compass::app::cli::cli_args::CliArgs;
-use routee_compass::app::compass::{
-    CompassApp, CompassAppError, CompassBuilderInventory, CompassJsonExtensions,
-};
-use serde_json::Value;
+use routee_compass::app::compass::CompassBuilderInventory;
 inventory::submit! { builder::BUILDER_REGISTRATION }
 
 // Import the library to ensure inventory registrations in lib.rs are included
