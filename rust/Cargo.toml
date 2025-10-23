@@ -5,8 +5,8 @@ members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-omf"]
 # Patch section to override any version-based dependencies with git revisions
 # see [https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#working-with-an-unpublished-minor-version]
 [patch.crates-io]
-routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "abf86b842782aba6f14b10c16d08c6f20480a8c4" }
-routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "abf86b842782aba6f14b10c16d08c6f20480a8c4" }
+routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "8da939a004288cbfa6b6a376bfeef0956c1fbc2e" }
+routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "8da939a004288cbfa6b6a376bfeef0956c1fbc2e" }
 
 
 [workspace.dependencies]
@@ -16,9 +16,9 @@ bamcensus-core = { version = "0.1.0" }
 bamcensus-acs = { version = "0.1.0" }
 bamcensus = { version = "0.1.0" }
 bamcensus-lehd = { version = "0.1.0" }
-routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "abf86b842782aba6f14b10c16d08c6f20480a8c4" }
-routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "abf86b842782aba6f14b10c16d08c6f20480a8c4" }
-routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "abf86b842782aba6f14b10c16d08c6f20480a8c4" }
+routee-compass = { git = "https://github.com/NREL/routee-compass.git", rev = "8da939a004288cbfa6b6a376bfeef0956c1fbc2e" }
+routee-compass-core = { git = "https://github.com/NREL/routee-compass.git", rev = "8da939a004288cbfa6b6a376bfeef0956c1fbc2e" }
+routee-compass-powertrain = { git = "https://github.com/NREL/routee-compass.git", rev = "8da939a004288cbfa6b6a376bfeef0956c1fbc2e" }
 
 # third party
 arrow = { version = "55.0.0" }
