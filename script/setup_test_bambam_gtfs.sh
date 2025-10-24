@@ -26,8 +26,8 @@ echo "(You need to build the rust binaries first)"
     --date-mapping-match-weekday true \
     --output-directory "./transit" \
     --vertices-compass-filename "./compass/vertices-complete.csv.gz" \
-    --start-date 08-15-2025 \
-    --end-date 08-15-2025 \
+    --start-date 09-01-2025 \
+    --end-date 09-01-2025 \
     --start-time 08:00:00 \
     --end-time 09:00:00
 
