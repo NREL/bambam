@@ -297,7 +297,7 @@ mod tests {
             }
             Err(e) => {
                 // Should be a specific error about duration or datetime construction
-                assert!(matches!(e, 
+                assert!(matches!(e,
                     routee_compass_core::model::traversal::TraversalModelError::TraversalModelFailure(_) |
                     routee_compass_core::model::traversal::TraversalModelError::InternalError(_)
                 ));
