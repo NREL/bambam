@@ -9,6 +9,21 @@ pub struct Departure {
 }
 
 impl Departure {
+    pub fn construct_query(datetime: NaiveDateTime) -> Self {
+        Self {
+            src_departure_time: datetime,
+            dst_arrival_time: datetime,
+        }
+    }
+
+    /// represent infinity in the time space of departures
+    pub fn infinity() -> Self {
+        Departure {
+            src_departure_time: NaiveDateTime::MAX,
+            dst_arrival_time: NaiveDateTime::MAX,
+        }
+    }
+
     pub fn infinity_from(datetime: NaiveDateTime) -> Option<Self> {
         let infinity = datetime.checked_add_months(Months::new(72));
 
