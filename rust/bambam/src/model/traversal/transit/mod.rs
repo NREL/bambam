@@ -9,6 +9,7 @@ mod schedule;
 mod schedule_loading_policy;
 mod service;
 
+pub mod transit_ops;
 pub use builder::TransitTraversalBuilder;
 pub use config::TransitTraversalConfig;
 pub use engine::TransitTraversalEngine;

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::model::bambam_state::ROUTE_ID;
 use crate::model::state::variable::EMPTY;
+use crate::model::traversal::transit::transit_ops;
 use crate::model::{
     bambam_state,
     traversal::transit::{engine::TransitTraversalEngine, schedule::Departure},
@@ -114,24 +115,20 @@ impl TraversalModel for TransitTraversalModel {
     ) -> Result<(), routee_compass_core::model::traversal::TraversalModelError> {
         let current_edge_id = trajectory.1.edge_id;
         let current_route_id = state_model.get_custom_i64(state, bambam_state::ROUTE_ID)?;
+        let current_datetime =
+            transit_ops::get_current_time(&self.start_datetime, state, state_model)?;
 
-        // Compute current simulation datetime
-        let travel_seconds = state_model
-            .get_time(state, fieldname::TRIP_TIME)?
-            .get::<uom::si::time::second>() as i64;
-        let current_datetime = self
-            .start_datetime
-            .checked_add_signed(Duration::seconds(travel_seconds))
-            .ok_or(TraversalModelError::InternalError(format!(
-                "Invalid Datetime from Date {} + {} seconds",
-                self.start_datetime, travel_seconds
-            )))?;
-
+        // get the next departure.
+        // in the case that no schedules are found, a sentinel value is returned set
+        // far in the future (an "infinity" value). this indicates that this edge should not
+        // have been accepted by the FrontierModel. but at this point, we do not have a
+        // transit frontier model, so "infinity" must solve the same problem.
         let (next_route, next_departure) = self
             .engine
             .get_next_departure(current_edge_id.as_usize(), &current_datetime)?;
         let next_departure_route_id = next_route;
 
+        // update the state. a bunch of features are modified here.
         // NOTE: wait_time is "time waiting in the transit stop" OR "time waiting sitting on the bus during scheduled dwell time"
         let wait_time = Time::new::<uom::si::time::second>(
             (next_departure.src_departure_time - current_datetime).as_seconds_f64(),
