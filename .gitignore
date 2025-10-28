@@ -4,6 +4,9 @@ Cargo.lock
 target
 output
 cache
+**/__pycache__/
+
 .venv
 denver_co/
 boulder_co/
+denver_rtd/
