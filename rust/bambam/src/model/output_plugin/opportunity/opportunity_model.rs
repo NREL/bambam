@@ -26,21 +26,28 @@ pub enum OpportunityModel {
         activity_counts: Vec<Vec<f64>>,
         opportunity_orientation: OpportunityOrientation,
     },
-    /// user provides a spatial dataset of opportunities. lookup will use a
-    /// spatial index to find
-    ///   - intersecting polygons
-    ///   - nearest points with some distance tolerance
-    ///
-    /// it becomes the responsibility of the downstream code to de-duplicate results
-    /// by making sure to only include one row with a given index value (slot 1 of the
-    /// attach_opportunities function result).
-    Spatial {
-        activity_types: Vec<String>,
-        rtree: RTree<OpportunitySpatialRow>,
-        counts_by_spatial_row: Vec<Vec<f64>>,
-        polygonal: bool,
-        opportunity_orientation: OpportunityOrientation,
-    },
+    // TODO: rewrite or remove spatial variant
+    //   - one of the challenges posed by this variant is ensuring no double-counting.
+    //     a spatial opportunity "zone" may be associated with more than one location.
+    //     how do we prevent double-counting? we need a OpportunityRowId::Spatial or
+    //     otherwise and to deduplicate our results. it may be easier to always tabularize
+    //     the opportunity data instead.
+
+    // /// user provides a spatial dataset of opportunities. lookup will use a
+    // /// spatial index to find
+    // ///   - intersecting polygons
+    // ///   - nearest points with some distance tolerance
+    // ///
+    // /// it becomes the responsibility of the downstream code to de-duplicate results
+    // /// by making sure to only include one row with a given index value (slot 1 of the
+    // /// attach_opportunities function result).
+    // Spatial {
+    //     activity_types: Vec<String>,
+    //     rtree: RTree<OpportunitySpatialRow>,
+    //     counts_by_spatial_row: Vec<Vec<f64>>,
+    //     polygonal: bool,
+    //     opportunity_orientation: OpportunityOrientation,
+    // },
     /// Combines multiple opportunity models
     Combined { models: Vec<Box<OpportunityModel>> },
 }
@@ -50,7 +57,7 @@ impl OpportunityModel {
     pub fn activity_types(&self) -> Vec<String> {
         match self {
             OpportunityModel::Tabular { activity_types, .. } => activity_types.to_vec(),
-            OpportunityModel::Spatial { activity_types, .. } => activity_types.to_vec(),
+            // OpportunityModel::Spatial { activity_types, .. } => activity_types.to_vec(),
             OpportunityModel::Combined { models } => {
                 models.iter().flat_map(|m| m.activity_types()).collect_vec()
             }
@@ -66,11 +73,11 @@ impl OpportunityModel {
                 activity_counts,
                 ..
             } => activity_totals(activity_types, activity_counts),
-            OpportunityModel::Spatial {
-                activity_types,
-                counts_by_spatial_row: activity_counts,
-                ..
-            } => activity_totals(activity_types, activity_counts),
+            // OpportunityModel::Spatial {
+            //     activity_types,
+            //     counts_by_spatial_row: activity_counts,
+            //     ..
+            // } => activity_totals(activity_types, activity_counts),
             OpportunityModel::Combined { models } => {
                 // sums inner model totals, appending when same activity type is present in multiple models
                 let mut result: HashMap<String, f64> = HashMap::new();
@@ -187,43 +194,43 @@ impl OpportunityModel {
                     })?;
                 Ok(vec![result])
             }
-            OpportunityModel::Spatial {
-                activity_types,
-                rtree,
-                counts_by_spatial_row: activity_counts,
-                polygonal,
-                opportunity_orientation,
-            } => {
-                let index = OpportunityRowId::new(
-                    origin_label,
-                    search_tree_branch,
-                    opportunity_orientation,
-                )?;
+            // OpportunityModel::Spatial {
+            //     activity_types,
+            //     rtree,
+            //     counts_by_spatial_row: activity_counts,
+            //     polygonal,
+            //     opportunity_orientation,
+            // } => {
+            //     let index = OpportunityRowId::new(
+            //         origin_label,
+            //         search_tree_branch,
+            //         opportunity_orientation,
+            //     )?;
 
-                // search for the intersecting polygonal opportunity or nearest point opportunity
-                let spatial_row = if *polygonal {
-                    let envelope = index.get_envelope_f64(si)?;
-                    rtree.locate_in_envelope_intersecting(&envelope).next()
-                } else {
-                    let centroid = index.get_centroid_f64(si)?;
-                    rtree.nearest_neighbor(&centroid)
-                };
+            //     // search for the intersecting polygonal opportunity or nearest point opportunity
+            //     let spatial_row = if *polygonal {
+            //         let envelope = index.get_envelope_f64(si)?;
+            //         rtree.locate_in_envelope_intersecting(&envelope).next()
+            //     } else {
+            //         let centroid = index.get_centroid_f64(si)?;
+            //         rtree.nearest_neighbor(&centroid)
+            //     };
 
-                // return the found activities stored at the associated spatial row
-                match spatial_row {
-                    None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
-                    Some(found) => match activity_counts.get(found.index) {
-                        Some(counts) => Ok(vec![(index, counts.clone())]),
-                        None => {
-                            let geom_type = if *polygonal { "polygon" } else { "point" };
-                            Err(OutputPluginError::OutputPluginFailed(format!(
-                                "expected spatial {} activity count with index {} not found",
-                                geom_type, found.index
-                            )))
-                        }
-                    },
-                }
-            }
+            //     // return the found activities stored at the associated spatial row
+            //     match spatial_row {
+            //         None => Ok(vec![(index, vec![0.0; activity_types.len()])]),
+            //         Some(found) => match activity_counts.get(found.index) {
+            //             Some(counts) => Ok(vec![(index, counts.clone())]),
+            //             None => {
+            //                 let geom_type = if *polygonal { "polygon" } else { "point" };
+            //                 Err(OutputPluginError::OutputPluginFailed(format!(
+            //                     "expected spatial {} activity count with index {} not found",
+            //                     geom_type, found.index
+            //                 )))
+            //             }
+            //         },
+            //     }
+            // }
             OpportunityModel::Combined { models } => {
                 let mut collection: HashMap<OpportunityRowId, Vec<f64>> = HashMap::new();
                 let mut padding_length: usize = 0;

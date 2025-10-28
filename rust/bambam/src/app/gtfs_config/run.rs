@@ -401,6 +401,7 @@ pub fn gtfs_traversal_model_config(
                 "type": "transit",
                 "edges_schedules_input_file": edges_schedules.to_string(),
                 "gtfs_metadata_input_file": edges_metadata.to_string(),
+                "route_ids_input_file": Some(fq_route_ids_filepath.to_string_lossy().to_string()),
                 "schedule_loading_policy": ScheduleLoadingPolicy::All
             },
             // TransitTraversalConfig {
