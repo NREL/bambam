@@ -254,27 +254,32 @@ geoids = ["08"]
 type = "census"
 
 [termination]
-limit = 200000
+type = "combined"
+[[termination.models]]
 type = "solution_size"
+limit = 200000
+[[termination.models]]
+type = "iterations"
+limit = 1000000
 
 [system]
-parallelism = 32
-response_persistence_policy = "persist_response_in_memory"
+parallelism = 16
+response_persistence_policy = "discard_response_from_memory"
 
 [system.response_output_policy]
 type = "combined"
 
 [[system.response_output_policy.policies]]
 type = "file"
-filename = "result.json"
+filename = "result_transit.json"
 
 [system.response_output_policy.policies.format]
 type = "json"
-newline_delimited = false
+newline_delimited = true
 
 [[system.response_output_policy.policies]]
 type = "file"
-filename = "result.csv"
+filename = "result_transit.csv"
 
 [system.response_output_policy.policies.format]
 type = "csv"
@@ -289,7 +294,7 @@ isochrone_30 = "bin.30.isochrone"
 isochrone_40 = "bin.40.isochrone"
 lat = "request.origin_y"
 lon = "request.origin_x"
-mode = "request.mode"
+# mode = "request.mode"
 opps_entertainment_10 = "bin.10.opportunities.entertainment"
 opps_entertainment_20 = "bin.20.opportunities.entertainment"
 opps_entertainment_30 = "bin.30.opportunities.entertainment"
@@ -321,4 +326,4 @@ opps_services_30 = "bin.30.opportunities.services"
 opps_services_40 = "bin.40.opportunities.services"
 opps_services_total = "opportunity_totals.services"
 ram_mb = "search_result_size_mib"
-runtime = "search_app_runtime"
+runtime = "search_runtime"

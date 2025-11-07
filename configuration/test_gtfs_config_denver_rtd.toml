@@ -173,8 +173,8 @@ CNS19 = ["jobs"] # 81 (Other Services [except Public Administration])
 CNS20 = ["jobs"] # 92 (Public Administration)
 
 [system]
-parallelism = 32
-response_persistence_policy = "persist_response_in_memory"
+parallelism = 16
+response_persistence_policy = "discard_response_from_memory"
 
 [system.response_output_policy]
 type = "combined"
@@ -196,8 +196,8 @@ sorted = true
 grid_id = "request.grid_id"
 lon = "request.origin_x"
 lat = "request.origin_y"
-mode = "request.mode"
-runtime = "search_app_runtime"
+# mode = "request.mode"
+runtime = "search_runtime"
 ram_mb = "search_result_size_mib"
 error = "error"
 
