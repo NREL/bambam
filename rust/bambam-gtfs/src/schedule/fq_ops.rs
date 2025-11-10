@@ -17,14 +17,7 @@ pub fn get_fully_qualified_route_id(
         None => EMPTY_AGENCY_PLACEHOLDER,
     };
     let name = format!(
-        "{}{}{}{}{}{}{}",
-        edge_list_id,
-        FQ_ROUTE_ID_SEPARATOR,
-        agency_id,
-        FQ_ROUTE_ID_SEPARATOR,
-        route_id,
-        FQ_ROUTE_ID_SEPARATOR,
-        service_id
+        "{edge_list_id}{FQ_ROUTE_ID_SEPARATOR}{agency_id}{FQ_ROUTE_ID_SEPARATOR}{route_id}{FQ_ROUTE_ID_SEPARATOR}{service_id}"
     );
 
     name.replace(",", "_")

@@ -66,14 +66,17 @@ impl TransitTraversalEngine {
                     .cloned()
                     .unwrap_or(Departure::infinity());
 
+                // Undo datemapping
+                let next_route_departure =
+                    reverse_date_mapping(current_datetime, &search_datetime, next_route_departure);
+
                 // Return next departure for route
                 (*route_id_label, next_route_departure)
             })
             .min_by_key(|(_, departure)| departure.dst_arrival_time)
-            .ok_or(TraversalModelError::InternalError(
+            .ok_or(TraversalModelError::InternalError(format!(
                 "failed to find next departure: schedules for edge_id {edge_id} appear to be empty"
-                    .to_string(),
-            ))?;
+            )))?;
         Ok(result)
     }
 
@@ -88,6 +91,22 @@ impl TransitTraversalEngine {
             .and_then(|date_map| date_map.get(&current_datetime.date()))
             .unwrap_or(&current_datetime.date())
             .and_time(current_datetime.time())
+    }
+}
+
+/// This function is used to re-adjust the departure and arrival datetimes of the [`Departure`] object
+/// after the search was performed using `search_datetime`. The logic behind it is that we only care about
+/// the delays from the time used for search until each of the times in the departure.
+fn reverse_date_mapping(
+    current_datetime: &NaiveDateTime,
+    search_datetime: &NaiveDateTime,
+    departure: Departure,
+) -> Departure {
+    let departure_delay = departure.src_departure_time - *search_datetime;
+    let arrival_delay = departure.dst_arrival_time - *search_datetime;
+    Departure {
+        src_departure_time: *current_datetime + departure_delay,
+        dst_arrival_time: *current_datetime + arrival_delay,
     }
 }
 
@@ -237,7 +256,7 @@ mod test {
         engine::TransitTraversalEngine,
         schedule::{Departure, Schedule},
     };
-    use chrono::{Months, NaiveDateTime};
+    use chrono::{Months, NaiveDate, NaiveDateTime};
     use std::collections::HashMap;
     use std::str::FromStr;
 
@@ -245,7 +264,9 @@ mod test {
         NaiveDateTime::parse_from_str(&format!("20250101 {string}"), "%Y%m%d %H:%M:%S").unwrap()
     }
 
-    fn get_dummy_engine() -> TransitTraversalEngine {
+    fn get_dummy_engine(
+        date_mapping: Option<HashMap<i64, HashMap<NaiveDate, NaiveDate>>>,
+    ) -> TransitTraversalEngine {
         // There are two edges that reverse each other and two routes that move across them
         // Route 1:
         // 16:00 - 16:05 (A-B) -> 16:05 - 16:10 (B-A) -> 16:10 - 16:25 dwell -> 16:25 - 16:30 (A-B) -> 16:30 - 16:35 (B-A)
@@ -271,7 +292,7 @@ mod test {
 
         TransitTraversalEngine {
             edge_schedules: schedules.into_boxed_slice(),
-            date_mapping: HashMap::new(),
+            date_mapping: date_mapping.unwrap_or_default(),
         }
     }
 
@@ -285,7 +306,7 @@ mod test {
 
     #[test]
     fn test_get_next_departure() {
-        let engine = get_dummy_engine();
+        let engine = get_dummy_engine(None);
 
         let mut current_edge: usize = 0;
         let mut current_time = internal_date("15:50:00");
@@ -310,10 +331,8 @@ mod test {
             current_edge = 1 - current_edge;
         }
 
-        // At 16:15, the next departure changes route
-        // That is because route 0 is dwelling until 16:25
-        assert_eq!(next_route, 1);
-        assert_eq!(current_time, internal_date("16:45:00"));
+        assert_eq!(next_route, 0);
+        assert_eq!(current_time, internal_date("16:30:00"));
 
         // Ride transit one more time
         next_tuple = engine
@@ -331,12 +350,7 @@ mod test {
             .unwrap();
         next_route = next_tuple.0;
         next_departure = next_tuple.1;
-        assert_eq!(
-            next_departure.src_departure_time,
-            Departure::infinity_from(current_time)
-                .unwrap()
-                .src_departure_time
-        );
+        assert_eq!(next_departure, Departure::infinity());
     }
 
     #[test]
@@ -425,26 +439,49 @@ mod test {
                 Some(expected) => {
                     assert!(
                         result.is_some(),
-                        "Expected departure at {} for search time {}",
-                        expected,
-                        search_time
+                        "Expected departure at {expected} for search time {search_time}"
                     );
                     assert_eq!(
                         result.unwrap().src_departure_time,
                         internal_date(expected),
-                        "Search time {} should find departure at {}",
-                        search_time,
-                        expected
+                        "Search time {search_time} should find departure at {expected}"
                     );
                 }
                 None => {
                     assert!(
                         result.is_none(),
-                        "Expected no departure for search time {}",
-                        search_time
+                        "Expected no departure for search time {search_time}"
                     );
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_positive_travel_time_after_datemapping() {
+        // Instantiating a datemapping that maps to a day before
+        let ref_date = NaiveDate::parse_from_str("20250101", "%Y%m%d").unwrap();
+        let current_date = NaiveDate::parse_from_str("20250102", "%Y%m%d").unwrap();
+        let single_date_mapping: HashMap<NaiveDate, NaiveDate> =
+            [(current_date, ref_date)].into_iter().collect();
+
+        let date_mapping: Option<HashMap<i64, HashMap<NaiveDate, NaiveDate>>> = Some(
+            [
+                (0, single_date_mapping.clone()),
+                (1, single_date_mapping.clone()),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        let engine = get_dummy_engine(date_mapping);
+
+        let mut current_edge: usize = 0;
+        let mut current_time =
+            NaiveDateTime::parse_from_str("20250102 15:55:00", "%Y%m%d %H:%M:%S").unwrap();
+        let mut next_tuple = engine
+            .get_next_departure(current_edge, &current_time)
+            .unwrap();
+
+        assert!((next_tuple.1.src_departure_time - current_time).as_seconds_f64() >= 0.);
     }
 }
