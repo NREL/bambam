@@ -96,10 +96,10 @@ pub enum GtfsOperation {
         #[arg(long, default_value_t = 325.)]
         vertex_match_tolerance: f64,
 
-        #[arg(value_enum, default_value_t=MissingStopLocationPolicy::Fail)]
+        #[arg(long, value_enum, default_value_t=MissingStopLocationPolicy::Fail)]
         missing_stop_location_policy: MissingStopLocationPolicy,
 
-        #[arg(value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
+        #[arg(long, value_enum, default_value_t=DistanceCalculationPolicy::Haversine)]
         distance_calculation_policy: DistanceCalculationPolicy,
 
         #[arg(long, value_enum)]
