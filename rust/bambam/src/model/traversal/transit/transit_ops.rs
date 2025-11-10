@@ -48,8 +48,12 @@ mod tests {
             .expect("test invariant failed: could not create initial state");
         state_model
             .set_time(&mut state, fieldname::TRIP_TIME, &time)
-            .unwrap_or_else(|_| panic!("test invariant failed: could not set time value of {} for state",
-                time.value));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "test invariant failed: could not set time value of {} for state",
+                    time.value
+                )
+            });
         state
     }
 
@@ -255,7 +259,10 @@ mod tests {
             let trip_time = Time::new::<second>(trip_seconds);
             let state = mock_state(trip_time, &state_model);
 
-            let result = super::get_current_time(&start_datetime, &state, &state_model).unwrap_or_else(|_| panic!("get_current_time should succeed for start: {start_str}"));
+            let result = super::get_current_time(&start_datetime, &state, &state_model)
+                .unwrap_or_else(|_| {
+                    panic!("get_current_time should succeed for start: {start_str}")
+                });
 
             assert_eq!(
                 result, expected,

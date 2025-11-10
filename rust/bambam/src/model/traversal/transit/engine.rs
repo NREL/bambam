@@ -477,8 +477,7 @@ mod test {
 
         let mut current_edge: usize = 0;
         let mut current_time =
-            NaiveDateTime::parse_from_str("20250102 15:55:00", "%Y%m%d %H:%M:%S")
-                .unwrap();
+            NaiveDateTime::parse_from_str("20250102 15:55:00", "%Y%m%d %H:%M:%S").unwrap();
         let mut next_tuple = engine
             .get_next_departure(current_edge, &current_time)
             .unwrap();
