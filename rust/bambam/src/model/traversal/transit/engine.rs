@@ -439,23 +439,18 @@ mod test {
                 Some(expected) => {
                     assert!(
                         result.is_some(),
-                        "Expected departure at {} for search time {}",
-                        expected,
-                        search_time
+                        "Expected departure at {expected} for search time {search_time}"
                     );
                     assert_eq!(
                         result.unwrap().src_departure_time,
                         internal_date(expected),
-                        "Search time {} should find departure at {}",
-                        search_time,
-                        expected
+                        "Search time {search_time} should find departure at {expected}"
                     );
                 }
                 None => {
                     assert!(
                         result.is_none(),
-                        "Expected no departure for search time {}",
-                        search_time
+                        "Expected no departure for search time {search_time}"
                     );
                 }
             }
@@ -465,8 +460,8 @@ mod test {
     #[test]
     fn test_positive_travel_time_after_datemapping() {
         // Instantiating a datemapping that maps to a day before
-        let ref_date = NaiveDate::parse_from_str(&format!("20250101"), "%Y%m%d").unwrap();
-        let current_date = NaiveDate::parse_from_str(&format!("20250102"), "%Y%m%d").unwrap();
+        let ref_date = NaiveDate::parse_from_str(&"20250101".to_string(), "%Y%m%d").unwrap();
+        let current_date = NaiveDate::parse_from_str(&"20250102".to_string(), "%Y%m%d").unwrap();
         let single_date_mapping: HashMap<NaiveDate, NaiveDate> =
             [(current_date, ref_date)].into_iter().collect();
 
@@ -482,7 +477,7 @@ mod test {
 
         let mut current_edge: usize = 0;
         let mut current_time =
-            NaiveDateTime::parse_from_str(&format!("20250102 15:55:00"), "%Y%m%d %H:%M:%S")
+            NaiveDateTime::parse_from_str(&"20250102 15:55:00".to_string(), "%Y%m%d %H:%M:%S")
                 .unwrap();
         let mut next_tuple = engine
             .get_next_departure(current_edge, &current_time)

@@ -105,7 +105,7 @@ pub fn run(
     let constraints = mmfc.constraints.clone();
     let max_trip_legs = mmfc.max_trip_legs as usize;
 
-    log::info!("finding metadata files in {}", directory);
+    log::info!("finding metadata files in {directory}");
     let read_dir = std::fs::read_dir(directory).map_err(|e| GtfsConfigError::ReadError {
         filepath: directory.to_string(),
         error: e.to_string(),
@@ -137,8 +137,7 @@ pub fn run(
 
     let Some(first_gtfs_edge_list_id) = entries.first().map(|e| e.edge_list_id) else {
         return Err(GtfsConfigError::RunError(format!(
-            "no metadata files found in directory {}",
-            directory
+            "no metadata files found in directory {directory}"
         )));
     };
     let edge_list_id_offset = EdgeListId(start_edge_list_id - first_gtfs_edge_list_id.0);
@@ -214,8 +213,7 @@ pub fn run(
         .file_stem()
         .ok_or_else(|| {
             GtfsConfigError::RunError(format!(
-                "base config filepath '{}' has no file stem!",
-                base_config_filepath
+                "base config filepath '{base_config_filepath}' has no file stem!"
             ))
         })?
         .to_string_lossy()

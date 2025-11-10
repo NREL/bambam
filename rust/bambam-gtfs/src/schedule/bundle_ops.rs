@@ -170,7 +170,7 @@ pub fn process_bundle(
     bundle_file: &str,
     c: Arc<ProcessBundlesConfig>,
 ) -> Result<GtfsBundle, ScheduleError> {
-    log::debug!("process_bundle called for {}", bundle_file);
+    log::debug!("process_bundle called for {bundle_file}");
     let gtfs = Arc::new(Gtfs::new(bundle_file)?);
 
     // Pre-compute lat,lon location of all stops

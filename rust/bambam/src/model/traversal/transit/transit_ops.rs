@@ -26,8 +26,7 @@ pub fn get_current_time(
 
     let current_datetime = start_datetime.checked_add_signed(trip_duration).ok_or(
         TraversalModelError::InternalError(format!(
-            "Invalid Datetime from Date {} + {} seconds",
-            start_datetime, trip_time
+            "Invalid Datetime from Date {start_datetime} + {trip_time} seconds"
         )),
     )?;
     Ok(current_datetime)
@@ -49,10 +48,8 @@ mod tests {
             .expect("test invariant failed: could not create initial state");
         state_model
             .set_time(&mut state, fieldname::TRIP_TIME, &time)
-            .expect(&format!(
-                "test invariant failed: could not set time value of {} for state",
-                time.value
-            ));
+            .unwrap_or_else(|_| panic!("test invariant failed: could not set time value of {} for state",
+                time.value));
         state
     }
 
@@ -259,13 +256,12 @@ mod tests {
             let state = mock_state(trip_time, &state_model);
 
             let result = super::get_current_time(&start_datetime, &state, &state_model).expect(
-                &format!("get_current_time should succeed for start: {}", start_str),
+                &format!("get_current_time should succeed for start: {start_str}"),
             );
 
             assert_eq!(
                 result, expected,
-                "Failed for start: {}, trip_seconds: {}, expected: {}",
-                start_str, trip_seconds, expected_str
+                "Failed for start: {start_str}, trip_seconds: {trip_seconds}, expected: {expected_str}"
             );
         }
     }
