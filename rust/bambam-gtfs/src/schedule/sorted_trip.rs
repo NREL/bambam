@@ -67,7 +67,7 @@ mod test {
     use std::path::PathBuf;
 
     #[test]
-    fn test_stop_orders_by_stop_sequence() {
+    fn test_e2e_stop_orders_by_stop_sequence() {
         // Load test gtfs
         let test_bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
