@@ -58,7 +58,7 @@ pub fn reverse_date_mapping(
         return departure;
     }
     let diff = current_datetime.signed_duration_since(*mapped_datetime);
-    
+
     departure + &diff
 }
 
