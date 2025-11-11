@@ -52,14 +52,17 @@ impl IsochroneAlgorithm {
             IsochroneAlgorithm::KNearestLogScaled { base, c } => {
                 // k = log(b, n) * c
                 let n = mp.len() as f64;
-                if n == 0.0 {
+                if n < 3.0 {
                     return Ok(Geometry::Polygon(geo::polygon!()));
                 }
                 let constant = c.unwrap_or(1.0);
                 let log_n = match base {
-                    Some(b) => n.log((*b) as f64),
-                    None => n.log10(),
-                };
+                    Some(b) if *b < 2 => Err(OutputPluginError::OutputPluginFailed(format!(
+                        "for k-nearest concave hull, base must be > 1, found '{b}'"
+                    ))),
+                    Some(b) => Ok(n.log((*b) as f64)),
+                    None => Ok(n.log10()),
+                }?;
                 let k = if log_n < 3.0 {
                     3
                 } else {
@@ -70,12 +73,12 @@ impl IsochroneAlgorithm {
             IsochroneAlgorithm::KNearestSqrtScaled => {
                 // k = sqrt(n)
                 let n = mp.len() as f64;
-                if n == 0.0 {
+                if n < 3.0 {
                     return Ok(Geometry::Polygon(geo::polygon!()));
                 }
                 let sqrt_n = n.sqrt();
                 let k = if sqrt_n < 3.0 { 3 } else { sqrt_n as u32 };
-                IsochroneAlgorithm::KNearestConcaveHull { k: k }.run(mp)
+                IsochroneAlgorithm::KNearestConcaveHull { k }.run(mp)
             }
         }
     }
