@@ -73,7 +73,7 @@ impl IsochroneAlgorithm {
                 }
                 let sqrt_n = n.sqrt();
                 let k = if sqrt_n < 3.0 { 3 } else { sqrt_n as u32 };
-                IsochroneAlgorithm::KNearestConcaveHull { k: k as u32 }.run(mp)
+                IsochroneAlgorithm::KNearestConcaveHull { k: k }.run(mp)
             }
         }
     }
