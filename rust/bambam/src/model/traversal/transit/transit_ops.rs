@@ -54,7 +54,7 @@ pub fn reverse_date_mapping(
     mapped_datetime: &NaiveDateTime,
     departure: Departure,
 ) -> Departure {
-    if departure.is_infinity() {
+    if departure.is_pos_infinity() {
         return departure;
     }
     let diff = current_datetime.signed_duration_since(*mapped_datetime);
@@ -64,7 +64,7 @@ pub fn reverse_date_mapping(
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDateTime;
+    use chrono::{Datelike, Duration, NaiveDateTime};
     use routee_compass_core::model::{
         state::{StateModel, StateVariable, StateVariableConfig},
         unit::TimeUnit,
@@ -99,7 +99,6 @@ mod tests {
 
     #[test]
     fn test_get_current_time_various_scenarios() {
-        use chrono::NaiveDateTime;
         use uom::si::time::second;
 
         let test_cases = vec![
@@ -184,8 +183,6 @@ mod tests {
 
     #[test]
     fn test_get_current_time_different_time_units() {
-        use chrono::NaiveDateTime;
-        use routee_compass_core::model::unit::TimeUnit;
         use uom::si::time::{hour, minute};
 
         // Test with different TimeUnit configurations
@@ -222,15 +219,12 @@ mod tests {
 
     #[test]
     fn test_get_current_time_precise_fractional_composition() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
         // Test precise fractional second handling
         let start_datetime =
             NaiveDateTime::parse_from_str("2023-06-15 15:20:10", "%Y-%m-%d %H:%M:%S")
                 .expect("Failed to parse test datetime");
         let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(125.123456789); // 2 minutes, 5.123456789 seconds
+        let trip_time = Time::new::<uom::si::time::second>(125.123456789); // 2 minutes, 5.123456789 seconds
         let state = mock_state(trip_time, &state_model);
 
         let result = super::get_current_time(&start_datetime, &state, &state_model)
@@ -248,9 +242,6 @@ mod tests {
 
     #[test]
     fn test_get_current_time_error_cases() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
         // Test error case: invalid duration construction
         let start_datetime =
             NaiveDateTime::parse_from_str("2023-06-15 12:00:00", "%Y-%m-%d %H:%M:%S")
@@ -258,7 +249,7 @@ mod tests {
         let state_model = mock_state_model(None);
 
         // Test with negative time (should be caught by Duration::new if invalid)
-        let trip_time = Time::new::<second>(-1.0);
+        let trip_time = Time::new::<uom::si::time::second>(-1.0);
         let state = mock_state(trip_time, &state_model);
 
         // This might succeed or fail depending on chrono's handling of negative durations
@@ -348,8 +339,6 @@ mod tests {
 
     #[test]
     fn test_reverse_date_mapping_with_infinity_past_date() {
-        use chrono::{Datelike, NaiveDateTime};
-
         // Test that reverse_date_mapping correctly handles Departure::infinity()
         let current_datetime =
             NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
@@ -370,8 +359,6 @@ mod tests {
 
     #[test]
     fn test_reverse_date_mapping_large_future_departure() {
-        use chrono::{Datelike, NaiveDateTime};
-
         // Test with a departure far in the future
         let current_datetime =
             NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
@@ -408,8 +395,6 @@ mod tests {
 
     #[test]
     fn test_reverse_date_mapping_search_after_current_with_large_departure() {
-        use chrono::{Datelike, NaiveDateTime};
-
         // Test case 3 with extreme values that would cause overflow without protection
         let current_datetime =
             NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
@@ -447,8 +432,6 @@ mod tests {
 
     #[test]
     fn test_reverse_date_mapping_overflow_to_max() {
-        use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
-
         // Test with values that will actually cause overflow and clamp to MAX
         // Construct a far-future date by adding duration to a base date
         let base_date = NaiveDateTime::parse_from_str("2020-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")

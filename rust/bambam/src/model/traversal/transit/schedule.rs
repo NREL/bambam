@@ -6,7 +6,7 @@ use skiplist::OrderedSkipList;
 /// a schedule contains an ordered list of [`Departure`] values.
 pub type Schedule = OrderedSkipList<Departure>;
 
-/// a single departure from a src location, recorded as it's pair of
+/// a single departure from a src location, recorded as its pair of
 /// departure time from here and arrival time at some dst location.
 #[derive(Debug, Clone, Eq, Copy)]
 pub struct Departure {
@@ -30,8 +30,16 @@ impl Departure {
         }
     }
 
-    pub fn is_infinity(&self) -> bool {
-        self.src_departure_time == NaiveDateTime::MAX
+    /// the departure is placed at positive infinity. occurs
+    /// when adding extreme TimeDelta values.
+    pub fn is_pos_infinity(&self) -> bool {
+        self.src_departure_time == NaiveDateTime::MAX || self.dst_arrival_time == NaiveDateTime::MAX
+    }
+
+    /// the departure is placed at negative infinity. occurs
+    /// when adding extreme TimeDelta values.
+    pub fn is_neg_infinity(&self) -> bool {
+        self.src_departure_time == NaiveDateTime::MIN || self.dst_arrival_time == NaiveDateTime::MIN
     }
 }
 
@@ -212,7 +220,7 @@ mod tests {
     #[test]
     fn test_departure_infinity() {
         let inf = Departure::infinity();
-        assert!(inf.is_infinity());
+        assert!(inf.is_pos_infinity());
         assert_eq!(inf.src_departure_time, NaiveDateTime::MAX);
         assert_eq!(inf.dst_arrival_time, NaiveDateTime::MAX);
     }
@@ -226,7 +234,7 @@ mod tests {
         // Adding to MAX should stay at MAX
         assert_eq!(result.src_departure_time, NaiveDateTime::MAX);
         assert_eq!(result.dst_arrival_time, NaiveDateTime::MAX);
-        assert!(result.is_infinity());
+        assert!(result.is_pos_infinity());
     }
 
     #[test]
