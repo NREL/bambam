@@ -1,10 +1,12 @@
-use chrono::{Duration, NaiveDateTime};
+use std::{collections::HashMap, ops::Add};
+
+use chrono::{Duration, NaiveDate, NaiveDateTime};
 use routee_compass_core::model::{
     state::{StateModel, StateVariable},
     traversal::TraversalModelError,
 };
 
-use crate::model::state::fieldname;
+use crate::model::{state::fieldname, traversal::transit::Departure};
 
 /// composes the start time and the current trip_time into a new datetime value.
 pub fn get_current_time(
@@ -32,8 +34,37 @@ pub fn get_current_time(
     Ok(current_datetime)
 }
 
+/// checks for any date mapping for the current date/time value and applies it if found.
+pub fn apply_date_mapping(
+    date_mapping: &HashMap<i64, HashMap<NaiveDate, NaiveDate>>,
+    route_id_label: &i64,
+    current_datetime: &NaiveDateTime,
+) -> NaiveDateTime {
+    date_mapping
+        .get(route_id_label)
+        .and_then(|date_map| date_map.get(&current_datetime.date()))
+        .unwrap_or(&current_datetime.date())
+        .and_time(current_datetime.time())
+}
+
+/// finds the difference in days between the current and the mapped date and uses that
+/// difference to modify the departure time to make it relevant for this search.
+pub fn reverse_date_mapping(
+    current_datetime: &NaiveDateTime,
+    mapped_datetime: &NaiveDateTime,
+    departure: Departure,
+) -> Departure {
+    if departure.is_infinity() {
+        return departure;
+    }
+    let diff = current_datetime.signed_duration_since(*mapped_datetime);
+    let result = departure + &diff;
+    result
+}
+
 #[cfg(test)]
 mod tests {
+    use chrono::NaiveDateTime;
     use routee_compass_core::model::{
         state::{StateModel, StateVariable, StateVariableConfig},
         unit::TimeUnit,
@@ -67,87 +98,88 @@ mod tests {
     }
 
     #[test]
-    fn test_get_current_time_basic_composition() {
+    fn test_get_current_time_various_scenarios() {
         use chrono::NaiveDateTime;
         use uom::si::time::second;
 
-        // Test basic composition of start_time + trip_time
-        let start_datetime =
-            NaiveDateTime::parse_from_str("2023-06-15 08:30:00", "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse test datetime");
-        let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(3600.0); // 1 hour
-        let state = mock_state(trip_time, &state_model);
+        let test_cases = vec![
+            // (name, start_time, trip_seconds, expected_time, description)
+            (
+                "basic_composition",
+                "2023-06-15 08:30:00",
+                3600.0,
+                "2023-06-15 09:30:00",
+                "1 hour trip",
+            ),
+            (
+                "fractional_seconds",
+                "2023-06-15 08:30:00",
+                1800.5,
+                "2023-06-15 09:00:00.500000000",
+                "30min + 500ms",
+            ),
+            (
+                "midnight_wrapping",
+                "2023-06-15 23:30:00",
+                3600.0,
+                "2023-06-16 00:30:00",
+                "wrap to next day",
+            ),
+            (
+                "zero_trip_time",
+                "2023-06-15 14:45:30",
+                0.0,
+                "2023-06-15 14:45:30",
+                "no time elapsed",
+            ),
+            (
+                "multi_day_journey",
+                "2023-06-15 12:00:00",
+                259200.0,
+                "2023-06-18 12:00:00",
+                "3 days",
+            ),
+            (
+                "year_boundary",
+                "2023-12-31 23:59:59",
+                1.0,
+                "2024-01-01 00:00:00",
+                "cross year",
+            ),
+            (
+                "non_leap_month",
+                "2023-02-28 23:30:00",
+                1800.0,
+                "2023-03-01 00:00:00",
+                "Feb to Mar",
+            ),
+            (
+                "leap_year",
+                "2024-02-28 23:30:00",
+                1800.0,
+                "2024-02-29 00:00:00",
+                "leap year Feb",
+            ),
+        ];
 
-        let result = super::get_current_time(&start_datetime, &state, &state_model)
-            .expect("get_current_time should succeed");
+        for (name, start_str, trip_seconds, expected_str, description) in test_cases {
+            let start_datetime = NaiveDateTime::parse_from_str(start_str, "%Y-%m-%d %H:%M:%S")
+                .or_else(|_| NaiveDateTime::parse_from_str(start_str, "%Y-%m-%d %H:%M:%S%.f"))
+                .unwrap_or_else(|_| panic!("Failed to parse start datetime for {name}"));
 
-        let expected = NaiveDateTime::parse_from_str("2023-06-15 09:30:00", "%Y-%m-%d %H:%M:%S")
-            .expect("Failed to parse expected datetime");
+            let expected = NaiveDateTime::parse_from_str(expected_str, "%Y-%m-%d %H:%M:%S")
+                .or_else(|_| NaiveDateTime::parse_from_str(expected_str, "%Y-%m-%d %H:%M:%S%.f"))
+                .unwrap_or_else(|_| panic!("Failed to parse expected datetime for {name}"));
 
-        assert_eq!(result, expected);
-    }
+            let state_model = mock_state_model(None);
+            let trip_time = Time::new::<second>(trip_seconds);
+            let state = mock_state(trip_time, &state_model);
 
-    #[test]
-    fn test_get_current_time_fractional_seconds() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
+            let result = super::get_current_time(&start_datetime, &state, &state_model)
+                .unwrap_or_else(|_| panic!("{name} ({description}) should succeed"));
 
-        // Test with fractional seconds to verify nanosecond precision
-        let start_datetime =
-            NaiveDateTime::parse_from_str("2023-06-15 08:30:00", "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse test datetime");
-        let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(1800.5); // 30 minutes and 500ms
-        let state = mock_state(trip_time, &state_model);
-
-        let result = super::get_current_time(&start_datetime, &state, &state_model)
-            .expect("get_current_time should succeed");
-
-        let expected = start_datetime + chrono::Duration::new(1800, 500_000_000).unwrap();
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_get_current_time_midnight_wrapping() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
-        // Test wrapping over midnight
-        let start_datetime =
-            NaiveDateTime::parse_from_str("2023-06-15 23:30:00", "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse test datetime");
-        let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(3600.0); // 1 hour - should wrap to next day
-        let state = mock_state(trip_time, &state_model);
-
-        let result = super::get_current_time(&start_datetime, &state, &state_model)
-            .expect("get_current_time should succeed");
-
-        let expected = NaiveDateTime::parse_from_str("2023-06-16 00:30:00", "%Y-%m-%d %H:%M:%S")
-            .expect("Failed to parse expected datetime");
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_get_current_time_zero_trip_time() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
-        // Test with zero trip time - should return start time unchanged
-        let start_datetime =
-            NaiveDateTime::parse_from_str("2023-06-15 14:45:30", "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse test datetime");
-        let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(0.0);
-        let state = mock_state(trip_time, &state_model);
-
-        let result = super::get_current_time(&start_datetime, &state, &state_model)
-            .expect("get_current_time should succeed");
-
-        assert_eq!(result, start_datetime);
+            assert_eq!(result, expected, "{name}: {description}");
+        }
     }
 
     #[test]
@@ -189,28 +221,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_current_time_large_trip_times() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
-        // Test with large trip times (multi-day journeys)
-        let start_datetime =
-            NaiveDateTime::parse_from_str("2023-06-15 12:00:00", "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse test datetime");
-        let state_model = mock_state_model(None);
-        let trip_time = Time::new::<second>(259200.0); // 3 days in seconds
-        let state = mock_state(trip_time, &state_model);
-
-        let result = super::get_current_time(&start_datetime, &state, &state_model)
-            .expect("get_current_time should succeed");
-
-        let expected = NaiveDateTime::parse_from_str("2023-06-18 12:00:00", "%Y-%m-%d %H:%M:%S")
-            .expect("Failed to parse expected datetime");
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
     fn test_get_current_time_precise_fractional_composition() {
         use chrono::NaiveDateTime;
         use uom::si::time::second;
@@ -234,41 +244,6 @@ mod tests {
             start_datetime + chrono::Duration::new(expected_seconds, expected_nanos).unwrap();
 
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_get_current_time_various_start_times() {
-        use chrono::NaiveDateTime;
-        use uom::si::time::second;
-
-        // Test with various start times to ensure consistent behavior
-        let test_cases = vec![
-            ("2023-01-01 00:00:00", 3661.0, "2023-01-01 01:01:01"), // New Year start
-            ("2023-12-31 23:59:59", 1.0, "2024-01-01 00:00:00"),    // Year boundary
-            ("2023-02-28 23:30:00", 1800.0, "2023-03-01 00:00:00"), // Month boundary (non-leap year)
-            ("2024-02-28 23:30:00", 1800.0, "2024-02-29 00:00:00"), // Leap year boundary
-        ];
-
-        for (start_str, trip_seconds, expected_str) in test_cases {
-            let start_datetime = NaiveDateTime::parse_from_str(start_str, "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse start datetime");
-            let expected = NaiveDateTime::parse_from_str(expected_str, "%Y-%m-%d %H:%M:%S")
-                .expect("Failed to parse expected datetime");
-
-            let state_model = mock_state_model(None);
-            let trip_time = Time::new::<second>(trip_seconds);
-            let state = mock_state(trip_time, &state_model);
-
-            let result = super::get_current_time(&start_datetime, &state, &state_model)
-                .unwrap_or_else(|_| {
-                    panic!("get_current_time should succeed for start: {start_str}")
-                });
-
-            assert_eq!(
-                result, expected,
-                "Failed for start: {start_str}, trip_seconds: {trip_seconds}, expected: {expected_str}"
-            );
-        }
     }
 
     #[test]
@@ -304,5 +279,212 @@ mod tests {
                 ));
             }
         }
+    }
+
+    #[test]
+    fn test_reverse_date_mapping_normal_cases() {
+        let test_cases = vec![
+            // (name, current, search, departure_src, departure_dst, expected_src, expected_dst)
+            (
+                "basic_positive_delay",
+                "2023-06-15 14:30:00",
+                "2023-06-15 10:00:00",
+                "2023-06-15 11:00:00",
+                "2023-06-15 11:30:00",
+                "2023-06-15 15:30:00",
+                "2023-06-15 16:00:00",
+            ),
+            (
+                "search_after_current",
+                "2023-06-15 14:30:00",
+                "2023-06-20 10:00:00",
+                "2023-06-20 15:00:00",
+                "2023-06-20 15:30:00",
+                "2023-06-15 19:30:00",
+                "2023-06-15 20:00:00",
+            ),
+            (
+                "negative_delay",
+                "2023-06-15 14:30:00",
+                "2023-06-15 12:00:00",
+                "2023-06-15 10:00:00",
+                "2023-06-15 10:30:00",
+                "2023-06-15 12:30:00",
+                "2023-06-15 13:00:00",
+            ),
+        ];
+
+        for (name, current_str, search_str, dep_src_str, dep_dst_str, exp_src_str, exp_dst_str) in
+            test_cases
+        {
+            let current_datetime =
+                NaiveDateTime::parse_from_str(current_str, "%Y-%m-%d %H:%M:%S").unwrap();
+            let search_datetime =
+                NaiveDateTime::parse_from_str(search_str, "%Y-%m-%d %H:%M:%S").unwrap();
+            let departure = super::Departure {
+                src_departure_time: NaiveDateTime::parse_from_str(dep_src_str, "%Y-%m-%d %H:%M:%S")
+                    .unwrap(),
+                dst_arrival_time: NaiveDateTime::parse_from_str(dep_dst_str, "%Y-%m-%d %H:%M:%S")
+                    .unwrap(),
+            };
+            let expected_src =
+                NaiveDateTime::parse_from_str(exp_src_str, "%Y-%m-%d %H:%M:%S").unwrap();
+            let expected_dst =
+                NaiveDateTime::parse_from_str(exp_dst_str, "%Y-%m-%d %H:%M:%S").unwrap();
+
+            let result =
+                super::reverse_date_mapping(&current_datetime, &search_datetime, departure);
+
+            assert_eq!(
+                result.src_departure_time, expected_src,
+                "{name}: src_departure_time"
+            );
+            assert_eq!(
+                result.dst_arrival_time, expected_dst,
+                "{name}: dst_arrival_time"
+            );
+        }
+    }
+
+    #[test]
+    fn test_reverse_date_mapping_with_infinity_past_date() {
+        use chrono::{Datelike, NaiveDateTime};
+
+        // Test that reverse_date_mapping correctly handles Departure::infinity()
+        let current_datetime =
+            NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse current datetime");
+        let search_datetime =
+            NaiveDateTime::parse_from_str("2023-06-20 10:00:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse search datetime");
+
+        // Use Departure::infinity() which has NaiveDateTime::MAX for both times
+        let infinity_departure = super::Departure::infinity();
+
+        let result =
+            super::reverse_date_mapping(&current_datetime, &search_datetime, infinity_departure);
+
+        // With overflow protection, infinity should return infinity
+        assert_eq!(result, super::Departure::infinity());
+    }
+
+    #[test]
+    fn test_reverse_date_mapping_large_future_departure() {
+        use chrono::{Datelike, NaiveDateTime};
+
+        // Test with a departure far in the future
+        let current_datetime =
+            NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse current datetime");
+        let search_datetime =
+            NaiveDateTime::parse_from_str("2023-06-15 10:00:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse search datetime");
+
+        // Create a departure very far in the future (year 9999)
+        let departure = super::Departure {
+            src_departure_time: NaiveDateTime::parse_from_str(
+                "9999-12-31 23:59:59",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .unwrap(),
+            dst_arrival_time: NaiveDateTime::parse_from_str(
+                "9999-12-31 23:59:59",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .unwrap(),
+        };
+
+        let result = super::reverse_date_mapping(&current_datetime, &search_datetime, departure);
+
+        // The delay is ~7976 years, adding to 2023 gives ~10000
+        // This doesn't overflow, it produces a valid far-future date
+        assert!(
+            result.src_departure_time.year() >= 10000,
+            "Expected year 10000+, got {}",
+            result.src_departure_time.year()
+        );
+        assert_eq!(result.src_departure_time, result.dst_arrival_time);
+    }
+
+    #[test]
+    fn test_reverse_date_mapping_search_after_current_with_large_departure() {
+        use chrono::{Datelike, NaiveDateTime};
+
+        // Test case 3 with extreme values that would cause overflow without protection
+        let current_datetime =
+            NaiveDateTime::parse_from_str("2023-06-15 14:30:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse current datetime");
+        let search_datetime =
+            NaiveDateTime::parse_from_str("2020-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+                .expect("Failed to parse search datetime");
+
+        // Departure is very far in the future relative to search
+        let departure = super::Departure {
+            src_departure_time: NaiveDateTime::parse_from_str(
+                "9999-12-31 23:59:59",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .unwrap(),
+            dst_arrival_time: NaiveDateTime::parse_from_str(
+                "9999-12-31 23:59:59",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .unwrap(),
+        };
+
+        let result = super::reverse_date_mapping(&current_datetime, &search_datetime, departure);
+
+        // The delay from search to departure is ~8000 years
+        // Adding this to current_datetime (2023) gives ~10023
+        // This doesn't overflow, but produces a very far future date
+        assert!(
+            result.src_departure_time.year() >= 10000,
+            "Expected year 10000+, got {}",
+            result.src_departure_time.year()
+        );
+        assert_eq!(result.src_departure_time, result.dst_arrival_time);
+    }
+
+    #[test]
+    fn test_reverse_date_mapping_overflow_to_max() {
+        use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime};
+
+        // Test with values that will actually cause overflow and clamp to MAX
+        // Construct a far-future date by adding duration to a base date
+        let base_date = NaiveDateTime::parse_from_str("2020-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+            .expect("Failed to parse base datetime");
+
+        // Add 50,000 years worth of days
+        let current_datetime = base_date
+            .checked_add_signed(Duration::days(50000 * 365))
+            .expect("Failed to create far-future current datetime");
+
+        let search_datetime = base_date;
+
+        // Create a departure close to MAX to ensure overflow
+        // MAX is year +262142
+        let near_max = NaiveDateTime::MAX
+            .checked_sub_signed(Duration::days(365))
+            .unwrap();
+        let departure = super::Departure {
+            src_departure_time: near_max,
+            dst_arrival_time: near_max,
+        };
+
+        let result = super::reverse_date_mapping(&current_datetime, &search_datetime, departure);
+
+        // The delay from base_date to near-MAX is ~260,000 years
+        // Adding it to current_datetime (50,000 years in future) will overflow
+        // This should clamp to MAX
+        assert_eq!(
+            result.src_departure_time,
+            NaiveDateTime::MAX,
+            "Should clamp to MAX on overflow"
+        );
+        assert_eq!(
+            result.dst_arrival_time,
+            NaiveDateTime::MAX,
+            "Should clamp to MAX on overflow"
+        );
     }
 }
