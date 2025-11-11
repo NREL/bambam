@@ -16,7 +16,7 @@ response_persistence_policy = "persist_response_in_memory"
 # lon = "request.origin_x"
 # lat = "request.origin_y"
 # mode = "request.mode"
-# runtime = "search_app_runtime"
+# runtime = "search_runtime"
 # ram_mb = "search_result_size_mib"
 
 # opps_entertainment_total = "opportunity_totals.entertainment"

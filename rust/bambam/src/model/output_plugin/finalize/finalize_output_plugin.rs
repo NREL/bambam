@@ -21,7 +21,7 @@ impl FinalizeOutputPlugin {
         ("isochrone", &["isochrone"]),
         ("population", &["request", "population"]),
         ("tree_edge_count", &["tree_edge_count"]),
-        ("search_app_runtime", &["search_app_runtime"]),
+        ("search_runtime", &["search_runtime"]),
         ("basic_summary_runtime", &["basic_summary_runtime"]),
         ("result_memory_usage_bytes", &["result_memory_usage_bytes"]),
         ("error", &["error"]),
