@@ -42,6 +42,8 @@ impl IsochroneAlgorithm {
                     Err(OutputPluginError::OutputPluginFailed(format!(
                         "k-nearest concave hull 'k' value must be > 2, found {k}"
                     )))
+                } else if mp.len() < 3 {
+                    Ok(Geometry::Polygon(geo::polygon!()))
                 } else {
                     let hull = mp.k_nearest_concave_hull(*k);
                     Ok(Geometry::Polygon(hull))
