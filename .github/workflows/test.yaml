@@ -33,7 +33,6 @@ jobs:
         run: |
           ./script/setup_test_bambam.sh  
           ./script/setup_test_bambam_osm.sh
-          ./script/setup_test_bambam_gtfs.sh
 
       - name: Cargo test
         run: |
