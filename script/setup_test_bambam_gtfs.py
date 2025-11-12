@@ -16,8 +16,8 @@ if __name__ == "__main__":
     parser.add_argument("--hull_buffer", default=325, type=float, help="Buffer (in meters) for the convex hull of stop points")
     parser.add_argument("--output_geometries", action="store_true", help="If set, store geometries for stop locations, hull, and network edges and vertices as geojson objects.")
     args = parser.parse_args()
-
-    os.makedirs("geometries", exist_ok=True)
+    
+    os.makedirs(f"{args.dir}/geometries", exist_ok=True)
 
     print("Reading stops.txt into a geodataframe")
     raw_df = pd.read_csv(f"{args.dir}/gtfs/stops.txt", sep=",")
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     hull_gdf = gpd.GeoDataFrame(geometry=[hull_geometry], crs=utm_crs).to_crs("EPSG:4326")
 
     print("Extract convex hull as extent")
-    with open("geometries/query.json", "w") as f:
+    with open(f"{args.dir}/geometries/query.json", "w") as f:
         json.dump({"extent": hull_gdf.iloc[0].geometry.wkt}, f, indent=2)
 
     print("Download osmnx graph")
@@ -38,6 +38,6 @@ if __name__ == "__main__":
 
     if args.output_geometries:
         print("Writing geometries to `geometries` folder")
-        gdf.to_file("geometries/stops.geojson", driver="GeoJSON")
-        hull_gdf.to_file("geometries/hull.geojson", driver="GeoJSON")
-        process_csv_into_geometry('compass/edges-compass.csv.gz', 'compass/vertices-compass.csv.gz', "geometries", "-compass", output_vertices=True)
+        gdf.to_file(f"{args.dir}/geometries/stops.geojson", driver="GeoJSON")
+        hull_gdf.to_file(f"{args.dir}/geometries/hull.geojson", driver="GeoJSON")
+        process_csv_into_geometry(f'{args.dir}/compass/edges-compass.csv.gz', f'{args.dir}/compass/vertices-compass.csv.gz', f"{args.dir}/geometries", "-compass", output_vertices=True)
