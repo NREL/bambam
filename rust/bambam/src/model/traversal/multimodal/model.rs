@@ -5,7 +5,6 @@ use crate::model::{
         fieldname, multimodal_state_ops, multimodal_state_ops as state_ops, variable, LegIdx,
         MultimodalMapping, MultimodalStateMapping,
     },
-    transit_old::gtfs_old::route,
 };
 use itertools::Itertools;
 use routee_compass_core::{
