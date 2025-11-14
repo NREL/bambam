@@ -14,6 +14,7 @@ use crate::model::{
         metadata::{self, GtfsArchiveMetadata},
         schedule::{Departure, Schedule},
         schedule_loading_policy::{self, ScheduleLoadingPolicy},
+        transit_ops,
     },
 };
 use chrono::{NaiveDate, NaiveDateTime};
@@ -41,19 +42,16 @@ impl TransitTraversalEngine {
                     "EdgeId {edge_id} exceeds schedules length"
                 )))?;
 
-        // Collect next departure for each skiplist
-        let infinity_datetime = Departure::infinity_from(*current_datetime).ok_or(
-            TraversalModelError::InternalError(format!(
-                "Failed to model infinity from {current_datetime}"
-            )),
-        )?;
-
         // Iterate over all routes that have schedules on this edge
         let result = departures_skiplists
             .iter()
             .map(|(route_id_label, skiplist)| {
                 // reconcile with any date mappings. used to address date gaps across all GTFS archives.
-                let search_datetime = self.apply_date_mapping(route_id_label, current_datetime);
+                let search_datetime = transit_ops::apply_date_mapping(
+                    &self.date_mapping,
+                    route_id_label,
+                    current_datetime,
+                );
 
                 // Query the skiplist
                 // We need to create the struct shell to be able to search the
@@ -67,8 +65,11 @@ impl TransitTraversalEngine {
                     .unwrap_or(Departure::infinity());
 
                 // Undo datemapping
-                let next_route_departure =
-                    reverse_date_mapping(current_datetime, &search_datetime, next_route_departure);
+                let next_route_departure = transit_ops::reverse_date_mapping(
+                    current_datetime,
+                    &search_datetime,
+                    next_route_departure,
+                );
 
                 // Return next departure for route
                 (*route_id_label, next_route_departure)
@@ -78,35 +79,6 @@ impl TransitTraversalEngine {
                 "failed to find next departure: schedules for edge_id {edge_id} appear to be empty"
             )))?;
         Ok(result)
-    }
-
-    /// checks for any date mapping for the current date/time value and applies it if found.
-    pub fn apply_date_mapping(
-        &self,
-        route_id_label: &i64,
-        current_datetime: &NaiveDateTime,
-    ) -> NaiveDateTime {
-        self.date_mapping
-            .get(route_id_label)
-            .and_then(|date_map| date_map.get(&current_datetime.date()))
-            .unwrap_or(&current_datetime.date())
-            .and_time(current_datetime.time())
-    }
-}
-
-/// This function is used to re-adjust the departure and arrival datetimes of the [`Departure`] object
-/// after the search was performed using `search_datetime`. The logic behind it is that we only care about
-/// the delays from the time used for search until each of the times in the departure.
-fn reverse_date_mapping(
-    current_datetime: &NaiveDateTime,
-    search_datetime: &NaiveDateTime,
-    departure: Departure,
-) -> Departure {
-    let departure_delay = departure.src_departure_time - *search_datetime;
-    let arrival_delay = departure.dst_arrival_time - *search_datetime;
-    Departure {
-        src_departure_time: *current_datetime + departure_delay,
-        dst_arrival_time: *current_datetime + arrival_delay,
     }
 }
 
@@ -378,24 +350,6 @@ mod test {
         assert_eq!(ordered[0].src_departure_time, internal_date("08:00:00"));
         assert_eq!(ordered[1].src_departure_time, internal_date("09:00:00"));
         assert_eq!(ordered[2].src_departure_time, internal_date("10:00:00"));
-    }
-
-    #[test]
-    fn test_departure_infinity() {
-        let current_time = internal_date("15:30:00");
-        let infinity_departure = Departure::infinity_from(current_time).unwrap();
-
-        // Infinity should be 72 months (6 years) in the future
-        let expected_infinity = current_time.checked_add_months(Months::new(72)).unwrap();
-        assert_eq!(infinity_departure.src_departure_time, expected_infinity);
-        assert_eq!(infinity_departure.dst_arrival_time, expected_infinity);
-
-        // Any regular departure should be less than infinity
-        let regular_departure = Departure {
-            src_departure_time: internal_date("23:59:59"),
-            dst_arrival_time: internal_date("23:59:59"),
-        };
-        assert!(regular_departure < infinity_departure);
     }
 
     #[test]
