@@ -344,8 +344,8 @@ impl DateMappingPolicy {
                 let msg = [
                     String::from("Failed to pick date with best_case strategy."),
                     format!("While attempting to pick exact date: {e1}."),
-                    format!("While attempting to pick nearest date within 10 years matching weekday: {e2}."),
-                    format!("While attempting to pick nearest date within 10 years without matching weekday: {e3}.")
+                    format!("While attempting to pick nearest date within {date_tolerance} days matching weekday: {e2}."),
+                    format!("While attempting to pick nearest date within {date_tolerance} days without matching weekday: {e3}.")
                 ].join("  ");
                 Err(ScheduleError::InvalidDataError(msg))
             }
