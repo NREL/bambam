@@ -59,6 +59,13 @@ pub enum DateMappingPolicy {
         /// week as our target date.
         match_weekday: bool,
     },
+    BestCase {
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+        start_time: NaiveTime,
+        end_time: NaiveTime,
+        date_tolerance: u64,
+    },
 }
 
 impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
@@ -214,6 +221,46 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                     match_weekday: *match_weekday,
                 })
             }
+            DateMappingPolicyConfig::BestCase {
+                start_date,
+                end_date,
+                start_time,
+                end_time,
+                date_tolerance,
+            } => {
+                let start_date = NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT)
+                    .map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_date for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_date = NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT)
+                    .map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_date for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let start_time =
+                    NaiveTime::parse_from_str(start_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading start_time for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let end_time =
+                    NaiveTime::parse_from_str(end_time, APP_TIME_FORMAT).map_err(|e| {
+                        ScheduleError::GtfsAppError(format!(
+                            "failure reading end_time for nearest date time range mapping policy: {e}"
+                        ))
+                    })?;
+                let date_tolerance = date_tolerance.unwrap_or(10 * 365);
+                Ok(Self::BestCase {
+                    start_date,
+                    end_date,
+                    start_time,
+                    end_time,
+                    date_tolerance,
+                })
+            }
         }
     }
 }
@@ -240,6 +287,11 @@ impl DateMappingPolicy {
                 ..
             } => DateIterator::new(*start_date, Some(*end_date)),
             DateMappingPolicy::NearestDatetimeRange {
+                start_date,
+                end_date,
+                ..
+            } => DateIterator::new(*start_date, Some(*end_date)),
+            DateMappingPolicy::BestCase {
                 start_date,
                 end_date,
                 ..
@@ -274,6 +326,29 @@ impl DateMappingPolicy {
                 match_weekday,
                 ..
             } => pick_nearest_date(target, trip, &gtfs, *date_tolerance, *match_weekday),
+            DateMappingPolicy::BestCase { date_tolerance, .. } => {
+                let e1 = match pick_exact_date(target, trip, &gtfs) {
+                    Ok(date) => return Ok(date),
+                    Err(e) => e,
+                };
+                let e2 = match pick_nearest_date(target, trip, &gtfs, *date_tolerance, true) {
+                    Ok(date) => return Ok(date),
+                    Err(e) => e,
+                };
+                let e3 = match pick_nearest_date(target, trip, &gtfs, *date_tolerance, false) {
+                    Ok(date) => return Ok(date),
+                    Err(e) => e,
+                };
+
+                // all three strategies failed, return a detailed error message
+                let msg = [
+                    String::from("Failed to pick date with best_case strategy."),
+                    format!("While attempting to pick exact date: {e1}."),
+                    format!("While attempting to pick nearest date within 10 years matching weekday: {e2}."),
+                    format!("While attempting to pick nearest date within 10 years without matching weekday: {e3}.")
+                ].join("  ");
+                Err(ScheduleError::InvalidDataError(msg))
+            }
         }
     }
 
@@ -294,6 +369,11 @@ impl DateMappingPolicy {
                 ..
             } => test_dst_arrival(src, dst, start_time, end_time),
             DateMappingPolicy::NearestDatetimeRange {
+                start_time,
+                end_time,
+                ..
+            } => test_dst_arrival(src, dst, start_time, end_time),
+            DateMappingPolicy::BestCase {
                 start_time,
                 end_time,
                 ..
@@ -364,7 +444,9 @@ fn pick_nearest_date(
             )?;
             matches.first().cloned().ok_or_else(|| {
                 let msg = date_ops::error_msg_suffix(target, &c.start_date, &c.end_date);
-                ScheduleError::InvalidDataError(format!("could not find any matching dates {msg}"))
+                ScheduleError::InvalidDataError(format!(
+                    "could not find nearest (by {date_tolerance} days) date {msg}"
+                ))
             })
         }
         (Some(c), Some(cd)) => {

@@ -13,6 +13,7 @@ pub enum DateMappingPolicyType {
     NearestRange,
     ExactDateTimeRange,
     NearestDateTimeRange,
+    BestCase,
 }
 
 /// configures a [`DateMappingPolicy`]
@@ -62,6 +63,15 @@ pub enum DateMappingPolicyConfig {
         /// if true, choose the closest date that matches the same day of the
         /// week as our target date.
         match_weekday: bool,
+    },
+    BestCase {
+        start_date: String,
+        end_date: String,
+        start_time: String,
+        end_time: String,
+        /// limit to the number of days to search from the target date +-
+        /// to a viable date in the GTFS archive. default: +- 10 years.
+        date_tolerance: Option<u64>,
     },
 }
 
@@ -154,6 +164,25 @@ impl DateMappingPolicyConfig {
                     end_time,
                     date_tolerance,
                     match_weekday,
+                })
+            }
+            Type::BestCase => {
+                let start_time = start_time.cloned().ok_or_else(|| {
+                    ScheduleError::GtfsAppError(String::from(
+                        "must provide start_time for nearest date time range policy",
+                    ))
+                })?;
+                let end_time = end_time.cloned().ok_or_else(|| {
+                    ScheduleError::GtfsAppError(String::from(
+                        "must provide end_time for nearest date time range policy",
+                    ))
+                })?;
+                Ok(Self::BestCase {
+                    start_date: start_date.clone(),
+                    end_date: end_date.clone(),
+                    start_time,
+                    end_time,
+                    date_tolerance: date_mapping_date_tolerance,
                 })
             }
         }
