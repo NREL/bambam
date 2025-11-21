@@ -169,12 +169,12 @@ impl DateMappingPolicyConfig {
             Type::BestCase => {
                 let start_time = start_time.cloned().ok_or_else(|| {
                     ScheduleError::GtfsAppError(String::from(
-                        "must provide start_time for nearest date time range policy",
+                        "must provide start_time for best case policy",
                     ))
                 })?;
                 let end_time = end_time.cloned().ok_or_else(|| {
                     ScheduleError::GtfsAppError(String::from(
-                        "must provide end_time for nearest date time range policy",
+                        "must provide end_time for best case policy",
                     ))
                 })?;
                 Ok(Self::BestCase {
