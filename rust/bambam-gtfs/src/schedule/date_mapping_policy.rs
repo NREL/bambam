@@ -231,25 +231,25 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 let start_date = NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT)
                     .map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading start_date for nearest date time range mapping policy: {e}"
+                            "failure reading start_date for best case mapping policy: {e}"
                         ))
                     })?;
                 let end_date = NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT)
                     .map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading end_date for nearest date time range mapping policy: {e}"
+                            "failure reading end_date for best case mapping policy: {e}"
                         ))
                     })?;
                 let start_time =
                     NaiveTime::parse_from_str(start_time, APP_TIME_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading start_time for nearest date time range mapping policy: {e}"
+                            "failure reading start_time for best case mapping policy: {e}"
                         ))
                     })?;
                 let end_time =
                     NaiveTime::parse_from_str(end_time, APP_TIME_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
-                            "failure reading end_time for nearest date time range mapping policy: {e}"
+                            "failure reading end_time for best case mapping policy: {e}"
                         ))
                     })?;
                 let date_tolerance = date_tolerance.unwrap_or(10 * 365);
