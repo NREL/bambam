@@ -228,14 +228,14 @@ impl TryFrom<&DateMappingPolicyConfig> for DateMappingPolicy {
                 end_time,
                 date_tolerance,
             } => {
-                let start_date = NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT)
-                    .map_err(|e| {
+                let start_date =
+                    NaiveDate::parse_from_str(start_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading start_date for best case mapping policy: {e}"
                         ))
                     })?;
-                let end_date = NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT)
-                    .map_err(|e| {
+                let end_date =
+                    NaiveDate::parse_from_str(end_date, APP_DATE_FORMAT).map_err(|e| {
                         ScheduleError::GtfsAppError(format!(
                             "failure reading end_date for best case mapping policy: {e}"
                         ))
