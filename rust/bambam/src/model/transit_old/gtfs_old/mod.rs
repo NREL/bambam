@@ -1,9 +1,0 @@
-pub mod agency;
-pub mod archive;
-pub mod gtfs_error;
-pub mod gtfs_reader;
-pub mod route;
-pub mod stop;
-pub mod stop_time;
-pub mod trip;
-pub mod trip_id;
