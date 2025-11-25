@@ -36,7 +36,7 @@ impl H3Util {
     pub fn apply(&self, output: &mut Value) -> Result<(), OutputPluginError> {
         match self {
             H3Util::H3BoundaryToGeometry { from, to, format } => {
-                let from_jsonpath = from.as_jsonpath();
+                let from_jsonpath = from.to_jsonpath();
                 let hex_idx = get_hex(output, &from_jsonpath).map_err(|e| {
                     let msg = format!("while running h3_boundary_to_geometry, {e}");
                     OutputPluginError::OutputPluginFailed(msg)
@@ -53,7 +53,7 @@ impl H3Util {
                 to,
                 resolution,
             } => {
-                let from_jsonpath = from.as_jsonpath();
+                let from_jsonpath = from.to_jsonpath();
                 let hex_idx = get_hex(output, &from_jsonpath).map_err(|e| {
                     let msg = format!("while running h3_boundary_to_geometry, {e}");
                     OutputPluginError::OutputPluginFailed(msg)
@@ -174,7 +174,7 @@ fn set_value(
     to: &DotDelimitedPath,
     value: Value,
 ) -> Result<(), OutputPluginError> {
-    let to_pointer = to.as_json_pointer();
+    let to_pointer = to.to_jsonpointer();
     match output.pointer_mut(&to_pointer) {
         // todo: does this fail if we haven't put something at the leaf node yet?
         Some(leaf) => {
