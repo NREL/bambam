@@ -134,7 +134,7 @@ pub fn h3_to_parent(
         match hex_idx.parent(*resolution) {
             Some(parent) => Ok(parent),
             None => {
-                let msg = format!("while running h3_to_parent, found hex '{hex_idx}' with resolution {hex_idx_resolution} is a parent of target resolution {resolution}");
+                let msg = format!("while running h3_to_parent, cannot find parent at finer resolution {resolution} for hex '{hex_idx}' with resolution {hex_idx_resolution}. You cannot get a parent at a finer (higher) resolution than the current cell.");
                 Err(OutputPluginError::OutputPluginFailed(msg))
             }
         }
