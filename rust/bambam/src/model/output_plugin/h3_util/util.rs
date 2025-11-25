@@ -182,7 +182,7 @@ fn set_value(
             Ok(())
         }
         None => {
-            let msg = format!("while running h3_boundary_to_geometry, failed to find output location '{to_pointer}'");
+            let msg = format!("while writing to output, failed to find location '{to_pointer}'");
             Err(OutputPluginError::OutputPluginFailed(msg))
         }
     }?;
