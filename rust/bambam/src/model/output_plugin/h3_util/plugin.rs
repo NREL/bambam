@@ -12,17 +12,17 @@ use std::sync::Arc;
 
 use crate::model::output_plugin::h3_util::{DotDelimitedPath, H3Util, H3UtilOutputPluginConfig};
 
-pub struct H3UtilInputPlugin {
+pub struct H3UtilOutputPlugin {
     util: H3Util,
 }
 
-impl H3UtilInputPlugin {
-    pub fn new(util: H3Util) -> H3UtilInputPlugin {
-        H3UtilInputPlugin { util }
+impl H3UtilOutputPlugin {
+    pub fn new(util: H3Util) -> H3UtilOutputPlugin {
+        H3UtilOutputPlugin { util }
     }
 }
 
-impl OutputPlugin for H3UtilInputPlugin {
+impl OutputPlugin for H3UtilOutputPlugin {
     fn process(
         &self,
         output: &mut serde_json::Value,

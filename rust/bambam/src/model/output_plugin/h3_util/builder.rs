@@ -10,7 +10,7 @@ use routee_compass::{
 use routee_compass_core::config::CompassConfigurationError;
 use serde_json::Value;
 
-use crate::model::output_plugin::h3_util::{H3Util, H3UtilInputPlugin, H3UtilOutputPluginConfig};
+use crate::model::output_plugin::h3_util::{H3Util, H3UtilOutputPlugin, H3UtilOutputPluginConfig};
 
 pub struct H3UtilOutputPluginBuilder {}
 
@@ -25,7 +25,7 @@ impl OutputPluginBuilder for H3UtilOutputPluginBuilder {
                 }
             })?;
         let util = H3Util::try_from(&config)?;
-        let plugin = H3UtilInputPlugin::new(util);
+        let plugin = H3UtilOutputPlugin::new(util);
         Ok(Arc::new(plugin))
     }
 }
