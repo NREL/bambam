@@ -6,7 +6,7 @@ use serde::Serialize;
 pub struct DotDelimitedPath(String);
 
 impl DotDelimitedPath {
-    pub const DOT_DELIMITED_REGEX: &str = "[A-Za-Z.]+";
+    pub const DOT_DELIMITED_REGEX: &str = "[a-zA-Z.]+";
 }
 
 impl TryFrom<String> for DotDelimitedPath {
