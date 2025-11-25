@@ -55,7 +55,7 @@ impl H3Util {
             } => {
                 let from_jsonpath = from.to_jsonpath();
                 let hex_idx = get_hex(output, &from_jsonpath).map_err(|e| {
-                    let msg = format!("while running h3_boundary_to_geometry, {e}");
+                    let msg = format!("while running h3_to_parent, {e}");
                     OutputPluginError::OutputPluginFailed(msg)
                 })?;
                 let parent = h3_to_parent(&hex_idx, resolution)?;
