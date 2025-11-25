@@ -1,12 +1,17 @@
 use regex::RegexBuilder;
 use serde::Serialize;
 
+/// a dot-delimited path is a JSON path delimited by '.' characters, such as
+/// `parent.child.grandchild`. this format is used over JSONPath and JSON Pointer
+/// to describe a path to a location but can be converted to JSONPath or JSON Pointer
+/// as needed for compatibility.
 #[derive(Clone, Debug, Serialize)]
 #[serde(try_from = "String")]
 pub struct DotDelimitedPath(String);
 
 impl DotDelimitedPath {
-    pub const DOT_DELIMITED_REGEX: &str = "[a-zA-Z.]+";
+    /// a pattern to match a dot-delimited string
+    pub const DOT_DELIMITED_REGEX: &str = r"^[a-zA-Z_]+(\.[a-zA-Z_]+)*$";
 }
 
 impl TryFrom<String> for DotDelimitedPath {
@@ -30,11 +35,14 @@ impl TryFrom<String> for DotDelimitedPath {
 }
 
 impl DotDelimitedPath {
-    pub fn as_jsonpath(&self) -> String {
+    /// converts this dot-delimited path to a JSONPath by simply adding the root prefix $.
+    pub fn to_jsonpath(&self) -> String {
         prepend_if_missing(&self.0, "$.")
     }
 
-    pub fn as_json_pointer(&self) -> String {
+    /// converts this dot-delimited path to a JSON Pointer by simply adding the root
+    /// prefix '/' and replacing all dots '.' with '/'.
+    pub fn to_jsonpointer(&self) -> String {
         prepend_if_missing(&self.0.replace(".", "/"), "/")
     }
 }
