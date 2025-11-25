@@ -2,6 +2,7 @@ use crate::model::frontier::multimodal::MultimodalFrontierBuilder;
 use crate::model::frontier::time_limit::TimeLimitFrontierBuilder;
 use crate::model::label::multimodal::MultimodalLabelBuilder;
 use crate::model::output_plugin::finalize::finalize_output_plugin_builder::FinalizeOutputPluginBuilder;
+use crate::model::output_plugin::h3_util::H3UtilOutputPluginBuilder;
 use crate::model::output_plugin::isochrone::isochrone_output_plugin_builder::IsochroneOutputPluginBuilder;
 use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
@@ -48,6 +49,7 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
 
     builders.add_input_plugin(String::from("grid"), Rc::new(GridInputPluginBuilder {}));
 
+    builders.add_output_plugin("h3".to_string(), Rc::new(H3UtilOutputPluginBuilder {}));
     builders.add_output_plugin(
         String::from("isochrone"),
         Rc::new(IsochroneOutputPluginBuilder {}),

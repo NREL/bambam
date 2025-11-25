@@ -1,11 +1,16 @@
 use geo::{Geometry, LineString, Polygon};
 use h3o::{CellIndex, Resolution};
 use jsonpath_rust::JsonPath;
-use routee_compass::plugin::output::OutputPluginError;
+use routee_compass::{
+    app::compass::CompassComponentError,
+    plugin::{output::OutputPluginError, PluginError},
+};
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
-use crate::model::output_plugin::h3_util::{BoundaryGeometryFormat, DotDelimitedPath};
+use crate::model::output_plugin::h3_util::{
+    BoundaryGeometryFormat, DotDelimitedPath, H3UtilOutputPluginConfig,
+};
 
 #[derive(Debug, Clone)]
 pub enum H3Util {
@@ -55,6 +60,54 @@ impl H3Util {
                 })?;
                 let parent = h3_to_parent(&hex_idx, resolution)?;
                 set_value(output, to, json![parent.to_string()])
+            }
+        }
+    }
+}
+
+impl TryFrom<&H3UtilOutputPluginConfig> for H3Util {
+    type Error = CompassComponentError;
+
+    fn try_from(value: &H3UtilOutputPluginConfig) -> Result<Self, Self::Error> {
+        match value {
+            H3UtilOutputPluginConfig::H3BoundaryToGeometry { from, to, format } => {
+                let from = DotDelimitedPath::try_from(from.clone()).map_err(|e| {
+                    PluginError::BuildFailed(format!(
+                        "while reading h3_boundary_to_geometry 'from' string: {e}"
+                    ))
+                })?;
+                let to = DotDelimitedPath::try_from(to.clone()).map_err(|e| {
+                    PluginError::BuildFailed(format!(
+                        "while reading h3_boundary_to_geometry 'to' string: {e}"
+                    ))
+                })?;
+                let format = format.clone().unwrap_or_default();
+                Ok(H3Util::H3BoundaryToGeometry { from, to, format })
+            }
+            H3UtilOutputPluginConfig::H3ToParent {
+                from,
+                to,
+                resolution,
+            } => {
+                let from = DotDelimitedPath::try_from(from.clone()).map_err(|e| {
+                    PluginError::BuildFailed(format!(
+                        "while reading h3_to_parent 'from' string: {e}"
+                    ))
+                })?;
+                let to = DotDelimitedPath::try_from(to.clone()).map_err(|e| {
+                    PluginError::BuildFailed(format!("while reading h3_to_parent 'to' string: {e}"))
+                })?;
+                let resolution = h3o::Resolution::try_from(*resolution).map_err(|e| {
+                    PluginError::BuildFailed(format!(
+                        "while reading h3_to_parent 'resolution' number: {e}"
+                    ))
+                })?;
+
+                Ok(H3Util::H3ToParent {
+                    from,
+                    to,
+                    resolution,
+                })
             }
         }
     }

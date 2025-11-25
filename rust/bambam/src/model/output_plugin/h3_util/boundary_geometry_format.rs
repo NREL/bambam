@@ -3,10 +3,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use wkt::ToWkt;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum BoundaryGeometryFormat {
     Wkt,
+    #[default]
     Wkb,
     GeoJson,
 }
