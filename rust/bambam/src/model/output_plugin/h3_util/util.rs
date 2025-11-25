@@ -54,7 +54,7 @@ impl H3Util {
                     OutputPluginError::OutputPluginFailed(msg)
                 })?;
                 let parent = h3_to_parent(&hex_idx, resolution)?;
-                set_value(output, to, json![parent])
+                set_value(output, to, json![parent.to_string()])
             }
         }
     }
@@ -248,6 +248,178 @@ mod tests {
         let value = json!({"type": "Polygon"});
 
         let result = set_value(&mut output, &to, value);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_h3_boundary_to_geometry_apply() {
+        let mut output = json!({
+            "location": {
+                "hex": "8a2a1072b59ffff",
+                "geometry": null
+            }
+        });
+
+        let h3_util = H3Util::H3BoundaryToGeometry {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
+            format: BoundaryGeometryFormat::GeoJson,
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_ok());
+        assert!(output["location"]["geometry"].is_object());
+        assert_eq!(output["location"]["geometry"]["type"], "Feature");
+        assert_eq!(
+            output["location"]["geometry"]["geometry"]["type"],
+            "Polygon"
+        );
+        assert!(output["location"]["geometry"]["geometry"]["coordinates"].is_array());
+    }
+
+    #[test]
+    fn test_h3_boundary_to_geometry_apply_wkt() {
+        let mut output = json!({
+            "location": {
+                "hex": "8a2a1072b59ffff",
+                "wkt": null
+            }
+        });
+
+        let h3_util = H3Util::H3BoundaryToGeometry {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.wkt".to_string()).unwrap(),
+            format: BoundaryGeometryFormat::Wkt,
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_ok());
+        assert!(output["location"]["wkt"].is_string());
+        let wkt_str = output["location"]["wkt"].as_str().unwrap();
+        assert!(wkt_str.starts_with("POLYGON"));
+    }
+
+    #[test]
+    fn test_h3_boundary_to_geometry_apply_invalid_hex() {
+        let mut output = json!({
+            "location": {
+                "hex": "invalid_hex",
+                "geometry": null
+            }
+        });
+
+        let h3_util = H3Util::H3BoundaryToGeometry {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
+            format: BoundaryGeometryFormat::GeoJson,
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_h3_boundary_to_geometry_apply_missing_path() {
+        let mut output = json!({
+            "location": {}
+        });
+
+        let h3_util = H3Util::H3BoundaryToGeometry {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
+            format: BoundaryGeometryFormat::GeoJson,
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_h3_to_parent_apply() {
+        let mut output = json!({
+            "location": {
+                "hex": "8a2a1072b59ffff",
+                "parent_hex": null
+            }
+        });
+
+        let h3_util = H3Util::H3ToParent {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
+            resolution: Resolution::try_from(8).unwrap(),
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_ok());
+        assert!(output["location"]["parent_hex"].is_string());
+        let parent_hex = output["location"]["parent_hex"].as_str().unwrap();
+        let parent_idx: CellIndex = parent_hex.parse().unwrap();
+        assert_eq!(parent_idx.resolution(), Resolution::try_from(8).unwrap());
+    }
+
+    #[test]
+    fn test_h3_to_parent_apply_same_resolution() {
+        let mut output = json!({
+            "location": {
+                "hex": "8a2a1072b59ffff",
+                "parent_hex": null
+            }
+        });
+
+        let hex_idx: CellIndex = "8a2a1072b59ffff".parse().unwrap();
+        let resolution = hex_idx.resolution();
+
+        let h3_util = H3Util::H3ToParent {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
+            resolution,
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_ok());
+        assert_eq!(output["location"]["parent_hex"], "8a2a1072b59ffff");
+    }
+
+    #[test]
+    fn test_h3_to_parent_apply_invalid_resolution() {
+        let mut output = json!({
+            "location": {
+                "hex": "8a2a1072b59ffff",
+                "parent_hex": null
+            }
+        });
+
+        let h3_util = H3Util::H3ToParent {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
+            resolution: Resolution::try_from(11).unwrap(), // finer than the hex resolution
+        };
+
+        let result = h3_util.apply(&mut output);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_h3_to_parent_apply_missing_hex() {
+        let mut output = json!({
+            "location": {}
+        });
+
+        let h3_util = H3Util::H3ToParent {
+            from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
+            to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
+            resolution: Resolution::try_from(8).unwrap(),
+        };
+
+        let result = h3_util.apply(&mut output);
 
         assert!(result.is_err());
     }
