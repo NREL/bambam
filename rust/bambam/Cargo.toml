@@ -30,6 +30,7 @@ bambam-omf = { version = "0.2.0", path = "../bambam-omf" }
 
 uom = { workspace = true}
 inventory = { workspace = true}
+jsonpath-rust = { workspace = true }
 log = { workspace = true }
 itertools = { workspace = true}
 chrono = { workspace = true}
