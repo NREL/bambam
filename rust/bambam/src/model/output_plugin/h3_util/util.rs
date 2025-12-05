@@ -238,12 +238,12 @@ mod tests {
         let finer_resolution = Resolution::try_from(11).unwrap();
 
         let result = h3_to_parent(&hex_idx, &finer_resolution);
-
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("is a parent of target resolution"));
+
+        let result_msg = result.unwrap_err().to_string();
+        assert!(result_msg.contains(
+            "You cannot get a parent at a finer (higher) resolution than the current cell."
+        ));
     }
 
     #[test]
