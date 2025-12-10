@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::model::output_plugin::h3_util::BoundaryGeometryFormat;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[serde(rename_all = "snake_case", tag = "utility")]
 pub enum H3UtilOutputPluginConfig {
     /// reads an h3 identifier from some path in the output JSON and uses
     /// h3 cellToBoundary to write the h3
