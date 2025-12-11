@@ -422,6 +422,27 @@ mod tests {
     }
 
     #[test]
+    fn test_set_value_with_array_in_path() {
+        let mut output = json!({
+            "existing": [
+                "data"
+            ]
+        });
+        let to =
+            DotDelimitedPath::try_from("existing.data".to_string()).expect("test invariant failed");
+        let value = json!("test_value");
+
+        let result = set_value(&mut output, &to, value, false);
+
+        assert!(result.is_err());
+        assert!(result
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("is not an object"))
+    }
+
+    #[test]
     fn test_set_value_overwrites_existing_root_key() {
         let mut output = json!({
             "geometry": "old_value"
