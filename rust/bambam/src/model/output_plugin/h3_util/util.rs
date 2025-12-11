@@ -207,7 +207,7 @@ fn set_value(
             }
         } else {
             // Navigate or create intermediate objects
-            if !current.get(part).is_some() {
+            if current.get(part).is_none() {
                 if let Some(obj) = current.as_object_mut() {
                     obj.insert(part.to_string(), json!({}));
                 } else {
