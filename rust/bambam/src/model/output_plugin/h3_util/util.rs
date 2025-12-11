@@ -175,17 +175,49 @@ fn set_value(
     value: Value,
 ) -> Result<(), OutputPluginError> {
     let to_pointer = to.to_jsonpointer();
-    match output.pointer_mut(&to_pointer) {
-        // todo: does this fail if we haven't put something at the leaf node yet?
-        Some(leaf) => {
-            *leaf = value;
-            Ok(())
+
+    // Try to get existing location
+    if let Some(leaf) = output.pointer_mut(&to_pointer) {
+        *leaf = value;
+        return Ok(());
+    }
+
+    // If path doesn't exist, create it
+    let parts: Vec<&str> = to_pointer.trim_start_matches('/').split('/').collect();
+
+    if parts.is_empty() || (parts.len() == 1 && parts[0].is_empty()) {
+        // Setting at root level
+        *output = value;
+        return Ok(());
+    }
+
+    let mut current = output;
+    for (i, part) in parts.iter().enumerate() {
+        let is_last = i == parts.len() - 1;
+
+        if is_last {
+            // Set the final value
+            if let Some(obj) = current.as_object_mut() {
+                obj.insert(part.to_string(), value);
+                return Ok(());
+            } else {
+                let msg =
+                    format!("while writing to output, parent at '{to_pointer}' is not an object");
+                return Err(OutputPluginError::OutputPluginFailed(msg));
+            }
+        } else {
+            // Navigate or create intermediate objects
+            if !current.get(part).is_some() {
+                if let Some(obj) = current.as_object_mut() {
+                    obj.insert(part.to_string(), json!({}));
+                } else {
+                    let msg = format!("while writing to output, cannot create path '{to_pointer}', parent is not an object");
+                    return Err(OutputPluginError::OutputPluginFailed(msg));
+                }
+            }
+            current = current.get_mut(part).unwrap();
         }
-        None => {
-            let msg = format!("while writing to output, failed to find location '{to_pointer}'");
-            Err(OutputPluginError::OutputPluginFailed(msg))
-        }
-    }?;
+    }
 
     Ok(())
 }
@@ -275,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_value_valid_path() {
+    fn test_set_value_valid_path_overwrite() {
         let mut output = json!({
             "result": {
                 "geometry": null
@@ -292,18 +324,63 @@ mod tests {
     }
 
     #[test]
-    fn test_set_value_invalid_path() {
+    fn test_set_value_root_level_new_key() {
         let mut output = json!({
-            "result": {}
+            "existing_key": "value"
         });
-        let to = DotDelimitedPath::try_from("nonexistent.path".to_string())
+        let to = DotDelimitedPath::try_from("geometry".to_string()).expect("test invariant failed");
+        let value = json!({"type": "Polygon", "coordinates": []});
+
+        let result = set_value(&mut output, &to, value.clone());
+
+        assert!(result.is_ok());
+        assert_eq!(output["geometry"], value);
+        assert_eq!(output["existing_key"], "value"); // ensure existing data is preserved
+    }
+
+    #[test]
+    fn test_set_value_creates_nested_path() {
+        let mut output = json!({
+            "existing": "data"
+        });
+        let to = DotDelimitedPath::try_from("new.nested.path".to_string())
             .expect("test invariant failed");
-        let value = json!({"type": "Polygon"});
+        let value = json!("test_value");
 
         let result = set_value(&mut output, &to, value);
 
-        assert!(result.is_err());
+        assert!(result.is_ok());
+        assert_eq!(output["new"]["nested"]["path"], "test_value");
+        assert_eq!(output["existing"], "data");
     }
+
+    #[test]
+    fn test_set_value_overwrites_existing_root_key() {
+        let mut output = json!({
+            "geometry": "old_value"
+        });
+        let to = DotDelimitedPath::try_from("geometry".to_string()).expect("test invariant failed");
+        let value = json!({"type": "Polygon"});
+
+        let result = set_value(&mut output, &to, value.clone());
+
+        assert!(result.is_ok());
+        assert_eq!(output["geometry"], value);
+    }
+
+    // #[test]
+    // fn test_set_value_invalid_path() {
+    //     let mut output = json!({
+    //         "result": {}
+    //     });
+    //     let to = DotDelimitedPath::try_from("nonexistent.path".to_string())
+    //         .expect("test invariant failed");
+    //     let value = json!({"type": "Polygon"});
+
+    //     let result = set_value(&mut output, &to, value);
+
+    //     assert!(result.is_err());
+    // }
 
     #[test]
     fn test_h3_boundary_to_geometry_apply() {
