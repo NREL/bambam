@@ -27,7 +27,7 @@ Add `bambam` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bambam = "0.2.0"
+bambam = "0.2.1"
 ```
 
 Or install via cargo:
