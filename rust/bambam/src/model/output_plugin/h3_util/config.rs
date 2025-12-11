@@ -12,6 +12,7 @@ pub enum H3UtilOutputPluginConfig {
         from: String,
         to: String,
         format: Option<BoundaryGeometryFormat>,
+        overwrite: Option<bool>,
     },
     /// copies an h3 identifier from some JSONPath to another JSONPath,
     /// converting it to the declared parent resolution.
@@ -19,5 +20,6 @@ pub enum H3UtilOutputPluginConfig {
         from: String,
         to: String,
         resolution: u8,
+        overwrite: Option<bool>,
     },
 }

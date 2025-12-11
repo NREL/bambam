@@ -19,6 +19,10 @@ impl TryFrom<String> for DotDelimitedPath {
 
     /// maps from strings but only for dot-delimited names that are non-numeric alpha strings
     fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            // a path to the root is valid
+            return Ok(Self(value));
+        }
         let regex = RegexBuilder::new(Self::DOT_DELIMITED_REGEX)
             .build()
             .map_err(|e| e.to_string())?;
@@ -44,6 +48,12 @@ impl DotDelimitedPath {
     /// prefix '/' and replacing all dots '.' with '/'.
     pub fn to_jsonpointer(&self) -> String {
         prepend_if_missing(&self.0.replace(".", "/"), "/")
+    }
+}
+
+impl std::fmt::Display for DotDelimitedPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
