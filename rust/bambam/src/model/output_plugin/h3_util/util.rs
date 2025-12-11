@@ -209,36 +209,47 @@ fn set_value(
         return Err(OutputPluginError::OutputPluginFailed(msg));
     }
 
-    let mut current = output;
+    let mut cursor = output;
     for (i, part) in parts.iter().enumerate() {
         let is_last = i == parts.len() - 1;
 
         if is_last {
             // Set the final value
-            if let Some(obj) = current.as_object_mut() {
+            if let Some(obj) = cursor.as_object_mut() {
                 if obj.contains_key(*part) && !overwrite {
                     let msg = format!(
-                        "while writing to output, '{to}' already exists but overwrite is false"
+                        "while writing to output, location '{part}' of path '{to}' already exists but overwrite is false"
                     );
                     return Err(OutputPluginError::OutputPluginFailed(msg));
                 }
                 obj.insert(part.to_string(), value);
                 return Ok(());
             } else {
-                let msg = format!("while writing to output, parent at '{to}' is not an object");
+                let msg = format!(
+                    "while writing to output, location '{part}' of path '{to}' is not an object"
+                );
                 return Err(OutputPluginError::OutputPluginFailed(msg));
             }
         } else {
-            // Navigate or create intermediate objects
-            if current.get(part).is_none() {
-                if let Some(obj) = current.as_object_mut() {
-                    obj.insert(part.to_string(), json!({}));
-                } else {
-                    let msg = format!("while writing to output, cannot create path '{to}', parent is not an object");
-                    return Err(OutputPluginError::OutputPluginFailed(msg));
-                }
+            let cursor_obj = cursor.as_object_mut()
+                .ok_or_else(|| {
+                    let msg = format!("while writing to output, location '{part}' of path '{to}' is not a JSON object type");
+                    OutputPluginError::OutputPluginFailed(msg)
+                })?;
+            // add child if it doesn't exist
+            if !cursor_obj.contains_key(*part) {
+                let _ = cursor_obj.insert(part.to_string(), json!({}));
             }
-            current = current.get_mut(part).unwrap();
+
+            // navigate down to the child
+            if let Some(c) = cursor.get_mut(part) {
+                cursor = c;
+                continue;
+            } else {
+                return Err(OutputPluginError::OutputPluginFailed(
+                    "internal error while writing to output".to_string(),
+                ));
+            }
         }
     }
 
