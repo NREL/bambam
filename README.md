@@ -14,16 +14,18 @@ This software is in a [**beta**](https://en.wikipedia.org/wiki/Software_release_
 
 # Usage
 
-For this initial open-source release, BAMBAM is provided as a set of command line tools, installed using cargo (via [rustup](rustup.rs)): `cargo build --release --manifest-path rust/Cargo.toml`. Compilation generates the following command line utilities:
+BAMBAM is provided as either a set of command line tools or via a Python API. 
+
+## CLI
+
+First, install using cargo (via [rustup](rustup.rs)): `cargo build --release --manifest-path rust/Cargo.toml`. Compilation generates the following command line utilities:
 
   - **bambam** - runs the access model
   - **bambam_util** - runs specific support utilities
   - **bambam_gtfs** - [GTFS](https://gtfs.org/documentation/schedule/reference/) analysis and import script
   - **bambam_osm** - [OpenStreetMap](https://www.openstreetmap.org/) import script
 
-### bambam
-
-We can list the command arguments (will document app as "RouteE Compass"):
+We can list the command arguments for bambam (will document app as "RouteE Compass"):
 
 ```
 $ ./rust/target/release/bambam --help
@@ -40,9 +42,13 @@ Options:
   -V, --version                Print version
 ```
 
+## Python
+
+Install the library, currently unpublished, using pip: `pip install -e ".[all]"`.
+
 # Example
 
-Before running any examples, run the setup command(s):
+Before running any examples, run the following setup command(s) to download example data assets:
 
 ``` sh
 $ ./script/setup_test_bambam.sh
@@ -57,6 +63,18 @@ This test uses drive-mode traversal to report opportunities in the Denver Metro 
 $ RUST_LOG=info ./rust/target/release/bambam --config-file denver_co/denver_test.toml --query-file query/denver_extent.json
 ```
 
+or, in Python:
+
+```python
+from nrel.bambam import BambamRunner
+import pandas
+import json
+
+app = BambamRunner.from_config_file("configuration/test_denver.toml")
+with open("query/denver_extent.json") as f:
+    query = json.loads(f.read())
+result = app.run(query)
+```
 ### Boulder
 
 This test uses walk-transit traversal to report opportunities near University of Colorado Boulder. First, process the GTFS archive:
@@ -73,7 +91,7 @@ $ RUST_LOG=info ./rust/target/release/bambam --config-file configuration/boulder
 
 # Roadmap
 
-- [ ] Python API
+- [x] Python API
 - [ ] R API
 - [ ] OvertureMaps network import
 - [ ] methodological improvements for walk/bike/drive realism
