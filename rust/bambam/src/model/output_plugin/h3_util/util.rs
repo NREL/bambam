@@ -21,6 +21,7 @@ pub enum H3Util {
         from: DotDelimitedPath,
         to: DotDelimitedPath,
         format: BoundaryGeometryFormat,
+        overwrite: bool,
     },
     /// copies an h3 identifier from some JSONPath to another JSONPath,
     /// converting it to the declared parent resolution.
@@ -28,6 +29,7 @@ pub enum H3Util {
         from: DotDelimitedPath,
         to: DotDelimitedPath,
         resolution: Resolution,
+        overwrite: bool,
     },
 }
 
@@ -35,7 +37,12 @@ impl H3Util {
     /// runs this H3 util on the Compass output, updating the output JSON in-place.
     pub fn apply(&self, output: &mut Value) -> Result<(), OutputPluginError> {
         match self {
-            H3Util::H3BoundaryToGeometry { from, to, format } => {
+            H3Util::H3BoundaryToGeometry {
+                from,
+                to,
+                format,
+                overwrite,
+            } => {
                 let from_jsonpath = from.to_jsonpath();
                 let hex_idx = get_hex(output, &from_jsonpath).map_err(|e| {
                     let msg = format!("while running h3_boundary_to_geometry, {e}");
@@ -46,12 +53,13 @@ impl H3Util {
                     let msg = format!("while running h3_boundary_to_geometry, {e}");
                     OutputPluginError::OutputPluginFailed(msg)
                 })?;
-                set_value(output, to, out_value)
+                set_value(output, to, out_value, *overwrite)
             }
             H3Util::H3ToParent {
                 from,
                 to,
                 resolution,
+                overwrite,
             } => {
                 let from_jsonpath = from.to_jsonpath();
                 let hex_idx = get_hex(output, &from_jsonpath).map_err(|e| {
@@ -59,7 +67,7 @@ impl H3Util {
                     OutputPluginError::OutputPluginFailed(msg)
                 })?;
                 let parent = h3_to_parent(&hex_idx, resolution)?;
-                set_value(output, to, json![parent.to_string()])
+                set_value(output, to, json![parent.to_string()], *overwrite)
             }
         }
     }
@@ -70,7 +78,12 @@ impl TryFrom<&H3UtilOutputPluginConfig> for H3Util {
 
     fn try_from(value: &H3UtilOutputPluginConfig) -> Result<Self, Self::Error> {
         match value {
-            H3UtilOutputPluginConfig::H3BoundaryToGeometry { from, to, format } => {
+            H3UtilOutputPluginConfig::H3BoundaryToGeometry {
+                from,
+                to,
+                format,
+                overwrite,
+            } => {
                 let from = DotDelimitedPath::try_from(from.clone()).map_err(|e| {
                     PluginError::BuildFailed(format!(
                         "while reading h3_boundary_to_geometry 'from' string: {e}"
@@ -82,12 +95,19 @@ impl TryFrom<&H3UtilOutputPluginConfig> for H3Util {
                     ))
                 })?;
                 let format = format.clone().unwrap_or_default();
-                Ok(H3Util::H3BoundaryToGeometry { from, to, format })
+                let overwrite = overwrite.unwrap_or_default();
+                Ok(H3Util::H3BoundaryToGeometry {
+                    from,
+                    to,
+                    format,
+                    overwrite,
+                })
             }
             H3UtilOutputPluginConfig::H3ToParent {
                 from,
                 to,
                 resolution,
+                overwrite,
             } => {
                 let from = DotDelimitedPath::try_from(from.clone()).map_err(|e| {
                     PluginError::BuildFailed(format!(
@@ -102,11 +122,13 @@ impl TryFrom<&H3UtilOutputPluginConfig> for H3Util {
                         "while reading h3_to_parent 'resolution' number: {e}"
                     ))
                 })?;
+                let overwrite = overwrite.unwrap_or_default();
 
                 Ok(H3Util::H3ToParent {
                     from,
                     to,
                     resolution,
+                    overwrite,
                 })
             }
         }
@@ -173,19 +195,63 @@ fn set_value(
     output: &mut Value,
     to: &DotDelimitedPath,
     value: Value,
+    overwrite: bool,
 ) -> Result<(), OutputPluginError> {
     let to_pointer = to.to_jsonpointer();
-    match output.pointer_mut(&to_pointer) {
-        // todo: does this fail if we haven't put something at the leaf node yet?
-        Some(leaf) => {
-            *leaf = value;
-            Ok(())
+
+    // break into parts delimited by forward slashes
+    let parts: Vec<&str> = to_pointer.trim_start_matches('/').split('/').collect();
+
+    // handle "root overwrite" case
+    let overwrite_root = parts.is_empty() || (parts.len() == 1 && parts[0].is_empty()) && overwrite;
+    if overwrite_root {
+        let msg = format!("while writing to output, user provided path '{to}' to overwrite root, which is not supported.");
+        return Err(OutputPluginError::OutputPluginFailed(msg));
+    }
+
+    let mut cursor = output;
+    for (i, part) in parts.iter().enumerate() {
+        let is_last = i == parts.len() - 1;
+
+        if is_last {
+            // Set the final value
+            if let Some(obj) = cursor.as_object_mut() {
+                if obj.contains_key(*part) && !overwrite {
+                    let msg = format!(
+                        "while writing to output, location '{part}' of path '{to}' already exists but overwrite is false"
+                    );
+                    return Err(OutputPluginError::OutputPluginFailed(msg));
+                }
+                obj.insert(part.to_string(), value);
+                return Ok(());
+            } else {
+                let msg = format!(
+                    "while writing to output, location '{part}' of path '{to}' is not an object"
+                );
+                return Err(OutputPluginError::OutputPluginFailed(msg));
+            }
+        } else {
+            let cursor_obj = cursor.as_object_mut()
+                .ok_or_else(|| {
+                    let msg = format!("while writing to output, location '{part}' of path '{to}' is not a JSON object type");
+                    OutputPluginError::OutputPluginFailed(msg)
+                })?;
+            // add child if it doesn't exist
+            if !cursor_obj.contains_key(*part) {
+                let _ = cursor_obj.insert(part.to_string(), json!({}));
+            }
+
+            // navigate down to the child
+            if let Some(c) = cursor.get_mut(part) {
+                cursor = c;
+                continue;
+            } else {
+                return Err(OutputPluginError::OutputPluginFailed(
+                    "internal error while writing to output".to_string(),
+                ));
+            }
         }
-        None => {
-            let msg = format!("while writing to output, failed to find location '{to_pointer}'");
-            Err(OutputPluginError::OutputPluginFailed(msg))
-        }
-    }?;
+    }
 
     Ok(())
 }
@@ -275,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_value_valid_path() {
+    fn test_set_value_valid_path_overwrite() {
         let mut output = json!({
             "result": {
                 "geometry": null
@@ -285,24 +351,109 @@ mod tests {
             .expect("test invariant failed");
         let value = json!({"type": "Polygon"});
 
-        let result = set_value(&mut output, &to, value);
+        let result = set_value(&mut output, &to, value, true);
 
         assert!(result.is_ok());
         assert_eq!(output["result"]["geometry"], json!({"type": "Polygon"}));
     }
 
     #[test]
-    fn test_set_value_invalid_path() {
+    fn test_set_value_valid_path_no_overwrite() {
         let mut output = json!({
-            "result": {}
+            "result": {
+                "geometry": null
+            }
         });
-        let to = DotDelimitedPath::try_from("nonexistent.path".to_string())
+        let to = DotDelimitedPath::try_from("result.geometry".to_string())
             .expect("test invariant failed");
         let value = json!({"type": "Polygon"});
 
-        let result = set_value(&mut output, &to, value);
+        let result = set_value(&mut output, &to, value, false);
 
         assert!(result.is_err());
+        assert!(result
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("overwrite is false"));
+    }
+
+    #[test]
+    fn test_set_value_attempts_to_overwrite_root() {
+        let mut output = json!({});
+        let to = DotDelimitedPath::try_from("".to_string()).expect("test invariant failed");
+        let value = json!("value");
+
+        let result = set_value(&mut output, &to, value, true);
+
+        assert!(result.is_err());
+        assert!(result.err().unwrap().to_string().contains("overwrite root"));
+    }
+
+    #[test]
+    fn test_set_value_root_level_new_key() {
+        let mut output = json!({
+            "existing_key": "value"
+        });
+        let to = DotDelimitedPath::try_from("geometry".to_string()).expect("test invariant failed");
+        let value = json!({"type": "Polygon", "coordinates": []});
+
+        let result = set_value(&mut output, &to, value.clone(), false);
+
+        assert!(result.is_ok());
+        assert_eq!(output["geometry"], value);
+        assert_eq!(output["existing_key"], "value"); // ensure existing data is preserved
+    }
+
+    #[test]
+    fn test_set_value_creates_nested_path() {
+        let mut output = json!({
+            "existing": "data"
+        });
+        let to = DotDelimitedPath::try_from("new.nested.path".to_string())
+            .expect("test invariant failed");
+        let value = json!("test_value");
+
+        let result = set_value(&mut output, &to, value, false);
+
+        assert!(result.is_ok());
+        assert_eq!(output["new"]["nested"]["path"], "test_value");
+        assert_eq!(output["existing"], "data");
+    }
+
+    #[test]
+    fn test_set_value_with_array_in_path() {
+        let mut output = json!({
+            "existing": [
+                "data"
+            ]
+        });
+        let to =
+            DotDelimitedPath::try_from("existing.data".to_string()).expect("test invariant failed");
+        let value = json!("test_value");
+
+        let result = set_value(&mut output, &to, value, false);
+
+        assert!(result.is_err());
+        assert!(result
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("is not an object"))
+    }
+
+    #[test]
+    fn test_set_value_overwrites_existing_root_key() {
+        let mut output = json!({
+            "geometry": "old_value"
+        });
+        let to = DotDelimitedPath::try_from("geometry".to_string()).expect("test invariant failed");
+        let value = json!({"type": "Polygon"});
+
+        let result = set_value(&mut output, &to, value.clone(), true);
+
+        assert!(result.is_ok());
+        assert_eq!(output["geometry"], value);
     }
 
     #[test]
@@ -318,6 +469,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
             format: BoundaryGeometryFormat::GeoJson,
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -345,6 +497,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.wkt".to_string()).unwrap(),
             format: BoundaryGeometryFormat::Wkt,
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -368,6 +521,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
             format: BoundaryGeometryFormat::GeoJson,
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -385,6 +539,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.geometry".to_string()).unwrap(),
             format: BoundaryGeometryFormat::GeoJson,
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -405,6 +560,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
             resolution: Resolution::try_from(8).unwrap(),
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -432,6 +588,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
             resolution,
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -453,6 +610,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
             resolution: Resolution::try_from(11).unwrap(), // finer than the hex resolution
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
@@ -470,6 +628,7 @@ mod tests {
             from: DotDelimitedPath::try_from("location.hex".to_string()).unwrap(),
             to: DotDelimitedPath::try_from("location.parent_hex".to_string()).unwrap(),
             resolution: Resolution::try_from(8).unwrap(),
+            overwrite: true,
         };
 
         let result = h3_util.apply(&mut output);
