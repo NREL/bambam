@@ -57,7 +57,7 @@ cd bambam
 
 ## License
 
-Copyright 2025 Alliance for Sustainable Energy, LLC
+Copyright 2025 Alliance for Energy Innovation, LLC
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 

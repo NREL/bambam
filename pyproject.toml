@@ -5,7 +5,7 @@ description = "The Behavior and Advanced Mobility Big Access Model"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 authors = [{ name = "National Laboratory of the Rockies" }]
-license = { text = "BSD 3-Clause License Copyright (c) 2023, Alliance for Sustainable Energy, LLC" }
+license = { text = "BSD 3-Clause License Copyright (c) 2025, Alliance for Energy Innovation, LLC" }
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
