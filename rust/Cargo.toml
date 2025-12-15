@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-omf"]
+members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-omf", "bambam-gbfs", "bambam-py"]
 
 [workspace.dependencies]
 
@@ -12,6 +12,8 @@ bamcensus-lehd = { version = "0.1.0" }
 routee-compass = "0.15.2"
 routee-compass-core = "0.15.2"
 routee-compass-powertrain = "0.15.2"
+routee-compass-py = "0.15.2"
+routee-compass-macros = "0.15.2"
 
 # third party
 arrow = { version = "55.0.0" }

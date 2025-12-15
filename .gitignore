@@ -5,8 +5,9 @@ target
 output
 cache
 **/__pycache__/
-
+*.so
 .venv
+uv.lock
 
 # test paths
 configuration/test_gtfs_config_boulder_gtfs.toml
