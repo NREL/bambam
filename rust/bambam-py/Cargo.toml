@@ -3,6 +3,9 @@ name = "bambam-py"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 bambam = { path = "../bambam", version = "0.2.1" }
 routee-compass = { workspace = true }
