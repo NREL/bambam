@@ -19,7 +19,7 @@ impl GbfsTraversalService {
 impl TraversalModelService for GbfsTraversalService {
     fn build(
         &self,
-        query: &serde_json::Value,
+        _query: &serde_json::Value,
     ) -> Result<Arc<dyn TraversalModel>, TraversalModelError> {
         // if there's anything that can change between the execution of each search,
         // we should attempt to pull it from the query here.

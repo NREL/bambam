@@ -25,20 +25,20 @@ impl TraversalModel for GbfsTraversalModel {
 
     fn traverse_edge(
         &self,
-        trajectory: (&Vertex, &Edge, &Vertex),
-        state: &mut Vec<StateVariable>,
-        tree: &SearchTree,
-        state_model: &StateModel,
+        _trajectory: (&Vertex, &Edge, &Vertex),
+        _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
+        _state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         todo!()
     }
 
     fn estimate_traversal(
         &self,
-        od: (&Vertex, &Vertex),
-        state: &mut Vec<StateVariable>,
-        tree: &SearchTree,
-        state_model: &StateModel,
+        _od: (&Vertex, &Vertex),
+        _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
+        _state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
         // this can be skipped if we aren't trying to use A*.
         Ok(())
