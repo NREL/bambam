@@ -27,7 +27,7 @@ Add `bambam` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bambam = "0.2.0"
+bambam = "0.2.1"
 ```
 
 Or install via cargo:
@@ -57,7 +57,7 @@ cd bambam
 
 ## License
 
-Copyright 2025 Alliance for Sustainable Energy, LLC
+Copyright 2025 Alliance for Energy Innovation, LLC
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
