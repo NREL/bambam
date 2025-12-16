@@ -35,7 +35,7 @@ impl GeofenceConstraintEngine {
         })?;
         match iter.next() {
             Some(boundary) => {
-                let result = &boundary.data == geofence_id;
+                let result = boundary.data == geofence_id;
                 Ok(result)
             }
             _ => Ok(false),

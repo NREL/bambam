@@ -16,7 +16,7 @@ impl FrontierModelBuilder for GeofenceConstraintBuilder {
     ) -> Result<Arc<dyn FrontierModelService>, FrontierModelError> {
         let config: GeofenceConstraintConfig = serde_json::from_value(parameters.clone())
             .map_err(|e| FrontierModelError::BuildError(e.to_string()))?;
-        let rtree = PolygonalRTree::new(vec![]).map_err(|e| FrontierModelError::BuildError(e))?;
+        let rtree = PolygonalRTree::new(vec![]).map_err(FrontierModelError::BuildError)?;
         let engine = GeofenceConstraintEngine::new(config, rtree);
         // this is where you will read
         let service = GeofenceConstraintService::new(engine);
