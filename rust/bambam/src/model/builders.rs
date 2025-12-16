@@ -1,3 +1,7 @@
+use super::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
+use super::traversal::fixed_speed::FixedSpeedBuilder;
+use super::traversal::time_delay::TripArrivalDelayBuilder;
+use super::traversal::time_delay::TripDepartureDelayBuilder;
 use crate::model::frontier::multimodal::MultimodalFrontierBuilder;
 use crate::model::frontier::time_limit::TimeLimitFrontierBuilder;
 use crate::model::label::multimodal::MultimodalLabelBuilder;
@@ -8,6 +12,8 @@ use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use crate::model::traversal::transit::TransitTraversalBuilder;
+use bambam_gbfs::model::frontier::geofence::GeofenceConstraintBuilder;
+use bambam_gbfs::model::traversal::geofence::GeofenceTraversalBuilder;
 use inventory;
 use routee_compass::app::compass::BuilderRegistration;
 use routee_compass::app::compass::CompassAppError;
@@ -15,11 +21,6 @@ use routee_compass_core::model::frontier::FrontierModelBuilder;
 use routee_compass_core::model::traversal::TraversalModelBuilder;
 use std::collections::HashMap;
 use std::rc::Rc;
-
-use super::input_plugin::grid::grid_input_plugin_builder::GridInputPluginBuilder;
-use super::traversal::fixed_speed::FixedSpeedBuilder;
-use super::traversal::time_delay::TripArrivalDelayBuilder;
-use super::traversal::time_delay::TripDepartureDelayBuilder;
 
 /// builders to inject into the CompassBuilderInventory on library load via the inventory crate
 pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|builders| {
@@ -37,6 +38,14 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
     );
 
     builders.add_traversal_model(String::from("transit"), Rc::new(TransitTraversalBuilder {}));
+    builders.add_frontier_model(
+        "gbfs_geofence".to_string(),
+        Rc::new(GeofenceConstraintBuilder {}),
+    );
+    builders.add_traversal_model(
+        "gbfs_geofence".to_string(),
+        Rc::new(GeofenceTraversalBuilder {}),
+    );
 
     builders.add_frontier_model(
         "multimodal".to_string(),
