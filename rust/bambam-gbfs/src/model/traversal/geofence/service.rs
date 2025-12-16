@@ -4,19 +4,19 @@ use routee_compass_core::model::traversal::{
     TraversalModel, TraversalModelError, TraversalModelService,
 };
 
-use crate::model::traversal::gbfs::GbfsTraversalConfig;
+use crate::model::traversal::geofence::GeofenceTraversalConfig;
 
-pub struct GbfsTraversalService {
-    pub config: GbfsTraversalConfig,
+pub struct GeofenceTraversalService {
+    pub config: GeofenceTraversalConfig,
 }
 
-impl GbfsTraversalService {
-    pub fn new(config: GbfsTraversalConfig) -> GbfsTraversalService {
-        GbfsTraversalService { config }
+impl GeofenceTraversalService {
+    pub fn new(config: GeofenceTraversalConfig) -> GeofenceTraversalService {
+        GeofenceTraversalService { config }
     }
 }
 
-impl TraversalModelService for GbfsTraversalService {
+impl TraversalModelService for GeofenceTraversalService {
     fn build(
         &self,
         _query: &serde_json::Value,

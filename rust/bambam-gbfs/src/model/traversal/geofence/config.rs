@@ -5,4 +5,4 @@ use serde::{Deserialize, Serialize};
 /// requirements for setting up GBFS for search.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
-pub struct GbfsTraversalConfig {}
+pub struct GeofenceTraversalConfig {}

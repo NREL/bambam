@@ -8,11 +8,11 @@ use routee_compass_core::{
 };
 
 /// models travel modes that are described in GBFS file sources.
-pub struct GbfsTraversalModel {}
+pub struct GeofenceTraversalModel {}
 
-impl TraversalModel for GbfsTraversalModel {
+impl TraversalModel for GeofenceTraversalModel {
     fn name(&self) -> String {
-        "GbfsTraversalModel".to_string()
+        "GeofenceTraversalModel".to_string()
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
