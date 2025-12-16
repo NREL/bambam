@@ -18,7 +18,6 @@ impl FrontierModelBuilder for GeofenceConstraintBuilder {
             .map_err(|e| FrontierModelError::BuildError(e.to_string()))?;
         let rtree = PolygonalRTree::new(vec![]).map_err(FrontierModelError::BuildError)?;
         let engine = GeofenceConstraintEngine::new(config, rtree);
-        // this is where you will read
         let service = GeofenceConstraintService::new(engine);
         Ok(Arc::new(service))
     }
