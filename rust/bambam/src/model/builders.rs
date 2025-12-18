@@ -15,7 +15,6 @@ use crate::model::traversal::transit::TransitTraversalBuilder;
 use bambam_gbfs::model::frontier::boarding::BoardingConstraintBuilder;
 use bambam_gbfs::model::frontier::geofence::GeofenceConstraintBuilder;
 use bambam_gbfs::model::traversal::boarding::BoardingTraversalBuilder;
-use bambam_gbfs::model::traversal::geofence::GeofenceTraversalBuilder;
 use inventory;
 use routee_compass::app::compass::BuilderRegistration;
 use routee_compass::app::compass::CompassAppError;
@@ -43,10 +42,6 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
     builders.add_frontier_model(
         "gbfs_geofence".to_string(),
         Rc::new(GeofenceConstraintBuilder {}),
-    );
-    builders.add_traversal_model(
-        "gbfs_geofence".to_string(),
-        Rc::new(GeofenceTraversalBuilder {}),
     );
     builders.add_frontier_model(
         "gbfs_boarding".to_string(),
