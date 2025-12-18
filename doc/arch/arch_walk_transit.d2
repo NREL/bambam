@@ -1,0 +1,148 @@
+classes: {
+    # output feature relation
+    empty-cell: {
+        label: ""
+        # style: {
+        #     stroke: darkblue
+        #     opacity: 0
+        #     stroke-width: 3
+        #     stroke-dash: 0
+        # } 
+    }
+}
+
+graph-example: {
+    v0
+    v1
+    v2
+    v3
+    v0 -> v1: {
+        label: walk
+    }
+    v0 -> v2: {
+        label: transit
+    }
+    v1 -> v3: {
+        label: walk
+    }
+    v2 -> v3: {
+        label: transit
+    }
+}
+
+graph-model: {
+    grid-rows: 3
+    transit: {
+        label: transit (edge list 1)
+        contents: {
+            label: ""
+            grid-columns: 2
+            grid-gap: 0
+
+            a: { class: empty-cell }
+            b: { class: empty-cell }
+        }
+    }
+    walk: {
+        label: walk (edge list 0)
+        contents: {
+            label: ""
+            grid-columns: 2
+            grid-gap: 0
+
+            a: { class: empty-cell }
+            b: { class: empty-cell }
+        }
+    }
+    vertices: {
+        label: vertices
+        contents: {
+            label: ""
+            grid-columns: 4
+            grid-gap: 0
+
+            a: { class: empty-cell }
+            b: { class: empty-cell }
+            c: { class: empty-cell }
+            d: { class: empty-cell }
+        }
+    }
+}
+
+search-model: {
+    grid-rows: 2
+
+    edge-list-1: {
+        label: Edge List 1 - transit mode
+        constraint-model: {
+            time-limit: |md
+                # Time Limit
+                - time: 40 
+                - unit: minutes
+            |
+            multimodal: |md
+                # Multimodal
+                - available modes: [walk, transit]
+                - max trip legs: 5
+            |
+        }
+        traversal-model: {
+            distance: |md
+                # Distance
+                - writes edge_distance, trip_distance
+            |
+            time: |md
+                # Scheduled Time
+                - lookup next departure
+                - compute route transition time, dwell time, stop-to-stop travel time
+                - writes edge_time, trip_time
+            |
+            multimodal: |md
+                # Multimodal
+                - writes accounting for mode/leg-wise metrics
+            |
+        }
+    }
+
+    edge-list-0: {
+        label: Edge List 0 - walk mode
+        constraint-model: {
+            time-limit: |md
+                # Time Limit
+                - time: 40 
+                - unit: minutes
+            |
+            road-classes: |md
+                # Road Classes
+                - accepted: 1,2,3,4
+            |
+            multimodal: |md
+                # Multimodal
+                - available modes: [walk, transit]
+                - max trip legs: 5
+            |
+        }
+        traversal-model: {
+            distance: |md
+                # Distance
+                - writes edge_distance, trip_distance
+            |
+            speed: |md
+                # Fixed Speed
+                - speed: 5
+                - unit: kph
+                - writes edge_speed
+            |
+            time: |md
+                # Time
+                - computed from distance / speed
+                - writes edge_time, trip_time
+            |
+            multimodal: |md
+                # Multimodal
+                - writes accounting for mode/leg-wise metrics
+            |
+        }
+    }
+
+}

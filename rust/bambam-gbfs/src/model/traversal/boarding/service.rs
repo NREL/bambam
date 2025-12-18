@@ -4,19 +4,19 @@ use routee_compass_core::model::traversal::{
     TraversalModel, TraversalModelError, TraversalModelService,
 };
 
-use crate::model::traversal::gbfs::GbfsTraversalConfig;
+use super::BoardingTraversalConfig;
 
-pub struct GbfsTraversalService {
-    pub config: GbfsTraversalConfig,
+pub struct BoardingTraversalService {
+    pub config: BoardingTraversalConfig,
 }
 
-impl GbfsTraversalService {
-    pub fn new(config: GbfsTraversalConfig) -> GbfsTraversalService {
-        GbfsTraversalService { config }
+impl BoardingTraversalService {
+    pub fn new(config: BoardingTraversalConfig) -> BoardingTraversalService {
+        BoardingTraversalService { config }
     }
 }
 
-impl TraversalModelService for GbfsTraversalService {
+impl TraversalModelService for BoardingTraversalService {
     fn build(
         &self,
         _query: &serde_json::Value,
