@@ -2,21 +2,20 @@ use std::sync::Arc;
 
 use routee_compass_core::model::frontier::FrontierModel;
 
-use crate::model::frontier::geofence::GeofenceConstraintEngine;
+use super::BoardingConstraintEngine;
 
-/// looks up a geofence by agency id to test whether an edge traversal
-/// does not exit the region supported by this GBFS travel mode.
-pub struct GeofenceConstraintModel {
-    pub engine: Arc<GeofenceConstraintEngine>,
+pub struct BoardingConstraintModel {
+    pub engine: Arc<BoardingConstraintEngine>,
 }
 
-impl GeofenceConstraintModel {
-    pub fn new(engine: Arc<GeofenceConstraintEngine>) -> GeofenceConstraintModel {
-        GeofenceConstraintModel { engine }
+/// restricts where GBFS boarding can occur by zone
+impl BoardingConstraintModel {
+    pub fn new(engine: Arc<BoardingConstraintEngine>) -> BoardingConstraintModel {
+        BoardingConstraintModel { engine }
     }
 }
 
-impl FrontierModel for GeofenceConstraintModel {
+impl FrontierModel for BoardingConstraintModel {
     fn valid_frontier(
         &self,
         _edge: &routee_compass_core::model::network::Edge,

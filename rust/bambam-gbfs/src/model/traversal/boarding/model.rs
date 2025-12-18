@@ -7,13 +7,12 @@ use routee_compass_core::{
     },
 };
 
-/// when boarding, stores the Agency identifier on the state vector, which
-/// can be used by the Geofence FrontierModel to restrict travel within a zone.
-pub struct GeofenceTraversalModel {}
+/// applies wait times when boarding a micromobility vehicle.
+pub struct BoardingTraversalModel {}
 
-impl TraversalModel for GeofenceTraversalModel {
+impl TraversalModel for BoardingTraversalModel {
     fn name(&self) -> String {
-        "GeofenceTraversalModel".to_string()
+        "BoardingTraversalModel".to_string()
     }
 
     fn input_features(&self) -> Vec<InputFeature> {

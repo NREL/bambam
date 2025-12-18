@@ -12,7 +12,9 @@ use crate::model::output_plugin::opportunity::OpportunityOutputPluginBuilder;
 use crate::model::traversal::multimodal::MultimodalTraversalBuilder;
 use crate::model::traversal::switch::switch_traversal_builder::SwitchTraversalBuilder;
 use crate::model::traversal::transit::TransitTraversalBuilder;
+use bambam_gbfs::model::frontier::boarding::BoardingConstraintBuilder;
 use bambam_gbfs::model::frontier::geofence::GeofenceConstraintBuilder;
+use bambam_gbfs::model::traversal::boarding::BoardingTraversalBuilder;
 use bambam_gbfs::model::traversal::geofence::GeofenceTraversalBuilder;
 use inventory;
 use routee_compass::app::compass::BuilderRegistration;
@@ -45,6 +47,14 @@ pub const BUILDER_REGISTRATION: BuilderRegistration = BuilderRegistration(|build
     builders.add_traversal_model(
         "gbfs_geofence".to_string(),
         Rc::new(GeofenceTraversalBuilder {}),
+    );
+    builders.add_frontier_model(
+        "gbfs_boarding".to_string(),
+        Rc::new(BoardingConstraintBuilder {}),
+    );
+    builders.add_traversal_model(
+        "gbfs_boarding".to_string(),
+        Rc::new(BoardingTraversalBuilder {}),
     );
 
     builders.add_frontier_model(
