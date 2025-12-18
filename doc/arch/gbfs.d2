@@ -1,0 +1,97 @@
+search-model: {
+    grid-rows: 2
+
+    edge-list-1: {
+        label: Edge List 1 - gbfs mode
+        constraint-model: {
+            time-limit: |md
+                # Time Limit
+                - time: 40 
+                - unit: minutes
+            |
+            geofence: |md 
+                # Geofence
+                - if state contains this gbfs_agency_id, check if geofence zone(s) contain this edge geometry
+                    - find first intersecting zone: PolygonalRTree.intersection()?.next()
+                    - found? return Ok(true); not found? return Ok(false)
+            |
+            boarding: |md
+                # Boarding
+                - if state doesn't contain this gbfs_agency_id, check if boarding zone(s) contain this edge geometry
+                    - logic as above, but different source data (i.e., micromobility stations)
+            |
+            multimodal: |md
+                # Multimodal
+                - available modes: [walk, gbfs] 
+                - max trip legs: 5
+            |
+        }
+        traversal-model: {
+            distance: |md
+                # Distance
+                - writes edge_distance, trip_distance
+            |
+            boarding: |md
+                # Boarding
+                - if state doesn't contain this gbfs_agency_id
+                    - gbfs_agency_id = this_id
+                    - lookup wait time from a PolygonalRTree with delays
+                        - are these fixed delays, or delays-by-hour? otherwise? see Schedule in bambam-gfts
+                    - add wait time edge_time + trip_time
+            |
+            time: |md
+                # Scheduled Time
+                - lookup next departure
+                - compute route transition time, dwell time, stop-to-stop travel time
+                - writes edge_time, trip_time
+            |
+
+            multimodal: |md
+                # Multimodal
+                - writes accounting for mode/leg-wise metrics
+            |
+        }
+    }
+
+    edge-list-0: {
+        label: Edge List 0 - walk mode
+        constraint-model: {
+            time-limit: |md
+                # Time Limit
+                - time: 40 
+                - unit: minutes
+            |
+            road-classes: |md
+                # Road Classes
+                - accepted: 1,2,3,4
+            |
+            multimodal: |md
+                # Multimodal
+                - available modes: [walk, transit]
+                - max trip legs: 5
+            |
+        }
+        traversal-model: {
+            distance: |md
+                # Distance
+                - writes edge_distance, trip_distance
+            |
+            speed: |md
+                # Fixed Speed
+                - speed: 5
+                - unit: kph
+                - writes edge_speed
+            |
+            time: |md
+                # Time
+                - computed from distance / speed
+                - writes edge_time, trip_time
+            |
+            multimodal: |md
+                # Multimodal
+                - writes accounting for mode/leg-wise metrics
+            |
+        }
+    }
+
+}
