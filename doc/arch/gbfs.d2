@@ -39,13 +39,17 @@ search-model: {
                         - are these fixed delays, or delays-by-hour? otherwise? see Schedule in bambam-gfts
                     - add wait time edge_time + trip_time
             |
+            speed: |md
+                # Fixed Speed
+                - speed: 16
+                - unit: kph
+                - writes edge_speed
+            |
             time: |md
-                # Scheduled Time
-                - lookup next departure
-                - compute route transition time, dwell time, stop-to-stop travel time
+                # Time
+                - computed from distance / speed
                 - writes edge_time, trip_time
             |
-
             multimodal: |md
                 # Multimodal
                 - writes accounting for mode/leg-wise metrics
