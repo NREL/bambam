@@ -4,20 +4,20 @@ use routee_compass_core::model::traversal::{
     TraversalModelBuilder, TraversalModelError, TraversalModelService,
 };
 
-use crate::model::traversal::gbfs::{GbfsTraversalConfig, GbfsTraversalService};
+use super::{BoardingTraversalConfig, BoardingTraversalService};
 
-pub struct GbfsTraversalBuilder {}
+pub struct BoardingTraversalBuilder {}
 
-impl TraversalModelBuilder for GbfsTraversalBuilder {
+impl TraversalModelBuilder for BoardingTraversalBuilder {
     fn build(
         &self,
         parameters: &serde_json::Value,
     ) -> Result<Arc<dyn TraversalModelService>, TraversalModelError> {
-        let config: GbfsTraversalConfig = serde_json::from_value(parameters.clone())
+        let config: BoardingTraversalConfig = serde_json::from_value(parameters.clone())
             .map_err(|e| TraversalModelError::BuildError(e.to_string()))?;
         // this is where you will read GBFS files and store the data as fields
         // on the GBFS traversal service.
-        let service = GbfsTraversalService::new(config);
+        let service = BoardingTraversalService::new(config);
         Ok(Arc::new(service))
     }
 }

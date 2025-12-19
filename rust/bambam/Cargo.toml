@@ -27,6 +27,7 @@ routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
 bambam-osm = { version = "0.2.2", path = "../bambam-osm" }
 bambam-omf = { version = "0.2.2", path = "../bambam-omf" }
+bambam-gbfs = { version = "0.2.2", path = "../bambam-gbfs" } 
 
 uom = { workspace = true}
 inventory = { workspace = true}

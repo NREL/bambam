@@ -1,0 +1,55 @@
+
+arch-stack: {
+    label: MEP 3 Stack
+    direction: down
+    grid-rows: 6
+
+    mep: {
+        contents: |md
+            - provides MEP scoring arithmetic
+        |
+        link: https://github.nrel.gov/BAM/mep
+    }
+
+    routee-compass-tomtom: {
+        contents: |md
+            - provides TomTom network + speed data extensions
+        |
+        link: https://github.nrel.gov/MBAP/routee-compass-tomtom
+    }    
+
+    bambam-extensions: {
+        label: "bambam (extensions)"
+        grid-columns: 4
+        bambam-gtfs
+        bambam-osm
+        bambam-omf
+        bambam-gbfs: { style.bold: true }
+    }
+
+    bambam: {
+        contents: |md
+            - access modeling extensions for Compass (searching POIs)
+        |
+        link: https://crates.io/crates/bambam
+    }
+
+    routee-compass: {
+        contents: |md
+            - underlying route planner
+        |
+        link: https://crates.io/crates/routee-compass
+    }
+    rc-core: {
+        label: "routee-compass (core)"
+        grid-columns: 2
+        routee-compass-powertrain: {
+            link: https://crates.io/crates/routee-compass-powertrain
+        }
+        routee-compass-core: {
+            link: https://crates.io/crates/routee-compass-core
+        }
+    }
+
+    # mep -- routee-compass-tomtom -- bambam-extensions -- bambam -- routee-compass -- rc-core: { style.opacity: 0 }
+}

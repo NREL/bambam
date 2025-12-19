@@ -7,12 +7,12 @@ use routee_compass_core::{
     },
 };
 
-/// models travel modes that are described in GBFS file sources.
-pub struct GbfsTraversalModel {}
+/// applies wait times when boarding a micromobility vehicle.
+pub struct BoardingTraversalModel {}
 
-impl TraversalModel for GbfsTraversalModel {
+impl TraversalModel for BoardingTraversalModel {
     fn name(&self) -> String {
-        "GbfsTraversalModel".to_string()
+        "BoardingTraversalModel".to_string()
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
