@@ -1,6 +1,6 @@
 [package]
 name = "bambam"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 license = "BSD-3-Clause"
 exclude = ["test", "**/.DS_Store", "target/"]
@@ -25,9 +25,9 @@ bamcensus = { workspace = true }
 routee-compass = { workspace = true }
 routee-compass-core = { workspace = true }
 routee-compass-powertrain = { workspace = true }
-bambam-osm = { version = "0.2.2", path = "../bambam-osm" }
-bambam-omf = { version = "0.2.2", path = "../bambam-omf" }
-bambam-gbfs = { version = "0.2.2", path = "../bambam-gbfs" } 
+bambam-osm = { version = "0.2.3", path = "../bambam-osm" }
+bambam-omf = { version = "0.2.3", path = "../bambam-omf" }
+bambam-gbfs = { version = "0.2.3", path = "../bambam-gbfs" } 
 
 uom = { workspace = true}
 inventory = { workspace = true}
