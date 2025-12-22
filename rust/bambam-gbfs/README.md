@@ -1,8 +1,8 @@
-# bambam-gtfs
+# bambam-gbfs
 
 tooling for building and running BAMBAM models from GBFS sources.
 
-## import script
+## CLI Usage
 
 example CLI calls:
 
