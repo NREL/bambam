@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use chrono::{Duration, TimeDelta};
+use chrono::Duration;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +40,7 @@ impl GbfsOperation {
                 output_directory,
                 collect_duration,
             } => crate::app::download::run_gbfs_download(
-                &gbfs_url,
+                gbfs_url,
                 Path::new(output_directory),
                 collect_duration,
             ),
