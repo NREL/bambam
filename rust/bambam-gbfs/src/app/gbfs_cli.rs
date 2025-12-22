@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use chrono::Duration;
+use chrono::TimeDelta;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ pub enum GbfsOperation {
         /// duration to collect data rows. provide in human-readable time values
         /// 2m, 30s, 2h, 2days...
         #[arg(short, long, value_parser = parse_duration, default_value = "10m")]
-        collect_duration: Duration,
+        collect_duration: TimeDelta,
     },
 }
 
@@ -48,8 +48,8 @@ impl GbfsOperation {
     }
 }
 
-fn parse_duration(s: &str) -> Result<chrono::Duration, String> {
+fn parse_duration(s: &str) -> Result<chrono::TimeDelta, String> {
     let std_duration =
         humantime::parse_duration(s).map_err(|e| format!("Invalid duration: {}", e))?;
-    chrono::Duration::from_std(std_duration).map_err(|e| format!("Duration out of range: {}", e))
+    chrono::TimeDelta::from_std(std_duration).map_err(|e| format!("TimeDelta out of range: {}", e))
 }
