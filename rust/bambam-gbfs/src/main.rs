@@ -6,6 +6,9 @@ fn main() {
     let args = GbfsCliArguments::parse();
     match args.op.run() {
         Ok(_) => log::info!("finished."),
-        Err(e) => log::error!("failed running bambam_gbfs: {e}"),
+        Err(e) => {
+            log::error!("failed running bambam_gbfs: {e}");
+            std::process::exit(1);
+        }
     }
 }
