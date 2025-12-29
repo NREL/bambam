@@ -44,12 +44,17 @@ pub fn collect_lodes_opportunities(
     }
 
     // group opportunities by geometry in f32 precision.
-    let chunk_iter = res.join_dataset.into_iter().chunk_by(|r| {
-        r.geometry.map_coords(|c| geo::Coord {
-            x: c.x as f32,
-            y: c.y as f32,
+    let chunk_iter = res
+        .join_dataset
+        .into_iter()
+        .map(|r| {
+            let g = r.geometry.map_coords(|c| geo::Coord {
+                x: c.x as f32,
+                y: c.y as f32,
+            });
+            (g, r)
         })
-    });
+        .chunk_by(|(g, _)| g.clone());
 
     // lookup for a MEP activity's slot in the opportunity vector
     let idx_lookup: HashMap<String, usize> = HashMap::from_iter(
@@ -64,7 +69,7 @@ pub fn collect_lodes_opportunities(
     let mut result = vec![];
     for (geometry, grouped) in &chunk_iter {
         let mut out_row = vec![0.0; activity_types.len()];
-        for row in grouped {
+        for (_, row) in grouped {
             // this row's WAC segment may apply to multiple MEP categories. the convention is,
             // any mapping category is a "job" activity, and, possibly another activity.
             let mapped_acts = activity_mapping.get(&row.value.segment).ok_or_else(|| {
