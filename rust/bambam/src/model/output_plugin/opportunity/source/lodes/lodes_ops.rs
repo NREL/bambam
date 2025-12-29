@@ -6,7 +6,7 @@ use bamcensus_core::model::identifier::{Geoid, GeoidType};
 use bamcensus_lehd::model::{
     LodesDataset, LodesEdition, LodesJobType, WacSegment, WorkplaceSegment,
 };
-use geo::Geometry;
+use geo::{Geometry, MapCoords};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ pub fn collect_lodes_opportunities(
     data_granularity: &Option<GeoidType>,
     activity_types: &[String],
     activity_mapping: &HashMap<WacSegment, Vec<String>>,
-) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
+) -> Result<Vec<(Geometry<f32>, Vec<f64>)>, String> {
     // download LODES data paired with TIGER/Lines geometries
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -43,11 +43,13 @@ pub fn collect_lodes_opportunities(
         return Err(msg);
     }
 
-    // group opportunities by geometry.
-    let chunk_iter = res
-        .join_dataset
-        .into_iter()
-        .chunk_by(|r| r.geometry.clone());
+    // group opportunities by geometry in f32 precision.
+    let chunk_iter = res.join_dataset.into_iter().chunk_by(|r| {
+        r.geometry.map_coords(|c| geo::Coord {
+            x: c.x as f32,
+            y: c.y as f32,
+        })
+    });
 
     // lookup for a MEP activity's slot in the opportunity vector
     let idx_lookup: HashMap<String, usize> = HashMap::from_iter(
