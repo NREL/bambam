@@ -1,0 +1,22 @@
+{
+  "edge_lists": [
+    {
+      "mode": "walk",
+      "filter": [
+        { "type": "access_mode", "modes": ["foot"] }
+      ]
+    },
+    {
+      "mode": "bike",
+      "filter": [
+        { "type": "access_mode", "modes": ["bicycle"] }
+      ]
+    },
+    {
+      "mode": "drive",
+      "filter": [
+        { "type": "access_mode", "modes": ["motor_vehicle", "car", "truck", "motorcycle"] }
+      ]
+    }
+  ]
+}
