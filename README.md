@@ -24,6 +24,7 @@ First, install using cargo (via [rustup](rustup.rs)): `cargo build --release --m
   - **bambam_util** - runs specific support utilities
   - **bambam_gtfs** - [GTFS](https://gtfs.org/documentation/schedule/reference/) analysis and import script
   - **bambam_osm** - [OpenStreetMap](https://www.openstreetmap.org/) import script
+  - **bambam_omf** - [OvertureMaps](https://docs.overturemaps.org/) import script
 
 We can list the command arguments for bambam (will document app as "RouteE Compass"):
 
@@ -95,8 +96,8 @@ $ RUST_LOG=info ./rust/target/release/bambam --config-file configuration/boulder
 - [ ] R API
 - [ ] OvertureMaps network import
 - [ ] methodological improvements for walk/bike/drive realism
-- [ ] transit-mode travel using GTFS Schedule data networks
-- [ ] multimodal route planning
+- [x] transit-mode travel using GTFS Schedule data networks
+- [x] multimodal route planning
 
 # License
 
