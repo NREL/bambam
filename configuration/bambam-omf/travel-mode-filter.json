@@ -1,0 +1,43 @@
+{
+  "edge_lists": [
+    {
+      "mode": "walk",
+      "filter": [
+        { "type": "subtype", "subtype": "road" },
+        { 
+          "type": "class", 
+          "classes": ["secondary", "tertiary", "residential", "living_street", "unclassified", "service", "pedestrian", "footway", "steps", "path", "track", "bridleway", "unknown"], 
+          "ignore_unset": true,
+          "behavior": "include"
+        },
+        { "type": "access_mode", "modes": ["foot"] }
+      ]
+    },
+    {
+      "mode": "bike",
+      "filter": [
+        { "type": "subtype", "subtype": "road" },
+        { 
+          "type": "class", 
+          "classes": ["primary", "secondary", "tertiary", "residential", "living_street", "unclassified", "service", "pedestrian", "path", "track", "cycleway", "bridleway", "unknown"], 
+          "ignore_unset": true,
+          "behavior": "include"
+        },
+        { "type": "access_mode", "modes": ["bicycle"] }
+      ]
+    },
+    {
+      "mode": "drive",
+      "filter": [
+        { "type": "subtype", "subtype": "road" },
+        { 
+          "type": "class", 
+          "classes": ["motorway", "trunk", "primary", "secondary", "tertiary", "residential", "living_street", "unclassified", "service", "unknown"], 
+          "ignore_unset": true,
+          "behavior": "include"
+        },
+        { "type": "access_mode", "modes": ["motor_vehicle", "car", "truck", "motorcycle"] }
+      ]
+    }
+  ]
+}
