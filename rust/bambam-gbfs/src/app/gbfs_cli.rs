@@ -50,6 +50,6 @@ impl GbfsOperation {
 
 fn parse_duration(s: &str) -> Result<chrono::TimeDelta, String> {
     let std_duration =
-        humantime::parse_duration(s).map_err(|e| format!("Invalid duration: {}", e))?;
-    chrono::TimeDelta::from_std(std_duration).map_err(|e| format!("TimeDelta out of range: {}", e))
+        humantime::parse_duration(s).map_err(|e| format!("Invalid duration: {e}"))?;
+    chrono::TimeDelta::from_std(std_duration).map_err(|e| format!("TimeDelta out of range: {e}"))
 }
