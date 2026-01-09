@@ -59,7 +59,7 @@ impl OpportunitySource {
     pub fn generate_dataset(
         &self,
         activity_types: &[String],
-    ) -> Result<Vec<(Geometry, Vec<f64>)>, String> {
+    ) -> Result<Vec<(Geometry<f32>, Vec<f64>)>, String> {
         match self {
             OpportunitySource::OvertureMapsPlaces {
                 collector_config,

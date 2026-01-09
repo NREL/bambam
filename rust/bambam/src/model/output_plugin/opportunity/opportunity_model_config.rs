@@ -179,7 +179,7 @@ impl OpportunityModelConfig {
                 );
                 let match_by_vertex = match_iter
                     .map(|v| {
-                        let point: Point<f64> = geo::Point(v.coordinate.0).convert();
+                        let point: Point<f32> = geo::Point(v.coordinate.0).convert();
                         rtree.nearest_neighbor(&point).map(|o| o.data)
                     })
                     .collect_vec();

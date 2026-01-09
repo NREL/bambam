@@ -1,7 +1,11 @@
+use std::path::PathBuf;
+
 use parquet::errors::ParquetError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum OvertureMapsCollectionError {
+    #[error("Invalid input: {0}")]
+    InvalidUserInput(String),
     #[error("Failed to connect to S3 Bucket: {0}")]
     ConnectionError(String),
     #[error("Failed to acquire Metadata: {0}")]
@@ -34,8 +38,16 @@ pub enum OvertureMapsCollectionError {
     SerializationError(String),
     #[error("Segment connectors vector is invalid or not specified: {0}")]
     InvalidSegmentConnectors(String),
+    #[error("linear reference {0} must be in range [0, 1]")]
+    InvalidLinearReference(f64),
     #[error("Invalid or empty geometry: {0}")]
     InvalidGeometry(String),
     #[error("Error writing to csv: {0}")]
     CsvWriteError(String),
+    #[error("Error reading from '{path}': {message}")]
+    ReadError { path: PathBuf, message: String },
+    #[error("Error writing to '{path}': {message}")]
+    WriteError { path: PathBuf, message: String },
+    #[error("{0}")]
+    InternalError(String),
 }

@@ -2,7 +2,7 @@ use geo::Geometry;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt};
 
-use super::deserialize_geometry;
+use super::geometry_wkb_codec;
 use super::{OvertureMapsBbox, OvertureMapsNames, OvertureMapsSource, OvertureRecord};
 use crate::collection::OvertureMapsCollectionError;
 
@@ -10,8 +10,8 @@ use crate::collection::OvertureMapsCollectionError;
 /// The schema online does not mention some of the fields are nullable
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlacesRecord {
-    #[serde(deserialize_with = "deserialize_geometry")]
-    geometry: Option<Geometry>,
+    #[serde(with = "geometry_wkb_codec")]
+    geometry: Option<Geometry<f32>>,
     categories: Option<OvertureMapsPlacesCategories>,
     id: Option<String>,
     bbox: OvertureMapsBbox,
@@ -63,7 +63,7 @@ impl PlacesRecord {
         }
     }
 
-    pub fn get_geometry(&self) -> Option<Geometry> {
+    pub fn get_geometry(&self) -> Option<Geometry<f32>> {
         self.geometry.clone()
     }
 }

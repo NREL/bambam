@@ -1,68 +1,114 @@
 use std::{collections::HashMap, fs::File, path::Path};
 
+use super::serialize_ops as ops;
+use crate::{
+    app::network::NetworkEdgeListConfiguration,
+    collection::{
+        OvertureMapsCollectionError, TransportationCollection, TransportationSegmentRecord,
+    },
+    graph::{segment_ops, vertex_serializable::VertexSerializable},
+};
 use csv::QuoteStyle;
 use flate2::{write::GzEncoder, Compression};
+use geo::LineString;
 use kdam::tqdm;
-use routee_compass_core::model::network::{Edge, EdgeConfig, Vertex};
+use rayon::prelude::*;
+use routee_compass_core::model::network::{EdgeConfig, EdgeList, EdgeListId, Vertex};
+use wkt::ToWkt;
 
-use super::serialize_ops::get_connectors_mapping;
-use crate::{
-    collection::{OvertureMapsCollectionError, TransportationCollection},
-    graph::{serialize_ops::get_connector_splits, vertex_serializable::VertexSerializable},
-};
-
-#[derive(Debug)]
 pub struct OmfGraphVectorized {
-    pub edge_list_id: usize,
     pub vertices: Vec<Vertex>,
-    pub edges: Vec<Edge>,
+    pub edge_lists: Vec<OmfEdgeList>,
+    pub edge_list_config: Vec<NetworkEdgeListConfiguration>,
     /// for each OMF ID, the vertex index
     pub vertex_lookup: HashMap<String, usize>,
 }
 
+pub struct OmfEdgeList {
+    pub edges: EdgeList,
+    pub geometries: Vec<LineString<f32>>,
+}
+
 impl OmfGraphVectorized {
-    pub fn try_from_collection(
-        collection: TransportationCollection,
-        edge_list_id: usize,
+    /// create a vectorized graph dataset from a [TransportationCollection]
+    pub fn new(
+        collection: &TransportationCollection,
+        configuration: &[NetworkEdgeListConfiguration],
     ) -> Result<Self, OvertureMapsCollectionError> {
-        // Process initial set of connectors
-        let (vertices, vertex_mapping) = get_connectors_mapping(&collection.connectors)?;
+        // process all connectors into vertices
+        let (mut vertices, mut vertex_lookup) =
+            ops::create_vertices_and_lookup(&collection.connectors, None)?;
 
-        // Initialize result
-        let mut result = Self {
-            edge_list_id,
-            vertices,
-            edges: vec![],
-            vertex_lookup: vertex_mapping,
-        };
+        // for each mode configuration, create an edge list
+        let mut edge_lists: Vec<OmfEdgeList> = vec![];
+        for (index, edge_list_config) in configuration.iter().enumerate() {
+            let edge_list_id = EdgeListId(index);
+            let mut filter = edge_list_config.filter.clone();
+            filter.sort(); // sort for performance
 
-        // Process segments
-        for segment in collection.segments.iter() {
-            // Compute all the splits
-            // Here is where we would define and run additional splits
-            get_connector_splits(segment)?
-                .iter()
-                .try_for_each(|split| split.split(&mut result, segment))?;
+            // filter to the segments that match our travel mode filter(s)
+            let segments: Vec<&TransportationSegmentRecord> = collection
+                .segments
+                .par_iter()
+                .filter(|r| edge_list_config.filter.iter().all(|f| f.matches_filter(r)))
+                .collect();
+            let segment_lookup = ops::create_segment_lookup(&segments);
+
+            // the splits are locations in each segment record where we want to define a vertex
+            // which may not yet exist on the graph
+            let splits = ops::find_splits(&segments, segment_ops::process_simple_connector_splits)?;
+
+            // depending on the split method, we may need to create additional vertices at locations
+            // which are not OvertureMaps-defined connector types.
+            ops::extend_vertices(
+                &splits,
+                &segments,
+                &segment_lookup,
+                &mut vertices,
+                &mut vertex_lookup,
+            )?;
+
+            // create all edges based on the above split points using all vertices.
+            let edges = ops::create_edges(
+                &segments,
+                &segment_lookup,
+                &splits,
+                &vertices,
+                &vertex_lookup,
+                edge_list_id,
+            )?;
+            let geometries = ops::create_geometries(&segments, &segment_lookup, &splits)?;
+            let edge_list = OmfEdgeList {
+                edges: EdgeList(edges.into_boxed_slice()),
+                geometries,
+            };
+            edge_lists.push(edge_list);
         }
+
+        let result = Self {
+            vertices,
+            edge_lists,
+            edge_list_config: configuration.to_vec(),
+            vertex_lookup,
+        };
 
         Ok(result)
     }
 
-    pub fn add_vertex(&mut self, x: f32, y: f32) -> usize {
-        let current_vertex_id = self.vertices.len();
-        // Should we just use UUID?
-        let new_name = format!("new-{current_vertex_id}");
-        self.vertex_lookup.insert(new_name, current_vertex_id);
-        self.vertices.push(Vertex::new(current_vertex_id, x, y));
-
-        current_vertex_id
-    }
-
+    /// write the graph to disk in vectorized Compass format.
     pub fn write_compass(
         &self,
         output_directory: &Path,
         overwrite: bool,
     ) -> Result<(), OvertureMapsCollectionError> {
+        kdam::term::init(false);
+        kdam::term::hide_cursor().map_err(|e| {
+            OvertureMapsCollectionError::InternalError(format!("progress bar error: {e}"))
+        })?;
+        // create output directory if missing
+        crate::util::fs::create_dirs(output_directory)?;
+
+        // write vertices
         let mut vertex_writer = create_writer(
             output_directory,
             "vertices-compass.csv.gz",
@@ -70,21 +116,12 @@ impl OmfGraphVectorized {
             QuoteStyle::Necessary,
             overwrite,
         );
-        let mut edge_writer = create_writer(
-            output_directory,
-            "edges-compass.csv.gz",
-            true,
-            QuoteStyle::Necessary,
-            overwrite,
-        );
-
-        // Write vertices
         let v_iter = tqdm!(
-            self.vertices.iter().enumerate(),
+            self.vertices.iter(),
             total = self.vertices.len(),
             desc = "write vertex dataset"
         );
-        for (_, vertex) in v_iter {
+        for vertex in v_iter {
             if let Some(ref mut writer) = vertex_writer {
                 let vertex_ser = VertexSerializable::from(*vertex);
                 writer.serialize(vertex_ser).map_err(|e| {
@@ -94,29 +131,7 @@ impl OmfGraphVectorized {
                 })?;
             }
         }
-
-        // Write Edges
-        let e_iter = tqdm!(
-            self.edges.iter().enumerate(),
-            total = self.edges.len(),
-            desc = "write edges dataset"
-        );
-        for (_edge_id, row) in e_iter {
-            if let Some(ref mut writer) = edge_writer {
-                let edge = EdgeConfig {
-                    edge_id: row.edge_id,
-                    src_vertex_id: row.src_vertex_id,
-                    dst_vertex_id: row.dst_vertex_id,
-                    distance: row.distance.get::<uom::si::length::meter>(),
-                };
-                writer.serialize(edge).map_err(|e| {
-                    OvertureMapsCollectionError::CsvWriteError(format!(
-                        "Failed to write to edges-compass.csv.gz: {e}"
-                    ))
-                })?;
-            }
-        }
-        // Explicitly flush the writers to ensure all data is written
+        eprintln!();
         if let Some(ref mut writer) = vertex_writer {
             writer.flush().map_err(|e| {
                 OvertureMapsCollectionError::CsvWriteError(format!(
@@ -124,13 +139,99 @@ impl OmfGraphVectorized {
                 ))
             })?;
         }
-        if let Some(ref mut writer) = edge_writer {
-            writer.flush().map_err(|e| {
-                OvertureMapsCollectionError::CsvWriteError(format!(
-                    "Failed to flush edges-compass.csv.gz: {e}"
-                ))
-            })?;
+
+        // write each edge list
+        let edge_list_iter = tqdm!(
+            self.edge_lists.iter().zip(self.edge_list_config.iter()),
+            desc = "edge list",
+            total = self.edge_lists.len(),
+            position = 0
+        );
+        for (edge_list, edge_list_config) in edge_list_iter {
+            let mode_dir = output_directory.join(&edge_list_config.mode);
+            crate::util::fs::create_dirs(&mode_dir)?;
+
+            let mut edge_writer = create_writer(
+                &mode_dir,
+                "edges-compass.csv.gz",
+                true,
+                QuoteStyle::Necessary,
+                overwrite,
+            );
+            let mut geometries_writer = create_writer(
+                &mode_dir,
+                "edges-geometries-enumerated.txt.gz",
+                false,
+                QuoteStyle::Never,
+                overwrite,
+            );
+
+            // Write Edges
+            let e_iter = tqdm!(
+                edge_list.edges.0.iter(),
+                total = edge_list.edges.len(),
+                desc = "edges",
+                position = 1
+            );
+            for row in e_iter {
+                if let Some(ref mut writer) = edge_writer {
+                    let edge = EdgeConfig {
+                        edge_id: row.edge_id,
+                        src_vertex_id: row.src_vertex_id,
+                        dst_vertex_id: row.dst_vertex_id,
+                        distance: row.distance.get::<uom::si::length::meter>(),
+                    };
+                    writer.serialize(edge).map_err(|e| {
+                        OvertureMapsCollectionError::CsvWriteError(format!(
+                            "Failed to write to edges-compass.csv.gz: {e}"
+                        ))
+                    })?;
+                }
+            }
+            eprintln!();
+
+            if let Some(ref mut writer) = edge_writer {
+                writer.flush().map_err(|e| {
+                    OvertureMapsCollectionError::CsvWriteError(format!(
+                        "Failed to flush edges-compass.csv.gz: {e}"
+                    ))
+                })?;
+            }
+
+            // Write geometries
+            let g_iter = tqdm!(
+                edge_list.geometries.iter(),
+                total = edge_list.geometries.len(),
+                desc = "geometries",
+                position = 1
+            );
+            for row in g_iter {
+                if let Some(ref mut writer) = geometries_writer {
+                    writer
+                    .serialize(row.to_wkt().to_string())
+                    .map_err(|e| {
+                        OvertureMapsCollectionError::CsvWriteError(format!(
+                            "Failed to write to geometry file edges-geometries-enumerated.txt.gz: {e}"
+                        ))
+                    })?;
+                }
+            }
+            eprintln!();
+
+            if let Some(ref mut writer) = geometries_writer {
+                writer.flush().map_err(|e| {
+                    OvertureMapsCollectionError::CsvWriteError(format!(
+                        "Failed to flush edges-geometries-enumerated.txt.gz: {e}"
+                    ))
+                })?;
+            }
         }
+        eprintln!();
+
+        kdam::term::show_cursor().map_err(|e| {
+            OvertureMapsCollectionError::InternalError(format!("progress bar error: {e}"))
+        })?;
+
         Ok(())
     }
 }

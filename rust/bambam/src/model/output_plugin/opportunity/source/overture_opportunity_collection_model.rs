@@ -87,7 +87,7 @@ impl OvertureOpportunityCollectionModel {
     pub fn collect(
         &self,
         activity_types: &[String],
-    ) -> Result<Vec<(Geometry, Vec<f64>)>, OvertureMapsCollectionError> {
+    ) -> Result<Vec<(Geometry<f32>, Vec<f64>)>, OvertureMapsCollectionError> {
         // Collect raw opportunities
         let mut places_opportunities = self.collect_places_opportunities(activity_types)?;
 
@@ -101,7 +101,7 @@ impl OvertureOpportunityCollectionModel {
                     .iter()
                     .enumerate()
                     .map(|(i, (geom, _))| (geom.clone(), i))
-                    .collect::<Vec<(Geometry, usize)>>(),
+                    .collect::<Vec<(Geometry<f32>, usize)>>(),
             )
             .map_err(OvertureMapsCollectionError::ProcessingError)?;
 
@@ -110,7 +110,7 @@ impl OvertureOpportunityCollectionModel {
             //  2. Compare the MEP vectors
             //  3. If the building has a category not contained in the places data
             //     we return it as a new opportunity. Otherwise we skip it.
-            let mut filtered_buildings: Vec<(Geometry, Vec<bool>)> = buildings_opportunities
+            let mut filtered_buildings: Vec<(Geometry<f32>, Vec<bool>)> = buildings_opportunities
                 .into_iter()
                 .map(|building| {
                     // Aggregate the values of all matching points into a single MEP vector
@@ -166,7 +166,7 @@ impl OvertureOpportunityCollectionModel {
     fn collect_places_opportunities(
         &self,
         activity_types: &[String],
-    ) -> Result<Vec<(Geometry, Vec<bool>)>, OvertureMapsCollectionError> {
+    ) -> Result<Vec<(Geometry<f32>, Vec<bool>)>, OvertureMapsCollectionError> {
         let places_records = self
             .collector
             .collect_from_release(
@@ -197,7 +197,7 @@ impl OvertureOpportunityCollectionModel {
         );
 
         // Collect POI geometries
-        let mep_geometries: Vec<Option<Geometry>> = places_records
+        let mep_geometries: Vec<Option<Geometry<f32>>> = places_records
             .into_iter()
             .map(|record| record.get_geometry())
             .collect();
@@ -218,14 +218,14 @@ impl OvertureOpportunityCollectionModel {
             .filter_map(|(maybe_geometry, vector)| {
                 maybe_geometry.map(|geometry| (geometry, vector))
             })
-            .collect::<Vec<(Geometry, Vec<bool>)>>())
+            .collect::<Vec<(Geometry<f32>, Vec<bool>)>>())
     }
 
     fn collect_building_opportunities(
         &self,
         activity_types: &[String],
         buildings_activity_mappings: &HashMap<String, Vec<String>>,
-    ) -> Result<Vec<(Geometry, Vec<bool>)>, OvertureMapsCollectionError> {
+    ) -> Result<Vec<(Geometry<f32>, Vec<bool>)>, OvertureMapsCollectionError> {
         // Build the taxonomy model from the mapping by transforming the vectors into HashSets
         let buildings_taxonomy_model = TaxonomyModel::from_mapping(
             buildings_activity_mappings
@@ -268,7 +268,7 @@ impl OvertureOpportunityCollectionModel {
         );
 
         // Collect geometries
-        let mep_geometries: Vec<Option<Geometry>> = buildings_records
+        let mep_geometries: Vec<Option<Geometry<f32>>> = buildings_records
             .iter()
             .map(|record| record.get_geometry())
             .collect();
@@ -280,7 +280,7 @@ impl OvertureOpportunityCollectionModel {
             .filter_map(|(maybe_geometry, vector)| {
                 maybe_geometry.map(|geometry| (geometry, vector))
             })
-            .collect::<Vec<(Geometry, Vec<bool>)>>())
+            .collect::<Vec<(Geometry<f32>, Vec<bool>)>>())
     }
 }
 

@@ -14,4 +14,4 @@ configuration/test_gtfs_config_boulder_gtfs.toml
 denver_co/
 boulder_co/
 denver_rtd/
-
+out/
