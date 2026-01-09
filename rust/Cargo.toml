@@ -1,6 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["bambam", "bambam-osm", "bambam-gtfs", "bambam-omf", "bambam-gbfs", "bambam-py"]
+members = [
+    "bambam",
+    "bambam-osm",
+    "bambam-gtfs",
+    "bambam-omf",
+    "bambam-gbfs",
+    "bambam-py",
+    "bambam-gtfs-flex",
+]
 
 [workspace.dependencies]
 

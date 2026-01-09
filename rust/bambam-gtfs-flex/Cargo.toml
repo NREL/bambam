@@ -1,0 +1,18 @@
+[package]
+name = "bambam-gtfs-flex"
+version = "0.2.4"
+edition = "2021"
+license = "BSD-3-Clause"
+description = "Simple GTFS-Flex scanner"
+repository = "https://github.com/NREL/bambam"
+readme = "README.md"
+
+[dependencies]
+zip = "0.6"
+serde_json = "1.0"
+csv = "1.2"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+geo-types = "0.7"
+
+# No external dependencies needed for the simple version
