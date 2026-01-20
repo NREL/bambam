@@ -127,7 +127,7 @@ pub fn join_flex_files(
     calendar: &[Calendar],
     trips: &[Trips],
     stop_times: &[StopTimes],
-    locations: &[Location],
+    _locations: &[Location],
     date_requested: &str,
     time_requested: &str,
 ) -> io::Result<()> {
