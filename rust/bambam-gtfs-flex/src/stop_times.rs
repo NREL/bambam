@@ -13,9 +13,8 @@ pub struct StopTimes {
     /// location (area) identifier
     pub location_id: String,
 
-    /// stop sequence (1, 2, 3, etc.)
-    pub stop_sequence: u32,
-
+    // /// stop sequence (1, 2, 3, etc.)
+    // pub stop_sequence: u32,
     /// start of pickup/dropoff window
     #[serde(deserialize_with = "deserialize_time")]
     pub start_pickup_drop_off_window: NaiveTime,

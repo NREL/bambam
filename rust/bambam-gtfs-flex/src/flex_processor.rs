@@ -4,33 +4,36 @@ use crate::stop_times::{read_stop_times_from_flex, StopTimes};
 use crate::trips::{read_trips_from_flex, Trips};
 
 use chrono::Datelike;
+use chrono::NaiveTime;
+use geo_types::Geometry;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::Path;
 
-// pub struct CsvTable {
-//     pub header: StringRecord,
-//     pub rows: Vec<StringRecord>,
-// }
+/// a valid origin-destination zone pair for a trip
+#[derive(Debug)]
+struct ValidZone {
+    trip_id: String,
+    origin_zone: String,
+    destination_zone: String,
+    origin_zone_geom: Option<Geometry>,
+    destination_zone_geom: Option<Geometry>,
+}
 
-// impl CsvTable {
-//     pub fn col_idx(&self, name: &str) -> usize {
-//         self.header
-//             .iter()
-//             .position(|h| h == name)
-//             .unwrap_or_else(|| panic!("Column '{}' not found", name))
-//     }
-// }
-
-pub fn process_gtfs_flex_bundle(flex_directory_path: &Path) -> io::Result<()> {
+/// process all GTFS-Flex feeds in the given directory
+pub fn process_gtfs_flex_bundle(
+    flex_directory_path: &Path,
+    date_requested: &str,
+    time_requested: &str,
+) -> io::Result<()> {
     println!("=== Processing GTFS-Flex bundle ===");
 
     // discover gtfs-flex feeds
     discover_gtfs_flex_feeds(flex_directory_path)?;
 
     // process files in each feed
-    process_flex_files(flex_directory_path)?;
+    process_flex_files(flex_directory_path, date_requested, time_requested)?;
 
     println!("=== GTFS-Flex processing complete ===");
     Ok(())
@@ -66,7 +69,12 @@ pub fn discover_gtfs_flex_feeds(flex_directory_path: &Path) -> io::Result<()> {
 }
 
 /// iterate over gtfs-flex feeds and process files from each feed
-pub fn process_flex_files(flex_directory_path: &Path) -> io::Result<()> {
+/// return valid zones for the requested date and time
+pub fn process_flex_files(
+    flex_directory_path: &Path,
+    date_requested: &str,
+    time_requested: &str,
+) -> io::Result<()> {
     println!("Processing GTFS-Flex feeds in {:?}", flex_directory_path);
 
     for entry in std::fs::read_dir(flex_directory_path)? {
@@ -103,10 +111,8 @@ pub fn process_flex_files(flex_directory_path: &Path) -> io::Result<()> {
             // println!("      locations.geojson content: {:?}", locations);
             println!("      locations.geojson read!");
 
-            // process files
-            let date_requested = "20240902"; // example date
-            let time_requested = "09:00:00"; // example time
-            join_flex_files(
+            // process files for requested date and time and get valid zones
+            let valid_zones = join_flex_files(
                 &calendar,
                 &trips,
                 &stop_times,
@@ -114,6 +120,11 @@ pub fn process_flex_files(flex_directory_path: &Path) -> io::Result<()> {
                 date_requested,
                 time_requested,
             )?;
+
+            println!(
+                "Valid zones (trip_id -> origin_zone, destination_zone, origin_zone_geom, destination_zone_geom): {:#?}",
+                valid_zones
+            );
         }
     }
 
@@ -130,9 +141,7 @@ pub fn join_flex_files(
     locations: &[Location],
     date_requested: &str,
     time_requested: &str,
-) -> io::Result<()> {
-    use chrono::NaiveTime;
-
+) -> io::Result<Vec<ValidZone>> {
     // parse requested date and time
     let date = chrono::NaiveDate::parse_from_str(date_requested, "%Y%m%d")
         .expect("Invalid date format YYYYMMDD");
@@ -183,45 +192,58 @@ pub fn join_flex_files(
 
     println!("          active stop_times: {:?}", active_stop_times);
 
-    // create valid zones of origin-destination pairs from each trip in stop_times
-    let mut valid_zones: HashMap<String, (String, String)> = HashMap::new();
+    // build location lookup map
+    let location_map: HashMap<String, &Location> =
+        locations.iter().map(|loc| (loc.id.clone(), loc)).collect();
 
-    for trip_id in active_stop_times.iter().map(|st| &st.trip_id) {
-        // filter stop_times for this trip_id
-        let trip_stop_times: Vec<&&StopTimes> = active_stop_times
-            .iter()
-            .filter(|st| &st.trip_id == trip_id)
-            .collect();
-
-        // find origin: pickup allowed, dropoff not allowed
-        let origin = trip_stop_times
-            .iter()
-            .find(|st| st.pickup_type == 2 && st.drop_off_type == 1)
-            .map(|st| st.location_id.clone())
-            .unwrap_or_else(|| "".to_string());
-
-        // find destination: pickup not allowed, dropoff allowed
-        let destination = trip_stop_times
-            .iter()
-            .find(|st| st.pickup_type == 1 && st.drop_off_type == 2)
-            .map(|st| st.location_id.clone())
-            .unwrap_or_else(|| "".to_string());
-
-        if !origin.is_empty() && !destination.is_empty() {
-            valid_zones.insert(trip_id.clone(), (origin, destination));
-        }
+    // group stop_times by trip_id
+    let mut stop_times_by_trip: HashMap<String, Vec<&StopTimes>> = HashMap::new();
+    for st in &active_stop_times {
+        stop_times_by_trip
+            .entry(st.trip_id.clone())
+            .or_default()
+            .push(*st);
     }
-    println!(
-        "Valid zones (trip_id -> (origin, destination)): {:?}",
-        valid_zones
-    );
 
-    // struct type for valid zones
-    // then
-    // add location geometries to valid zones
-    // may be add geometries in the single step above
+    // create valid zones of origin-destination pairs from each trip in stop_times
+    let valid_zones: Vec<ValidZone> = stop_times_by_trip
+        .into_iter()
+        .filter_map(|(trip_id, sts)| {
+            // find origin zone: pickup allowed, dropoff not allowed
+            let origin = sts
+                .iter()
+                .find(|st| st.pickup_type == 2 && st.drop_off_type == 1)
+                .map(|st| st.location_id.clone());
 
-    println!("    GTFS-Flex files processed successfully!");
+            // find destination zone: pickup not allowed, dropoff allowed
+            let destination = sts
+                .iter()
+                .find(|st| st.pickup_type == 1 && st.drop_off_type == 2)
+                .map(|st| st.location_id.clone());
 
-    Ok(())
+            // append geometries to origin and destination zones
+            match (origin, destination) {
+                (Some(origin_zone), Some(destination_zone)) => {
+                    let origin_zone_geom = location_map
+                        .get(&origin_zone)
+                        .map(|loc| loc.geometry.clone());
+
+                    let destination_zone_geom = location_map
+                        .get(&destination_zone)
+                        .map(|loc| loc.geometry.clone());
+
+                    Some(ValidZone {
+                        trip_id,
+                        origin_zone,
+                        destination_zone,
+                        origin_zone_geom,
+                        destination_zone_geom,
+                    })
+                }
+                _ => None,
+            }
+        })
+        .collect();
+
+    Ok(valid_zones)
 }
