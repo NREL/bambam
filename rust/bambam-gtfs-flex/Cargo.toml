@@ -15,8 +15,10 @@ type4 = ["dep:bambam-gtfs"]
 zip = { workspace = true }
 serde_json = { workspace = true }
 csv = { workspace = true }
+kdam = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 geo-types = { workspace = true }
+routee-compass-core = { workspace = true }
 bambam-gtfs = { version = "0.2.3", path = "../bambam-gtfs", optional = true }
 # No external dependencies needed for the simple version
