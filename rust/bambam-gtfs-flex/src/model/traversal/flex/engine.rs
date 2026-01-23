@@ -25,7 +25,7 @@ impl TryFrom<&GtfsFlexTraversalConfig> for GtfsFlexTraversalEngine {
                 edge_zone_input_file,
             } => Self::new_type_one(edge_zone_input_file),
             GtfsFlexTraversalConfig::ServiceTypeTwo {
-                zone_time_lookup_input_file,
+                zone_time_lookup_input_file: _,
             } => todo!(),
         }
     }

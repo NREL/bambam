@@ -36,14 +36,14 @@ impl TraversalModel for GtfsFlexTraversalModel {
 
     fn traverse_edge(
         &self,
-        trajectory: (
+        _trajectory: (
             &routee_compass_core::model::network::Vertex,
             &routee_compass_core::model::network::Edge,
             &routee_compass_core::model::network::Vertex,
         ),
-        state: &mut Vec<routee_compass_core::model::state::StateVariable>,
-        tree: &routee_compass_core::algorithm::search::SearchTree,
-        state_model: &routee_compass_core::model::state::StateModel,
+        _state: &mut Vec<routee_compass_core::model::state::StateVariable>,
+        _tree: &routee_compass_core::algorithm::search::SearchTree,
+        _state_model: &routee_compass_core::model::state::StateModel,
     ) -> Result<(), routee_compass_core::model::traversal::TraversalModelError> {
         todo!("
             1. grab the Option<ZoneId> crate::model::feature::fieldname::SRC_ZONE_ID from the state (using state_model)
@@ -55,13 +55,13 @@ impl TraversalModel for GtfsFlexTraversalModel {
 
     fn estimate_traversal(
         &self,
-        od: (
+        _od: (
             &routee_compass_core::model::network::Vertex,
             &routee_compass_core::model::network::Vertex,
         ),
-        state: &mut Vec<routee_compass_core::model::state::StateVariable>,
-        tree: &routee_compass_core::algorithm::search::SearchTree,
-        state_model: &routee_compass_core::model::state::StateModel,
+        _state: &mut Vec<routee_compass_core::model::state::StateVariable>,
+        _tree: &routee_compass_core::algorithm::search::SearchTree,
+        _state_model: &routee_compass_core::model::state::StateModel,
     ) -> Result<(), routee_compass_core::model::traversal::TraversalModelError> {
         // no estimates
         Ok(())
