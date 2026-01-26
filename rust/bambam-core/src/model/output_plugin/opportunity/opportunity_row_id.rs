@@ -1,22 +1,20 @@
 use std::sync::Arc;
 
-use geo::{Centroid, Convert, LineString};
+use geo::{Centroid, Convert};
 use routee_compass::plugin::output::OutputPluginError;
 use routee_compass_core::{
     algorithm::search::{SearchInstance, SearchTreeNode},
     model::{
         label::Label,
         map::MapModel,
-        network::{EdgeId, EdgeListId, Graph, VertexId},
+        network::{EdgeId, EdgeListId, Graph},
     },
 };
 use rstar::{RTreeObject, AABB};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use wkt::ToWkt;
 
-use crate::model::output_plugin::opportunity::{
-    opportunity_format::OpportunityFormat, opportunity_orientation::OpportunityOrientation,
-};
+use crate::model::output_plugin::opportunity::opportunity_orientation::OpportunityOrientation;
 
 // identifier in the graph tagging where an opportunity was found
 #[derive(Serialize, Clone, PartialEq, Eq, Hash, Debug)]
@@ -73,7 +71,7 @@ impl OpportunityRowId {
             ))),
         }?;
 
-        let vertex = graph.get_vertex(vertex_id).map_err(|e| {
+        let vertex = graph.get_vertex(vertex_id).map_err(|_e| {
             OutputPluginError::OutputPluginFailed(format!("unknown vertex id '{vertex_id}'"))
         })?;
         let point = geo::Point::new(vertex.x(), vertex.y());
@@ -94,7 +92,7 @@ impl OpportunityRowId {
         map_model
             .get_linestring(edge_list_id, edge_id)
             .cloned()
-            .map_err(|e| {
+            .map_err(|_e| {
                 OutputPluginError::OutputPluginFailed(format!("unknown edge id '{edge_id}'"))
             })
     }

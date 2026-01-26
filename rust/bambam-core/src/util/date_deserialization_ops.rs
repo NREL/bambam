@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, NaiveDateTime, ParseResult};
 use serde::de::Error;
 use serde::Deserializer;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub const APP_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 pub const APP_DATE_FORMAT: &str = "%Y-%m-%d";

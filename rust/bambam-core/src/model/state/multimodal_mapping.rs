@@ -1,13 +1,10 @@
 use routee_compass_core::{
-    model::{
-        label::Label,
-        state::{StateModelError, StateVariable},
-    },
+    model::state::StateModelError,
     util::fs::{read_decoders, read_utils},
 };
 use std::{
     collections::HashMap,
-    fmt::{Debug, Display},
+    fmt::Debug,
     path::Path,
 };
 
@@ -153,7 +150,7 @@ fn try_into_usize<U>(u: U) -> Result<usize, StateModelError>
 where
     U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug,
 {
-    let as_usize = u.try_into().map_err(|e| {
+    let as_usize = u.try_into().map_err(|_e| {
         StateModelError::BuildError(format!(
             "could not convert Index {u:?} to a usize type, should implement TryInto<usize>"
         ))
@@ -166,7 +163,7 @@ fn try_into_u<U>(idx: usize) -> Result<U, StateModelError>
 where
     U: Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + Debug,
 {
-    idx.try_into().map_err(|e| {
+    idx.try_into().map_err(|_e| {
         StateModelError::BuildError(format!(
             "could not convert index {idx} to a Index type, should implement TryFrom<usize>"
         ))

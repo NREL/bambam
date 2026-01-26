@@ -2,10 +2,7 @@ use crate::model::{
     bambam_field, bambam_state, output_plugin::opportunity::OpportunityOrientation, TimeBin,
 };
 use routee_compass::plugin::output::OutputPluginError;
-use routee_compass_core::model::{
-    state::{StateModel, StateVariable},
-    unit::TimeUnit,
-};
+use routee_compass_core::model::state::{StateModel, StateVariable};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uom::si::f64::Time;

@@ -1,8 +1,5 @@
 use super::bambam_ops;
-use routee_compass_core::model::{
-    state::{StateModel, StateModelError, StateVariable},
-    unit::{AsF64, TimeUnit},
-};
+use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
 

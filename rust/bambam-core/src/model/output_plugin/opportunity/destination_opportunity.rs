@@ -1,6 +1,5 @@
 use routee_compass_core::model::state::StateVariable;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// activity counts and vehicle state observed when reaching a destination
 #[derive(Debug, Clone, Serialize, Deserialize)]
