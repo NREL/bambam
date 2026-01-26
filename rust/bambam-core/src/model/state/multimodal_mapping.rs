@@ -2,11 +2,7 @@ use routee_compass_core::{
     model::state::StateModelError,
     util::fs::{read_decoders, read_utils},
 };
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    path::Path,
-};
+use std::{collections::HashMap, fmt::Debug, path::Path};
 
 /// stores the bijection from categorical name to an enumeration label compatible
 /// with Compass LabelModels and Custom StateModels.

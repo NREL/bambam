@@ -1,4 +1,3 @@
-
 use crate::model::state::{LegIdx, MultimodalStateMapping};
 use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde_json::json;
@@ -173,7 +172,7 @@ pub fn get_mode_label_sequence(
 ) -> Result<Vec<i64>, StateModelError> {
     let mut labels: Vec<i64> = vec![];
 
-    for leg_idx in 0..max_trip_legs  {
+    for leg_idx in 0..max_trip_legs {
         let mode_label_opt = get_leg_mode_label(state, leg_idx, state_model, max_trip_legs)?;
         match mode_label_opt {
             None => break,
