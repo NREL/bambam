@@ -1,7 +1,8 @@
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
 
-use kdam::BarBuilder;
-use routee_compass_core::{model::traversal::TraversalModelError, util::fs::read_utils};
+use chrono::NaiveDateTime;
+use gtfs_structures::Gtfs;
+use routee_compass_core::model::traversal::TraversalModelError;
 
 use crate::model::traversal::flex::{GtfsFlexTraversalConfig, ZoneId};
 
@@ -9,42 +10,63 @@ use crate::model::traversal::flex::{GtfsFlexTraversalConfig, ZoneId};
 /// for more information, see the README.md for this crate.
 pub enum GtfsFlexTraversalEngine {
     /// In this service type, trips are assigned a src_zone_id when they board.
+    /// The trip may travel anywhere, but may only treat locations within this zone as destinations.
     ServiceTypeOne {
         /// for each edge, either their zone or None if the edge is not within a zone.
         edge_zones: Box<[Option<ZoneId>]>,
     },
-    ServiceTypeTwo {},
+
+    /// In this service type, trips are assigned a src_zone_id and departure_time
+    /// when they board. The trip may travel anywhere, but may only treat particular
+    /// locations as destinations.
+    ServiceTypeTwo {
+        /// for each edge, either their zone or None if the edge is not within a zone.
+        edge_zones: Box<[Option<ZoneId>]>,
+        /// a mapping from source zone and (optional) departure time to some set of
+        /// destination zones
+        valid_trips: HashMap<(ZoneId, Option<NaiveDateTime>), HashSet<ZoneId>>,
+    },
+
+    /// In this service type, trips are assigned a src_zone_id and departure_time when
+    /// they board. The trip may travel anywhere, but may only treat particular locations
+    /// as destinations.
+    ServiceTypeThree {
+        /// for each edge, at trip departure time, either their zone or
+        /// None if the edge is not within a zone.
+        departure_edge_zones: Box<[Option<ZoneId>]>,
+        /// for each edge, at trip arrival time, either their zone or
+        /// None if the edge is not within a zone.
+        arrival_edge_zones: Box<[Option<ZoneId>]>,
+        /// a mapping from source zone and (optional) departure time to some set of
+        /// destination zones
+        valid_trips: HashMap<(ZoneId, Option<NaiveDateTime>), HashSet<ZoneId>>,
+    },
+    /// In this service type, we are actually running GTFS-style routing. However,
+    /// we also need to modify some static weights based on the expected delays due
+    /// to trip deviations. This weights should be modified during trip/model
+    /// initialization but made fixed to ensure search correctness.
+    ServiceTypeFour {
+        /// the GTFS archive to use during traversal. this is a stub; we may want our own
+        /// intermediate representation during routing for performance or generalizability.
+        gtfs: Gtfs,
+    },
 }
 
 impl TryFrom<&GtfsFlexTraversalConfig> for GtfsFlexTraversalEngine {
     type Error = TraversalModelError;
 
-    fn try_from(value: &GtfsFlexTraversalConfig) -> Result<Self, Self::Error> {
-        match value {
-            GtfsFlexTraversalConfig::ServiceTypeOne {
-                edge_zone_input_file,
-            } => Self::new_type_one(edge_zone_input_file),
-            GtfsFlexTraversalConfig::ServiceTypeTwo {
-                zone_time_lookup_input_file: _,
-            } => todo!(),
-        }
+    fn try_from(_value: &GtfsFlexTraversalConfig) -> Result<Self, Self::Error> {
+        todo!("read archive and produce one of the GtfsFlexTraversalEngine variants based on the result")
     }
 }
 
 impl GtfsFlexTraversalEngine {
-    /// builds a service type one engine
-    pub fn new_type_one<T>(input_file: &T) -> Result<GtfsFlexTraversalEngine, TraversalModelError>
-    where
-        T: AsRef<Path>,
-    {
-        let bar_builder = BarBuilder::default().desc("gtfs flex service type one: edge zones");
-        let edge_zones: Box<[Option<ZoneId>]> =
-            read_utils::from_csv(input_file, false, Some(bar_builder), None).map_err(|e| {
-                TraversalModelError::BuildError(format!(
-                    "failure reading service type 1 edge zones file from file '{}': {e}",
-                    input_file.as_ref().to_str().unwrap_or_default()
-                ))
-            })?;
-        Ok(Self::ServiceTypeOne { edge_zones })
+    /// true if the engine variant depends on a query-time start time argument
+    pub fn requires_start_time(&self) -> bool {
+        match self {
+            GtfsFlexTraversalEngine::ServiceTypeTwo { .. } => true,
+            GtfsFlexTraversalEngine::ServiceTypeThree { .. } => true,
+            _ => false,
+        }
     }
 }

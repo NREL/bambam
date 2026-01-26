@@ -21,17 +21,16 @@ impl TraversalModelService for GtfsFlexTraversalService {
     > {
         // if this is a type two query, we grab the start datetime
         // todo: also should apply in type 3
-        let start_time: Option<NaiveDateTime> = match self.engine.as_ref() {
-            GtfsFlexTraversalEngine::ServiceTypeOne { .. } => None,
-            GtfsFlexTraversalEngine::ServiceTypeTwo {} => {
-                let query: GtfsFlexServiceTypeTwoQuery = serde_json::from_value(query.clone())
-                    .map_err(|e| {
-                        TraversalModelError::BuildError(format!(
-                            "failure reading service type two query: {e}"
-                        ))
-                    })?;
-                Some(query.start_time)
-            }
+        let start_time: Option<NaiveDateTime> = if self.engine.requires_start_time() {
+            let query: GtfsFlexServiceTypeTwoQuery = serde_json::from_value(query.clone())
+                .map_err(|e| {
+                    TraversalModelError::BuildError(format!(
+                        "failure reading service type two query: {e}"
+                    ))
+                })?;
+            Some(query.start_time)
+        } else {
+            None
         };
         Ok(Arc::new(GtfsFlexTraversalModel::new(
             self.engine.clone(),

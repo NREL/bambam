@@ -9,16 +9,16 @@ readme = "README.md"
 
 [features]
 default = ["type4"]
-type4 = ["dep:bambam-gtfs"]
+type4 = ["dep:gtfs-structures"]
 
 [dependencies]
-zip = { workspace = true }
-serde_json = { workspace = true }
-csv = { workspace = true }
-kdam = { workspace = true }
+gtfs-structures = { workspace = true, optional = true }
 chrono = { workspace = true }
-serde = { workspace = true }
+csv = { workspace = true }
 geo-types = { workspace = true }
+kdam = { workspace = true }
 routee-compass-core = { workspace = true }
-bambam-gtfs = { version = "0.2.3", path = "../bambam-gtfs", optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zip = { workspace = true }
 # No external dependencies needed for the simple version

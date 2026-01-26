@@ -35,7 +35,9 @@ In this service type, trips are assigned a src_zone_id and departure_time when t
 
 In this service type, we are actually running GTFS-style routing. However, we also need to modify some static weights based on the expected delays due to trip deviations. This weights should be modified during trip/model initialization but made fixed to ensure search correctness.
 
-### Additional considerations
+### Additional considerations & questions
 
-  - A trip does not declare the service type, it is agency-specific.
-  - The service types could be modeled explicitly as enums, but they also are represented by the addition of each incremental lookup function requirement
+- A trip does not declare the service type, it is agency-specific.
+- Do we determine the service type of a GTFS Flex archive programmatically?
+- The service types could be modeled explicitly as enums (sum of products), but they also are represented by the addition of each incremental lookup function requirement (product of optional sums)
+- for type 3, do links supporting boarding and alighting differ?
