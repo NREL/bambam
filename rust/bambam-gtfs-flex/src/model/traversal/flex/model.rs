@@ -3,16 +3,33 @@ use std::sync::Arc;
 use chrono::NaiveDateTime;
 use routee_compass_core::model::traversal::TraversalModel;
 
-use crate::model::traversal::flex::GtfsFlexTraversalEngine;
+use crate::model::traversal::flex::{GtfsFlexModelState, GtfsFlexTraversalEngine};
 
 pub struct GtfsFlexTraversalModel {
-    engine: Arc<GtfsFlexTraversalEngine>,
+    model_state: GtfsFlexModelState,
     start_time: Option<NaiveDateTime>,
 }
 
 impl GtfsFlexTraversalModel {
     pub fn new(engine: Arc<GtfsFlexTraversalEngine>, start_time: Option<NaiveDateTime>) -> Self {
-        Self { engine, start_time }
+        use GtfsFlexTraversalEngine as E;
+        match engine.clone().as_ref() {
+            E::ServiceTypeFour { gtfs } => {
+                let delays = vec![].into_boxed_slice();
+                let model_state = GtfsFlexModelState::TypeFourWithDelays {
+                    gtfs: gtfs.clone(),
+                    delays,
+                };
+                Self {
+                    model_state,
+                    start_time,
+                }
+            }
+            _ => Self {
+                model_state: GtfsFlexModelState::EngineOnly(engine.clone()),
+                start_time,
+            },
+        }
     }
 }
 

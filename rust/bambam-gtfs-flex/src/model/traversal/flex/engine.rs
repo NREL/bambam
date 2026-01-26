@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use chrono::NaiveDateTime;
 use gtfs_structures::Gtfs;
@@ -48,7 +51,7 @@ pub enum GtfsFlexTraversalEngine {
     ServiceTypeFour {
         /// the GTFS archive to use during traversal. this is a stub; we may want our own
         /// intermediate representation during routing for performance or generalizability.
-        gtfs: Gtfs,
+        gtfs: Arc<Gtfs>,
     },
 }
 
