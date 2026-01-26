@@ -1,4 +1,3 @@
-
 use crate::model::state::{LegIdx, MultimodalStateMapping};
 use routee_compass_core::model::state::{StateModel, StateModelError, StateVariable};
 use serde_json::json;
