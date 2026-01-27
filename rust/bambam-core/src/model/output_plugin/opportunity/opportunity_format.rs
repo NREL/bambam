@@ -1,6 +1,5 @@
 use crate::model::bambam_field;
 use crate::model::output_plugin::opportunity::{DestinationOpportunity, OpportunityRowId};
-use itertools::Itertools;
 use routee_compass::plugin::output::OutputPluginError;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

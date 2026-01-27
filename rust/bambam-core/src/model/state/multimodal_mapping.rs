@@ -24,9 +24,11 @@ pub struct MultimodalMapping<T: Clone + Debug, U: Clone + Debug> {
 pub type MultimodalStateMapping = MultimodalMapping<String, i64>;
 
 /// A trait for types that can be used as categorical identifiers
+#[allow(dead_code)]
 trait Categorical: Eq + std::hash::Hash + Clone + Debug {}
 
 /// A trait for types that can be used as indices in the multimodal mapping
+#[allow(dead_code)]
 trait IndexType:
     Eq + std::hash::Hash + Clone + Copy + TryFrom<usize> + TryInto<usize> + PartialOrd + Debug
 {
