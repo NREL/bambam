@@ -1,35 +1,27 @@
 use std::sync::Arc;
 
+use bambam_core::model::{bambam_state, state::variable::EMPTY};
 use chrono::NaiveDateTime;
-use routee_compass_core::model::traversal::TraversalModel;
+use routee_compass_core::{
+    algorithm::search::SearchTree,
+    model::{
+        network::{Edge, Vertex},
+        state::{InputFeature, StateModel, StateVariable, StateVariableConfig},
+        traversal::{TraversalModel, TraversalModelError},
+    },
+};
+use uom::{si::f64::Time, ConstZero};
 
-use crate::model::traversal::flex::{GtfsFlexModelState, GtfsFlexTraversalEngine};
+use crate::model::{feature, traversal::flex::GtfsFlexTraversalEngine};
 
 pub struct GtfsFlexTraversalModel {
-    model_state: GtfsFlexModelState,
+    engine: Arc<GtfsFlexTraversalEngine>,
     start_time: Option<NaiveDateTime>,
 }
 
 impl GtfsFlexTraversalModel {
     pub fn new(engine: Arc<GtfsFlexTraversalEngine>, start_time: Option<NaiveDateTime>) -> Self {
-        use GtfsFlexTraversalEngine as E;
-        match engine.clone().as_ref() {
-            E::ServiceTypeFour { gtfs } => {
-                let delays = vec![].into_boxed_slice();
-                let model_state = GtfsFlexModelState::TypeFourWithDelays {
-                    gtfs: gtfs.clone(),
-                    delays,
-                };
-                Self {
-                    model_state,
-                    start_time,
-                }
-            }
-            _ => Self {
-                model_state: GtfsFlexModelState::EngineOnly(engine.clone()),
-                start_time,
-            },
-        }
+        Self { engine, start_time }
     }
 }
 
@@ -38,48 +30,81 @@ impl TraversalModel for GtfsFlexTraversalModel {
         "GtfsFlexTraversalModel".to_string()
     }
 
-    fn input_features(&self) -> Vec<routee_compass_core::model::state::InputFeature> {
-        todo!()
+    fn input_features(&self) -> Vec<InputFeature> {
+        vec![]
     }
 
-    fn output_features(
-        &self,
-    ) -> Vec<(
-        String,
-        routee_compass_core::model::state::StateVariableConfig,
-    )> {
-        todo!()
+    fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
+        let mut base_features = vec![
+            (
+                feature::fieldname::TRIP_SRC_ZONE_ID.to_string(),
+                feature::variable::zone_id(),
+            ),
+            (
+                feature::fieldname::EDGE_IS_GTFS_FLEX_DESTINATION.to_string(),
+                feature::variable::gtfs_flex_destination(),
+            ),
+            (
+                String::from(routee_compass_core::model::traversal::default::fieldname::TRIP_TIME),
+                StateVariableConfig::Time {
+                    initial: Time::ZERO,
+                    output_unit: None,
+                    accumulator: true,
+                },
+            ),
+            (
+                String::from(routee_compass_core::model::traversal::default::fieldname::EDGE_TIME),
+                StateVariableConfig::Time {
+                    initial: Time::ZERO,
+                    output_unit: None,
+                    accumulator: false,
+                },
+            ),
+            // (
+            //     String::from(bambam_state::ROUTE_ID),
+            //     StateVariableConfig::Custom {
+            //         custom_type: "RouteId".to_string(),
+            //         value: EMPTY,
+            //         accumulator: true,
+            //     },
+            // ),
+            // (
+            //     String::from(bambam_state::TRANSIT_BOARDING_TIME),
+            //     StateVariableConfig::Time {
+            //         initial: Time::ZERO,
+            //         accumulator: false,
+            //         output_unit: None,
+            //     },
+            // ),
+        ];
+        if false {
+            base_features.push((
+                feature::fieldname::EDGE_POOLING_DELAY.to_string(),
+                feature::variable::pooling_delay(),
+            ));
+        }
+        base_features
     }
 
     fn traverse_edge(
         &self,
-        _trajectory: (
-            &routee_compass_core::model::network::Vertex,
-            &routee_compass_core::model::network::Edge,
-            &routee_compass_core::model::network::Vertex,
-        ),
-        _state: &mut Vec<routee_compass_core::model::state::StateVariable>,
+        trajectory: (&Vertex, &Edge, &Vertex),
+        state: &mut Vec<StateVariable>,
         _tree: &routee_compass_core::algorithm::search::SearchTree,
-        _state_model: &routee_compass_core::model::state::StateModel,
-    ) -> Result<(), routee_compass_core::model::traversal::TraversalModelError> {
-        todo!("
-            1. grab the Option<ZoneId> crate::model::feature::fieldname::SRC_ZONE_ID from the state (using state_model)
-            2. get the Option<ZoneId> of this edge (todo: rescue the multimodal mapping tool from bambam here)
-                - if it is None, we are done
-            3. if zone ids match, this is a valid destination -> set crate::model::feature::fieldname::IS_DESTINATION
-        ")
+        state_model: &StateModel,
+    ) -> Result<(), TraversalModelError> {
+        let (_, edge, _) = trajectory;
+        self.engine
+            .traverse_edge(edge, state, state_model, self.start_time.as_ref())
     }
 
     fn estimate_traversal(
         &self,
-        _od: (
-            &routee_compass_core::model::network::Vertex,
-            &routee_compass_core::model::network::Vertex,
-        ),
-        _state: &mut Vec<routee_compass_core::model::state::StateVariable>,
-        _tree: &routee_compass_core::algorithm::search::SearchTree,
-        _state_model: &routee_compass_core::model::state::StateModel,
-    ) -> Result<(), routee_compass_core::model::traversal::TraversalModelError> {
+        _od: (&Vertex, &Vertex),
+        _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
+        _state_model: &StateModel,
+    ) -> Result<(), TraversalModelError> {
         // no estimates
         Ok(())
     }

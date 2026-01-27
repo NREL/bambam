@@ -13,12 +13,15 @@ type4 = ["dep:gtfs-structures"]
 
 [dependencies]
 gtfs-structures = { workspace = true, optional = true }
+bambam-core = { version = "0.2.3", path = "../bambam-core" } 
 chrono = { workspace = true }
 csv = { workspace = true }
 geo-types = { workspace = true }
 kdam = { workspace = true }
 routee-compass-core = { workspace = true }
+ordered-float = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zip = { workspace = true }
+uom = { workspace = true }
 # No external dependencies needed for the simple version

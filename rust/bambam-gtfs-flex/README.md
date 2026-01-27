@@ -41,3 +41,9 @@ In this service type, we are actually running GTFS-style routing. However, we al
 - Do we determine the service type of a GTFS Flex archive programmatically?
 - The service types could be modeled explicitly as enums (sum of products), but they also are represented by the addition of each incremental lookup function requirement (product of optional sums)
 - for type 3, do links supporting boarding and alighting differ?
+- for types 2 and 3, can links be a part of multiple zones? _allow overlap_
+
+ServiceType<Vec<T>>
+Vec<ServiceType<T>>
+
+-> `Rtree<SkipList<ZoneToZoneData>>`

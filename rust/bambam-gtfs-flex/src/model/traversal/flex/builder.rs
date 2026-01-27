@@ -3,7 +3,8 @@ use std::sync::Arc;
 use routee_compass_core::model::traversal::{TraversalModelBuilder, TraversalModelError};
 
 use crate::model::traversal::flex::{
-    service::GtfsFlexTraversalService, GtfsFlexTraversalConfig, GtfsFlexTraversalEngine,
+    service::GtfsFlexTraversalService, GtfsFlexServiceTypeModel, GtfsFlexTraversalConfig,
+    GtfsFlexTraversalEngine,
 };
 
 pub struct GtfsFlexTraversalBuilder {}
