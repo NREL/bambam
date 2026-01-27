@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use bambam_core::model::{bambam_state, state::variable::EMPTY};
 use chrono::NaiveDateTime;
 use routee_compass_core::{
     algorithm::search::SearchTree,

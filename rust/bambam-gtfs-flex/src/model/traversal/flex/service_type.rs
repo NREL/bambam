@@ -1,17 +1,13 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDateTime;
-use gtfs_structures::Gtfs;
 use routee_compass_core::model::{
     network::Edge,
     state::{StateModel, StateVariable},
     traversal::TraversalModelError,
 };
 
-use crate::model::traversal::flex::{GtfsFlexTraversalConfig, ZoneId};
+use crate::model::traversal::flex::ZoneId;
 
 /// the data backing this traversal model, which varies by service type.
 /// for more information, see the README.md for this crate.
@@ -63,13 +59,13 @@ impl GtfsFlexServiceTypeModel {
     /// Apply the logic of traversing an edge for this service type.
     pub fn traverse_edge(
         &self,
-        edge: &Edge,
-        state: &mut Vec<StateVariable>,
-        state_model: &StateModel,
-        start_time: Option<&NaiveDateTime>,
+        _edge: &Edge,
+        _state: &mut Vec<StateVariable>,
+        _state_model: &StateModel,
+        _start_time: Option<&NaiveDateTime>,
     ) -> Result<(), TraversalModelError> {
         match self {
-            GtfsFlexServiceTypeModel::ServiceTypeOne { edge_zones } => {
+            GtfsFlexServiceTypeModel::ServiceTypeOne { edge_zones: _ } => {
                 todo!("
                     1. grab the Option<ZoneId> crate::model::feature::fieldname::SRC_ZONE_ID from the state (using state_model)
                     2. get the Option<ZoneId> of this edge (todo: rescue the multimodal mapping tool from bambam here)
@@ -78,8 +74,8 @@ impl GtfsFlexServiceTypeModel {
                 ")
             }
             GtfsFlexServiceTypeModel::ServiceTypeTwo {
-                edge_zones,
-                valid_trips,
+                edge_zones: _,
+                valid_trips: _,
             } => {
                 todo!("
                     1. grab the Option<ZoneId> crate::model::feature::fieldname::SRC_ZONE_ID from the state (using state_model)
@@ -90,9 +86,9 @@ impl GtfsFlexServiceTypeModel {
                 ")
             }
             GtfsFlexServiceTypeModel::ServiceTypeThree {
-                departure_edge_zones,
-                arrival_edge_zones,
-                valid_trips,
+                departure_edge_zones: _,
+                arrival_edge_zones: _,
+                valid_trips: _,
             } => {
                 todo!("same logic as type 2 but also check if this edge is an arrival edge zone")
             }
