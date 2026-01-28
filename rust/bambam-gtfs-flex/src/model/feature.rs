@@ -1,10 +1,14 @@
 pub mod fieldname {
+    //! the state variable fieldnames used in GTFS-Flex routing
+
     pub const TRIP_SRC_ZONE_ID: &str = "trip_src_zone_id";
     pub const EDGE_IS_GTFS_FLEX_DESTINATION: &str = "edge_is_gtfs_flex_destination";
     pub const EDGE_POOLING_DELAY: &str = "edge_pooling_delay";
 }
 
 pub mod variable {
+    //! the configuration for state variables in GTFS-Flex routing
+
     use ordered_float::OrderedFloat;
     use routee_compass_core::model::state::{CustomVariableConfig, StateVariableConfig};
 

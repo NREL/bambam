@@ -5,6 +5,7 @@ mod model;
 mod query;
 mod service;
 mod service_type;
+mod zonal_relation;
 mod zone_id;
 
 pub use builder::GtfsFlexTraversalBuilder;

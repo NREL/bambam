@@ -23,5 +23,6 @@ ordered-float = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zip = { workspace = true }
+skiplist = { workspace = true }
 uom = { workspace = true }
 # No external dependencies needed for the simple version

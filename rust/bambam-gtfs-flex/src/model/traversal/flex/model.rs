@@ -15,11 +15,11 @@ use crate::model::{feature, traversal::flex::GtfsFlexTraversalEngine};
 
 pub struct GtfsFlexTraversalModel {
     engine: Arc<GtfsFlexTraversalEngine>,
-    start_time: Option<NaiveDateTime>,
+    start_time: NaiveDateTime,
 }
 
 impl GtfsFlexTraversalModel {
-    pub fn new(engine: Arc<GtfsFlexTraversalEngine>, start_time: Option<NaiveDateTime>) -> Self {
+    pub fn new(engine: Arc<GtfsFlexTraversalEngine>, start_time: NaiveDateTime) -> Self {
         Self { engine, start_time }
     }
 }
@@ -94,7 +94,7 @@ impl TraversalModel for GtfsFlexTraversalModel {
     ) -> Result<(), TraversalModelError> {
         let (_, edge, _) = trajectory;
         self.engine
-            .traverse_edge(edge, state, state_model, self.start_time.as_ref())
+            .traverse_edge(edge, state, state_model, &self.start_time)
     }
 
     fn estimate_traversal(

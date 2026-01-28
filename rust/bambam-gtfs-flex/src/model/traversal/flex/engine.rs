@@ -1,15 +1,20 @@
 use std::sync::Arc;
 
 use chrono::{NaiveDateTime, NaiveTime, Timelike};
-use routee_compass_core::model::{
-    network::Edge,
-    state::{StateModel, StateVariable},
-    traversal::TraversalModelError,
+use routee_compass_core::{
+    model::{
+        network::Edge,
+        state::{StateModel, StateVariable},
+        traversal::TraversalModelError,
+    },
+    util::geo::PolygonalRTree,
 };
 
 use crate::model::{
     feature,
-    traversal::flex::{GtfsFlexServiceTypeModel, GtfsFlexTraversalConfig},
+    traversal::flex::{
+        zonal_relation::ZonalRelation, GtfsFlexServiceTypeModel, GtfsFlexTraversalConfig,
+    },
 };
 
 /// the state of the engine may change at query time in the case of
@@ -18,9 +23,13 @@ use crate::model::{
 ///
 /// see rust/bambam-gtfs-flex/README.md for more details on service types.
 pub enum GtfsFlexTraversalEngine {
-    /// logic for traversal in GTFS-Flex Service Types 1-3, which only requires
-    /// the service type instance.
-    GtfsFlexBasicServiceType(Arc<GtfsFlexServiceTypeModel>),
+    /// a lookup for zones by vertex POINT geometry.
+    ZonalModel {
+        zones: PolygonalRTree<f32, ZonalRelation>,
+    },
+    /// for traversal in GTFS-Flex Service Types 1-3, we store an optional
+    /// service type model for each edge in the edge list.
+    // GtfsFlexModelsByEdgeId(Arc<Box<[Option<GtfsFlexServiceTypeModel>]>>),
     /// logic for traversal in GTFS-Flex Service Type 4. instead of using the road network,
     /// this model uses the edges generated between stops via the same logic as
     /// bambam-gtfs.
@@ -44,15 +53,13 @@ impl TryFrom<&GtfsFlexTraversalConfig> for GtfsFlexTraversalEngine {
 }
 
 impl GtfsFlexTraversalEngine {
-    /// true if the engine variant depends on a query-time start time argument
-    pub fn requires_start_time(&self) -> bool {
-        match self {
-            GtfsFlexTraversalEngine::GtfsFlexBasicServiceType(engine) => {
-                engine.requires_start_time()
-            }
-            _ => false,
-        }
-    }
+    // /// true if the engine variant depends on a query-time start time argument
+    // pub fn requires_start_time(&self) -> bool {
+    //     match self {
+    //         GtfsFlexTraversalEngine::GtfsFlexModelsByEdgeId(engine) => engine.requires_start_time(),
+    //         _ => false,
+    //     }
+    // }
 
     /// apply the logic for traversing edges in GTFS-Flex based on the Service Type of this agency.
     pub fn traverse_edge(
@@ -60,11 +67,28 @@ impl GtfsFlexTraversalEngine {
         edge: &Edge,
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
-        start_time: Option<&NaiveDateTime>,
+        start_time: &NaiveDateTime,
     ) -> Result<(), TraversalModelError> {
         match self {
-            GtfsFlexTraversalEngine::GtfsFlexBasicServiceType(gtfs_flex_service_type) => {
-                gtfs_flex_service_type.traverse_edge(edge, state, state_model, start_time)
+            GtfsFlexTraversalEngine::ZonalModel { zones } => {
+                todo!(
+                    "
+                    1. grab the dst vertex
+                    2. get iterator of all intersecting zones
+                    3. test accept.. <waiting for Sailesh, do we have AND logic or OR logic on matching here?>
+                "
+                )
+                // let service_type = service_types.get(edge.edge_id.0).ok_or_else(|| {
+                //     let msg = format!(
+                //         "GTFS-Flex service types have no entry for edge list id, edge id: ({},{})",
+                //         edge.edge_list_id, edge.edge_id
+                //     );
+                //     TraversalModelError::TraversalModelFailure(msg)
+                // })?;
+                // if let Some(st) = service_type {
+                //     st.traverse_edge(edge, state, state_model, start_time)?;
+                // }
+                // Ok(())
             }
 
             GtfsFlexTraversalEngine::TypeFourWithDelays { delays } => {
