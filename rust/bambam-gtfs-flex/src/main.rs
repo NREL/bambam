@@ -12,11 +12,11 @@ fn main() -> std::io::Result<()> {
     // feeds path directory
     let flex_dir = Path::new("../../gtfs_flex_feeds");
 
-    // requested date and time for processing GTFS-Flex feeds
+    // requested datefor processing GTFS-Flex feeds
     let date_requested = "20240902";
-    let time_requested = "09:00:00";
 
-    process_gtfs_flex_bundle(flex_dir, date_requested, time_requested)?;
+    // process GTFS-Flex feeds in the specified directory for the requested date
+    process_gtfs_flex_bundle(flex_dir, date_requested)?;
 
     Ok(())
 }

@@ -13,10 +13,12 @@ use std::path::Path;
 
 /// a valid origin-destination zone pair for a trip
 #[derive(Debug)]
-struct ValidZone {
+pub struct ValidZone {
     trip_id: String,
     origin_zone: String,
     destination_zone: String,
+    start_pickup_drop_off_window: Option<NaiveTime>,
+    end_pickup_drop_off_window: Option<NaiveTime>,
     origin_zone_geom: Option<Geometry>,
     destination_zone_geom: Option<Geometry>,
 }
@@ -25,7 +27,6 @@ struct ValidZone {
 pub fn process_gtfs_flex_bundle(
     flex_directory_path: &Path,
     date_requested: &str,
-    time_requested: &str,
 ) -> io::Result<()> {
     println!("=== Processing GTFS-Flex bundle ===");
 
@@ -33,7 +34,7 @@ pub fn process_gtfs_flex_bundle(
     discover_gtfs_flex_feeds(flex_directory_path)?;
 
     // process files in each feed
-    process_flex_files(flex_directory_path, date_requested, time_requested)?;
+    process_flex_files(flex_directory_path, date_requested)?;
 
     println!("=== GTFS-Flex processing complete ===");
     Ok(())
@@ -69,12 +70,8 @@ pub fn discover_gtfs_flex_feeds(flex_directory_path: &Path) -> io::Result<()> {
 }
 
 /// iterate over gtfs-flex feeds and process files from each feed
-/// return valid zones for the requested date and time
-pub fn process_flex_files(
-    flex_directory_path: &Path,
-    date_requested: &str,
-    time_requested: &str,
-) -> io::Result<()> {
+/// return valid zones for the requested date
+pub fn process_flex_files(flex_directory_path: &Path, date_requested: &str) -> io::Result<()> {
     println!("Processing GTFS-Flex feeds in {:?}", flex_directory_path);
 
     for entry in std::fs::read_dir(flex_directory_path)? {
@@ -112,18 +109,25 @@ pub fn process_flex_files(
             println!("      locations.geojson read!");
 
             // process files for requested date and time and get valid zones
-            let valid_zones = join_flex_files(
-                &calendar,
-                &trips,
-                &stop_times,
-                &locations,
-                date_requested,
-                time_requested,
-            )?;
+            let valid_zones =
+                join_flex_files(&calendar, &trips, &stop_times, &locations, date_requested)?;
 
             println!(
-                "Valid zones (trip_id -> origin_zone, destination_zone, origin_zone_geom, destination_zone_geom): {:#?}",
+                "Valid zones (trip_id, origin_zone, destination_zone, start_pickup_drop_off_window, end_pickup_drop_off_window, origin_zone_geom, destination_zone_geom): {:#?}",
                 valid_zones
+                    .iter()
+                    .map(|vz| {
+                        (
+                            &vz.trip_id,
+                            &vz.origin_zone,
+                            &vz.destination_zone,
+                            vz.start_pickup_drop_off_window,
+                            vz.end_pickup_drop_off_window,
+                            vz.origin_zone_geom.as_ref().map(|g| format!("{:?}", g).chars().take(50).collect::<String>() + "..."),
+                            vz.destination_zone_geom.as_ref().map(|g| format!("{:?}", g).chars().take(50).collect::<String>() + "..."),
+                        )
+                    })
+                    .collect::<Vec<_>>()
             );
         }
     }
@@ -140,15 +144,12 @@ pub fn join_flex_files(
     stop_times: &[StopTimes],
     locations: &[Location],
     date_requested: &str,
-    time_requested: &str,
 ) -> io::Result<Vec<ValidZone>> {
-    // parse requested date and time
+    // parse requested date
     let date = chrono::NaiveDate::parse_from_str(date_requested, "%Y%m%d")
         .expect("Invalid date format YYYYMMDD");
-    let time = NaiveTime::parse_from_str(time_requested, "%H:%M:%S")
-        .expect("Invalid time format HH:MM:SS");
+
     println!("          requested date: {:?}", date);
-    println!("          requested time: {:?}", time);
 
     // filter calendar for the requested date
     let weekday = match date.weekday() {
@@ -176,21 +177,15 @@ pub fn join_flex_files(
         .filter(|t| active_service_ids.contains(&t.service_id.as_str()))
         .collect();
 
-    println!("          active trips: {:?}", active_trips);
+    // println!("          active trips: {:?}", active_trips);
 
     // filter stop_times for active trips and by requested time
     let active_trip_ids: Vec<&str> = active_trips.iter().map(|t| t.trip_id.as_str()).collect();
-
     let active_stop_times: Vec<&StopTimes> = stop_times
         .iter()
-        .filter(|st| {
-            active_trip_ids.contains(&st.trip_id.as_str())
-                && st.start_pickup_drop_off_window <= time
-                && time <= st.end_pickup_drop_off_window
-        })
+        .filter(|st| active_trip_ids.contains(&st.trip_id.as_str()))
         .collect();
-
-    println!("          active stop_times: {:?}", active_stop_times);
+    // println!("          active stop_times: {:?}", active_stop_times);
 
     // build location lookup map
     let location_map: HashMap<String, &Location> =
@@ -221,6 +216,20 @@ pub fn join_flex_files(
                 .find(|st| st.pickup_type == 1 && st.drop_off_type == 2)
                 .map(|st| st.location_id.clone());
 
+            // find start pickup/drop-off window
+            // using value from origin zone row
+            let start_pickup_drop_off_window = sts
+                .iter()
+                .find(|st| st.pickup_type == 2 && st.drop_off_type == 1)
+                .map(|st| st.start_pickup_drop_off_window);
+
+            // find end pickup/drop-off window
+            // using value from destination zone row
+            let end_pickup_drop_off_window = sts
+                .iter()
+                .find(|st| st.pickup_type == 1 && st.drop_off_type == 2)
+                .map(|st| st.end_pickup_drop_off_window);
+
             // append geometries to origin and destination zones
             match (origin, destination) {
                 (Some(origin_zone), Some(destination_zone)) => {
@@ -235,6 +244,8 @@ pub fn join_flex_files(
                     Some(ValidZone {
                         trip_id,
                         origin_zone,
+                        start_pickup_drop_off_window,
+                        end_pickup_drop_off_window,
                         destination_zone,
                         origin_zone_geom,
                         destination_zone_geom,
