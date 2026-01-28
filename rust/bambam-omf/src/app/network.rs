@@ -6,7 +6,8 @@ use crate::{
     app::CliBoundingBox,
     collection::{
         filter::TravelModeFilter, ObjectStoreSource, OvertureMapsCollectionError,
-        OvertureMapsCollectorConfig, ReleaseVersion, TransportationCollection,
+        OvertureMapsCollectorConfig, ReleaseVersion, SegmentAccessRestrictionWhen,
+        TransportationCollection,
     },
     graph::OmfGraphVectorized,
     util,
@@ -16,6 +17,20 @@ use crate::{
 pub struct NetworkEdgeListConfiguration {
     pub mode: String,
     pub filter: Vec<TravelModeFilter>,
+}
+
+impl From<&NetworkEdgeListConfiguration> for SegmentAccessRestrictionWhen {
+    fn from(value: &NetworkEdgeListConfiguration) -> Self {
+        let user_modes_opt = value.filter.iter().find_map(|f| match f {
+            TravelModeFilter::MatchesModeAccess { modes } => Some(modes.clone()),
+            _ => None,
+        });
+        let mut result = SegmentAccessRestrictionWhen::default();
+        if let Some(modes) = user_modes_opt {
+            result.mode = Some(modes);
+        }
+        result
+    }
 }
 
 /// runs an OMF network import using the provided configuration.
@@ -62,8 +77,14 @@ fn run_collector(
     bbox_arg: Option<&CliBoundingBox>,
 ) -> Result<TransportationCollection, OvertureMapsCollectionError> {
     let object_store = ObjectStoreSource::AmazonS3;
-    let batch_size = 128;
-    let collector = OvertureMapsCollectorConfig::new(object_store, batch_size).build()?;
+    let rg_chunk_size = 4;
+    let file_concurrency_limit = 64;
+    let collector = OvertureMapsCollectorConfig::new(
+        object_store,
+        Some(rg_chunk_size),
+        Some(file_concurrency_limit),
+    )
+    .build()?;
     let release = ReleaseVersion::Latest;
     let bbox = bbox_arg.ok_or_else(|| {
         let msg = String::from("must provide bbox argument for download");
@@ -72,7 +93,8 @@ fn run_collector(
     log::info!(
         "running OMF import with
         object store {object_store:?}
-        batch size {batch_size}
+        rg_chunk_size {rg_chunk_size}
+        file_concurrency_limit {file_concurrency_limit}
         release {release}
         (xmin,xmax,ymin,ymax): {bbox}"
     );
