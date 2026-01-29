@@ -13,19 +13,16 @@ use routee_compass_core::{
 
 pub struct Flex2Model {
     pub engine: Arc<Flex2Engine>,
-    pub params: Flex2Params
+    pub params: Flex2Params,
 }
 
 impl Flex2Model {
     pub fn new(engine: Arc<Flex2Engine>, params: Flex2Params) -> Self {
         // modify this and the struct definition if additional pre-processing
         // is required during model instantiation from query parameters.
-        Self {
-            engine, params
-        }
+        Self { engine, params }
     }
 }
-
 
 impl TraversalModel for Flex2Model {
     fn name(&self) -> String {
