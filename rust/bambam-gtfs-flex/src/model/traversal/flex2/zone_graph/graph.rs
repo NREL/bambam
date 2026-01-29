@@ -5,8 +5,14 @@ use routee_compass_core::model::traversal::TraversalModelError;
 
 use super::{ZonalRelation, ZoneId, ZoneRecord};
 
-type ZoneGraphImpl = HashMap<ZoneId, HashMap<ZoneId, ZonalRelation>>;
+/// a directed graph between GTFS-Flex zones. this metadata lookup
+/// supports GTFS-Flex traversals, which must first lookup their current
+/// location in a spatial index and their source zone in their state
+/// vector. if both values exist, the model can call ZoneGraph::valid_zonal_trip
+/// to determine whether the current edge is a destination.
 pub struct ZoneGraph(ZoneGraphImpl);
+
+type ZoneGraphImpl = HashMap<ZoneId, HashMap<ZoneId, ZonalRelation>>;
 
 impl ZoneGraph {
     /// confirms that this zone-to-zone trip exists in our zonal graph.
