@@ -1,4 +1,3 @@
-
 use chrono::{NaiveDateTime, NaiveTime, Timelike};
 use routee_compass_core::{
     model::{
@@ -11,9 +10,7 @@ use routee_compass_core::{
 
 use crate::model::{
     feature,
-    traversal::flex::{
-        zonal_relation::ZonalRelation, GtfsFlexTraversalConfig,
-    },
+    traversal::flex::{zonal_relation::ZonalRelation, GtfsFlexTraversalConfig},
 };
 
 /// the state of the engine may change at query time in the case of

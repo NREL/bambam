@@ -1,11 +1,9 @@
-
 use chrono::NaiveDateTime;
 use routee_compass_core::model::{
     network::Edge,
     state::{StateModel, StateVariable},
     traversal::TraversalModelError,
 };
-
 
 /// this
 pub struct GtfsFlexServiceTypeModel {}
