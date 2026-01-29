@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use chrono::{NaiveDateTime, NaiveTime, Timelike};
 use routee_compass_core::{
@@ -13,7 +12,7 @@ use routee_compass_core::{
 use crate::model::{
     feature,
     traversal::flex::{
-        zonal_relation::ZonalRelation, GtfsFlexServiceTypeModel, GtfsFlexTraversalConfig,
+        zonal_relation::ZonalRelation, GtfsFlexTraversalConfig,
     },
 };
 
@@ -67,10 +66,10 @@ impl GtfsFlexTraversalEngine {
         edge: &Edge,
         state: &mut Vec<StateVariable>,
         state_model: &StateModel,
-        start_time: &NaiveDateTime,
+        _start_time: &NaiveDateTime,
     ) -> Result<(), TraversalModelError> {
         match self {
-            GtfsFlexTraversalEngine::ZonalModel { zones } => {
+            GtfsFlexTraversalEngine::ZonalModel { zones: _ } => {
                 todo!(
                     "
                     1. grab the dst vertex

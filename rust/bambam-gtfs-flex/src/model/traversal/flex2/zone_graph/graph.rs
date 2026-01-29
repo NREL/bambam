@@ -17,7 +17,7 @@ impl ZoneGraph {
         _current_time: &NaiveDateTime,
     ) -> Result<bool, TraversalModelError> {
         // find zone-to-zone trips starting from src_zone_id
-        let relations = match self.0.get(&src_zone_id) {
+        let relations = match self.0.get(src_zone_id) {
             Some(r) => r,
             None => return Ok(false),
         };

@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDateTime;
 use routee_compass_core::model::{
@@ -7,7 +6,6 @@ use routee_compass_core::model::{
     traversal::TraversalModelError,
 };
 
-use crate::model::traversal::flex::ZoneId;
 
 /// this
 pub struct GtfsFlexServiceTypeModel {}
