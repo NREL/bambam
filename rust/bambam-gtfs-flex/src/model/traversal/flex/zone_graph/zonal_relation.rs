@@ -1,7 +1,7 @@
 use chrono::TimeDelta;
 use routee_compass_core::model::traversal::TraversalModelError;
 
-use crate::model::traversal::flex2::zone_graph::ZoneRecord;
+use crate::model::traversal::flex::zone_graph::ZoneRecord;
 
 use super::ZoneId;
 

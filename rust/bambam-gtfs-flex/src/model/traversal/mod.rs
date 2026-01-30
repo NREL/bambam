@@ -1,2 +1,1 @@
-pub mod flex;
-mod flex2;
+mod flex;

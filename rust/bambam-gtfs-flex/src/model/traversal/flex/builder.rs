@@ -1,29 +1,27 @@
 use std::sync::Arc;
 
-use routee_compass_core::model::traversal::{TraversalModelBuilder, TraversalModelError};
+use super::{GtfsFlexConfig, GtfsFlexEngine, GtfsFlexService};
 
-use crate::model::traversal::flex::{
-    service::GtfsFlexTraversalService, GtfsFlexTraversalConfig, GtfsFlexTraversalEngine,
+use routee_compass_core::model::traversal::{
+    TraversalModelBuilder, TraversalModelError, TraversalModelService,
 };
 
-pub struct GtfsFlexTraversalBuilder {}
+pub struct GtfsFlexBuilder {}
 
-impl TraversalModelBuilder for GtfsFlexTraversalBuilder {
+impl TraversalModelBuilder for GtfsFlexBuilder {
     fn build(
         &self,
-        parameters: &serde_json::Value,
-    ) -> Result<
-        std::sync::Arc<dyn routee_compass_core::model::traversal::TraversalModelService>,
-        routee_compass_core::model::traversal::TraversalModelError,
-    > {
-        let config: GtfsFlexTraversalConfig =
-            serde_json::from_value(parameters.clone()).map_err(|e| {
-                TraversalModelError::BuildError(format!(
-                    "failed reading GtfsFlexTraversalConfig from config: {e}"
-                ))
-            })?;
-        let engine = GtfsFlexTraversalEngine::try_from(&config)?;
-        let service = GtfsFlexTraversalService::new(engine);
+        config: &serde_json::Value,
+    ) -> Result<Arc<dyn TraversalModelService>, TraversalModelError> {
+        let config: GtfsFlexConfig = serde_json::from_value(config.clone()).map_err(|e| {
+            let msg = format!("failure reading config for Flex builder: {e}");
+            TraversalModelError::BuildError(msg)
+        })?;
+        let engine = GtfsFlexEngine::try_from(config).map_err(|e| {
+            let msg = format!("failure building engine from config for GtfsFlex builder: {e}");
+            TraversalModelError::BuildError(msg)
+        })?;
+        let service = GtfsFlexService::new(engine);
         Ok(Arc::new(service))
     }
 }

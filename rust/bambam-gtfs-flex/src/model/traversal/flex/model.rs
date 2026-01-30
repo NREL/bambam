@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use chrono::NaiveDateTime;
+use super::{GtfsFlexEngine, GtfsFlexParams};
+
 use routee_compass_core::{
     algorithm::search::SearchTree,
     model::{
@@ -9,92 +10,41 @@ use routee_compass_core::{
         traversal::{TraversalModel, TraversalModelError},
     },
 };
-use uom::{si::f64::Time, ConstZero};
 
-use crate::model::{feature, traversal::flex::GtfsFlexTraversalEngine};
-
-pub struct GtfsFlexTraversalModel {
-    engine: Arc<GtfsFlexTraversalEngine>,
-    start_time: NaiveDateTime,
+pub struct GtfsFlexModel {
+    pub engine: Arc<GtfsFlexEngine>,
+    pub params: GtfsFlexParams,
 }
 
-impl GtfsFlexTraversalModel {
-    pub fn new(engine: Arc<GtfsFlexTraversalEngine>, start_time: NaiveDateTime) -> Self {
-        Self { engine, start_time }
+impl GtfsFlexModel {
+    pub fn new(engine: Arc<GtfsFlexEngine>, params: GtfsFlexParams) -> Self {
+        // modify this and the struct definition if additional pre-processing
+        // is required during model instantiation from query parameters.
+        Self { engine, params }
     }
 }
 
-impl TraversalModel for GtfsFlexTraversalModel {
+impl TraversalModel for GtfsFlexModel {
     fn name(&self) -> String {
-        "GtfsFlexTraversalModel".to_string()
+        "GtfsGtfsFlexTraversalModel".to_string()
     }
 
     fn input_features(&self) -> Vec<InputFeature> {
-        vec![]
+        todo!()
     }
 
     fn output_features(&self) -> Vec<(String, StateVariableConfig)> {
-        let mut base_features = vec![
-            (
-                feature::fieldname::TRIP_SRC_ZONE_ID.to_string(),
-                feature::variable::zone_id(),
-            ),
-            (
-                feature::fieldname::EDGE_IS_GTFS_FLEX_DESTINATION.to_string(),
-                feature::variable::gtfs_flex_destination(),
-            ),
-            (
-                String::from(routee_compass_core::model::traversal::default::fieldname::TRIP_TIME),
-                StateVariableConfig::Time {
-                    initial: Time::ZERO,
-                    output_unit: None,
-                    accumulator: true,
-                },
-            ),
-            (
-                String::from(routee_compass_core::model::traversal::default::fieldname::EDGE_TIME),
-                StateVariableConfig::Time {
-                    initial: Time::ZERO,
-                    output_unit: None,
-                    accumulator: false,
-                },
-            ),
-            // (
-            //     String::from(bambam_state::ROUTE_ID),
-            //     StateVariableConfig::Custom {
-            //         custom_type: "RouteId".to_string(),
-            //         value: EMPTY,
-            //         accumulator: true,
-            //     },
-            // ),
-            // (
-            //     String::from(bambam_state::TRANSIT_BOARDING_TIME),
-            //     StateVariableConfig::Time {
-            //         initial: Time::ZERO,
-            //         accumulator: false,
-            //         output_unit: None,
-            //     },
-            // ),
-        ];
-        if false {
-            base_features.push((
-                feature::fieldname::EDGE_POOLING_DELAY.to_string(),
-                feature::variable::pooling_delay(),
-            ));
-        }
-        base_features
+        todo!()
     }
 
     fn traverse_edge(
         &self,
-        trajectory: (&Vertex, &Edge, &Vertex),
-        state: &mut Vec<StateVariable>,
-        _tree: &routee_compass_core::algorithm::search::SearchTree,
-        state_model: &StateModel,
+        _trajectory: (&Vertex, &Edge, &Vertex),
+        _state: &mut Vec<StateVariable>,
+        _tree: &SearchTree,
+        _state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        let (_, edge, _) = trajectory;
-        self.engine
-            .traverse_edge(edge, state, state_model, &self.start_time)
+        todo!()
     }
 
     fn estimate_traversal(
@@ -104,7 +54,6 @@ impl TraversalModel for GtfsFlexTraversalModel {
         _tree: &SearchTree,
         _state_model: &StateModel,
     ) -> Result<(), TraversalModelError> {
-        // no estimates
-        Ok(())
+        todo!()
     }
 }

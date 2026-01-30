@@ -1,43 +1,33 @@
 use std::sync::Arc;
 
-use routee_compass_core::model::traversal::{TraversalModelError, TraversalModelService};
+use super::{GtfsFlexEngine, GtfsFlexModel, GtfsFlexParams};
 
-use crate::model::traversal::flex::{
-    GtfsFlexServiceTypeTwoQuery, GtfsFlexTraversalEngine, GtfsFlexTraversalModel,
+use routee_compass_core::model::traversal::{
+    TraversalModel, TraversalModelError, TraversalModelService,
 };
 
-pub struct GtfsFlexTraversalService {
-    engine: Arc<GtfsFlexTraversalEngine>,
+pub struct GtfsFlexService {
+    engine: Arc<GtfsFlexEngine>,
 }
 
-impl TraversalModelService for GtfsFlexTraversalService {
-    fn build(
-        &self,
-        query: &serde_json::Value,
-    ) -> Result<
-        std::sync::Arc<dyn routee_compass_core::model::traversal::TraversalModel>,
-        routee_compass_core::model::traversal::TraversalModelError,
-    > {
-        // if this is a type two query, we grab the start datetime
-        // todo: also should apply in type 3
-        let query: GtfsFlexServiceTypeTwoQuery =
-            serde_json::from_value(query.clone()).map_err(|e| {
-                TraversalModelError::BuildError(format!(
-                    "failure reading service type two query: {e}"
-                ))
-            })?;
-
-        Ok(Arc::new(GtfsFlexTraversalModel::new(
-            self.engine.clone(),
-            query.start_time,
-        )))
-    }
-}
-
-impl GtfsFlexTraversalService {
-    pub fn new(engine: GtfsFlexTraversalEngine) -> Self {
+impl GtfsFlexService {
+    pub fn new(engine: GtfsFlexEngine) -> Self {
         Self {
             engine: Arc::new(engine),
         }
+    }
+}
+
+impl TraversalModelService for GtfsFlexService {
+    fn build(
+        &self,
+        query: &serde_json::Value,
+    ) -> Result<Arc<dyn TraversalModel>, TraversalModelError> {
+        let params: GtfsFlexParams = serde_json::from_value(query.clone()).map_err(|e| {
+            let msg = format!("failure reading params for GtfsFlex service: {e}");
+            TraversalModelError::BuildError(msg)
+        })?;
+        let model = GtfsFlexModel::new(self.engine.clone(), params);
+        Ok(Arc::new(model))
     }
 }
