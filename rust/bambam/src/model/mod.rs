@@ -2,6 +2,7 @@ pub mod bambam_field;
 mod bambam_ops;
 pub mod bambam_state;
 pub mod builders;
+pub mod common;
 pub mod frontier;
 pub mod input_plugin;
 pub mod label;
