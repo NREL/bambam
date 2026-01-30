@@ -32,6 +32,7 @@ impl ZoneGraph {
         match relations.get(dst_zone_id) {
             None => Ok(false),
             Some(_relation) => {
+                // if there is no time validation to run, then we are done.
                 // todo: run time validation here
                 Ok(true)
             }
