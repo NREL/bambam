@@ -876,14 +876,14 @@ mod test {
     fn test_max_trip_legs_same_mode_continuation_at_limit() {
         // Test that continuing with the same mode when at the limit is still invalid
         // This tests the bug fix where same-mode continuation was always returning 0 legs
-        
+
         // max_trip_legs is the state buffer size, constraint is the actual limit
-        let max_trip_legs = 2;  // State buffer can hold 2 legs
-        let constraint_limit = 1;  // But we only allow 1 leg
-        
+        let max_trip_legs = 2; // State buffer can hold 2 legs
+        let constraint_limit = 1; // But we only allow 1 leg
+
         let (bike_mtm, bike_mfm, state_model, mut state) = test_setup(
             vec![MultimodalFrontierConstraint::MaxTripLegs(constraint_limit)],
-            "bike",  // FrontierModel for bike edges
+            "bike", // FrontierModel for bike edges
             &["walk", "bike"],
             &[],
             max_trip_legs,
