@@ -871,4 +871,38 @@ mod test {
             .expect("test failed");
         assert!(!is_valid); // Should be invalid as this would create a second leg
     }
+
+    #[test]
+    fn test_max_trip_legs_same_mode_continuation_at_limit() {
+        // Test that continuing with the same mode when at the limit is still invalid
+        // This tests the bug fix where same-mode continuation was always returning 0 legs
+        let max_trip_legs = 2;
+        let (bike_mtm, bike_mfm, state_model, mut state) = test_setup(
+            vec![MultimodalFrontierConstraint::MaxTripLegs(1)],
+            "bike",  // FrontierModel for bike edges
+            &["walk", "bike"],
+            &[],
+            max_trip_legs,
+        );
+
+        // Set up state with 2 legs: walk then bike (exceeds limit of 1)
+        inject_trip_legs(
+            &["walk", "bike"],
+            &mut state,
+            &state_model,
+            &bike_mtm.mode_to_state,
+            max_trip_legs,
+        );
+
+        // Test continuing with bike-mode edge (same as active mode)
+        // edge.edge_list_id doesn't matter since we're just checking constraints, not traversal
+        // The important thing is that bike_mfm has mode="bike" which matches active_mode="bike"
+        // Before the fix, this would incorrectly return n_legs=0 and be valid
+        // After the fix, this should correctly use n_existing_legs=2 and be invalid
+        let bike_edge = Edge::new(0, 0, 0, 1, Length::new::<uom::si::length::meter>(1000.0));
+        let is_valid = bike_mfm
+            .valid_frontier(&bike_edge, None, &state, &state_model)
+            .expect("test failed");
+        assert!(!is_valid); // Should be invalid as we already have 2 legs, which exceeds the limit
+    }
 }
