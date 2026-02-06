@@ -49,6 +49,17 @@ impl LabelModel for MultimodalLabelModel {
                 .collect::<Result<Vec<_>, _>>()?;
 
         let label = Label::new_u8_state(vertex_id, &mode_labels)?;
+
+        log::debug!(
+            "multimodal label model at vertex {} produced label {} for state at time: {:.2} minutes",
+            vertex_id,
+            label,
+            state_model
+                .get_time(state, "trip_time")
+                .unwrap_or_default()
+                .get::<uom::si::time::minute>()
+        );
+
         Ok(label)
     }
 }

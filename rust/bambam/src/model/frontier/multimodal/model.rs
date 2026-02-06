@@ -93,6 +93,13 @@ impl FrontierModel for MultimodalFrontierModel {
                 &self.engine.mode_to_state,
                 self.engine.max_trip_legs,
             )?;
+            log::debug!(
+                "multimodal frontier is valid? '{valid}' for state at time: {:.2} minutes",
+                state_model
+                    .get_time(state, "trip_time")
+                    .unwrap_or_default()
+                    .get::<uom::si::time::minute>()
+            );
             if !valid {
                 return Ok(false);
             }
