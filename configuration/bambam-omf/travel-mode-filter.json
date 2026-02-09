@@ -40,7 +40,7 @@
       ]
     }
   ],
-  "island_algoritm_configuration": {
+  "island_algorithm_configuration": {
     "min_distance": 2,
     "distance_unit": "miles"
   }
