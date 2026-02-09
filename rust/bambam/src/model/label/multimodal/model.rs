@@ -1,5 +1,6 @@
 //! builds labels that include enumerations for leg modes.
 //!
+use itertools::Itertools;
 use routee_compass_core::model::{
     label::{label_model_error::LabelModelError, Label, LabelModel},
     network::VertexId,
@@ -51,9 +52,9 @@ impl LabelModel for MultimodalLabelModel {
         let label = Label::new_u8_state(vertex_id, &mode_labels)?;
 
         log::debug!(
-            "multimodal label model at vertex {} produced label {} for state at time: {:.2} minutes",
+            "multimodal label model at vertex {} produced label [{}] for state at time: {:.2} minutes",
             vertex_id,
-            label,
+            mode_labels.iter().map(|l| self.mode_to_state.get_categorical(*l as i64).unwrap_or_default().cloned().unwrap_or_default()).join("->"),
             state_model
                 .get_time(state, "trip_time")
                 .unwrap_or_default()
