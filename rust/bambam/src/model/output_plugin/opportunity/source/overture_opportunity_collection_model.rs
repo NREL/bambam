@@ -167,7 +167,10 @@ impl OvertureOpportunityCollectionModel {
         &self,
         activity_types: &[String],
     ) -> Result<Vec<(Geometry<f32>, Vec<bool>)>, OvertureMapsCollectionError> {
-        let uri = self.release_version.to_string();
+        let uri = match self.release_version {
+            ReleaseVersion::Latest => self.collector.get_latest_release()?,
+            ReleaseVersion::Monthly { .. } => self.release_version.to_string(),
+        };
         let places_records = self
             .collector
             .collect_from_release(
