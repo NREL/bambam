@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use chrono::NaiveDateTime;
-use routee_compass_core::model::traversal::TraversalModelError;
+use kdam::BarBuilder;
+use routee_compass_core::{model::traversal::TraversalModelError, util::fs::read_utils};
 
 use super::{ZonalRelation, ZoneId, ZoneRecord};
 
@@ -37,6 +38,20 @@ impl ZoneGraph {
                 Ok(true)
             }
         }
+    }
+}
+
+impl TryFrom<&Path> for ZoneGraph {
+    type Error = TraversalModelError;
+
+    fn try_from(value: &Path) -> Result<Self, Self::Error> {
+        let bb = BarBuilder::default().desc("zone records");
+        let records: Box<[ZoneRecord]> = read_utils::from_csv(&value, true, Some(bb), None)
+            .map_err(|e| {
+                let msg = format!("failure reading zone records: {e}");
+                TraversalModelError::BuildError(msg)
+            })?;
+        ZoneGraph::try_from(&records[..])
     }
 }
 

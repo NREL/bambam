@@ -1,9 +1,7 @@
 use chrono::TimeDelta;
 use routee_compass_core::model::traversal::TraversalModelError;
 
-use crate::model::traversal::flex::zone_graph::ZoneRecord;
-
-use super::ZoneId;
+use super::{ZoneId, ZoneRecord};
 
 /// note:
 /// you know, the zone times for type 3 are time delta values (hh:mm:ss).
