@@ -1,19 +1,29 @@
-use crate::util::zone_graph::{ZoneGraph, ZoneId, ZoneRecord};
-
-use super::GtfsFlexConfig;
+use crate::util::zone::{ZoneGraph, ZoneId, ZoneLookupConfig, ZoneRecord};
 
 use chrono::NaiveDateTime;
+use kdam::BarBuilder;
 use routee_compass_core::{
-    model::{network::Vertex, traversal::TraversalModelError},
-    util::geo::PolygonalRTree,
+    model::{frontier::FrontierModelError, network::Vertex, traversal::TraversalModelError},
+    util::{fs::read_utils, geo::PolygonalRTree},
 };
 
-pub struct GtfsFlexEngine {
+pub struct ZoneLookup {
     pub graph: ZoneGraph,
     pub rtree: PolygonalRTree<f32, ZoneId>,
 }
 
-impl GtfsFlexEngine {
+impl ZoneLookup {
+    /// is it valid to begin a trip in this zone at this time?
+    pub fn valid_departure(
+        &self,
+        src_zone_id: &ZoneId,
+        current_time: &NaiveDateTime,
+    ) -> Result<bool, FrontierModelError> {
+        self.graph.valid_departure(src_zone_id, current_time)
+    }
+
+    /// is it valid to end a trip that began at the src zone and reached this dst zone
+    /// at this time?
     pub fn valid_destination(
         &self,
         src_zone_id: &ZoneId,
@@ -40,13 +50,19 @@ impl GtfsFlexEngine {
     }
 }
 
-impl TryFrom<GtfsFlexConfig> for GtfsFlexEngine {
+impl TryFrom<&ZoneLookupConfig> for ZoneLookup {
     type Error = TraversalModelError;
 
-    fn try_from(_config: GtfsFlexConfig) -> Result<Self, Self::Error> {
-        // todo: use the zone records to create the graph between zones
-        let zone_records: Vec<ZoneRecord> = vec![];
-        let graph = ZoneGraph::try_from(zone_records.as_slice())?;
+    fn try_from(config: &ZoneLookupConfig) -> Result<Self, Self::Error> {
+        let bb = BarBuilder::default().desc("zone records");
+        let zone_records: Box<[ZoneRecord]> =
+            read_utils::from_csv(&config.zone_record_input_file, true, Some(bb), None).map_err(
+                |e| {
+                    let msg = format!("failure reading zone records: {e}");
+                    TraversalModelError::BuildError(msg)
+                },
+            )?;
+        let graph = ZoneGraph::try_from(&zone_records[..])?;
 
         // todo: load zone ids with geometries for the spatial index
         let zone_geometries: Vec<(geo::Geometry<f32>, ZoneId)> = vec![];
@@ -55,6 +71,6 @@ impl TryFrom<GtfsFlexConfig> for GtfsFlexEngine {
             TraversalModelError::BuildError(msg)
         })?;
 
-        Ok(GtfsFlexEngine { graph, rtree })
+        Ok(ZoneLookup { graph, rtree })
     }
 }

@@ -1,19 +1,21 @@
 use std::sync::Arc;
 
-use super::{GtfsFlexEngine, GtfsFlexModel, GtfsFlexParams};
+use crate::util::zone::ZoneLookup;
+
+use super::{GtfsFlexModel, GtfsFlexParams};
 
 use routee_compass_core::model::traversal::{
     TraversalModel, TraversalModelError, TraversalModelService,
 };
 
 pub struct GtfsFlexService {
-    engine: Arc<GtfsFlexEngine>,
+    lookup: Arc<ZoneLookup>,
 }
 
 impl GtfsFlexService {
-    pub fn new(engine: GtfsFlexEngine) -> Self {
+    pub fn new(lookup: ZoneLookup) -> Self {
         Self {
-            engine: Arc::new(engine),
+            lookup: Arc::new(lookup),
         }
     }
 }
@@ -27,7 +29,7 @@ impl TraversalModelService for GtfsFlexService {
             let msg = format!("failure reading params for GtfsFlex service: {e}");
             TraversalModelError::BuildError(msg)
         })?;
-        let model = GtfsFlexModel::new(self.engine.clone(), params);
+        let model = GtfsFlexModel::new(self.lookup.clone(), params);
         Ok(Arc::new(model))
     }
 }

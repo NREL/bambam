@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use super::{GtfsFlexConfig, GtfsFlexEngine, GtfsFlexService};
+use super::GtfsFlexService;
+use crate::util::zone::{ZoneLookup, ZoneLookupConfig};
 
 use routee_compass_core::model::traversal::{
     TraversalModelBuilder, TraversalModelError, TraversalModelService,
@@ -13,15 +14,15 @@ impl TraversalModelBuilder for GtfsFlexBuilder {
         &self,
         config: &serde_json::Value,
     ) -> Result<Arc<dyn TraversalModelService>, TraversalModelError> {
-        let config: GtfsFlexConfig = serde_json::from_value(config.clone()).map_err(|e| {
+        let config: ZoneLookupConfig = serde_json::from_value(config.clone()).map_err(|e| {
             let msg = format!("failure reading config for Flex builder: {e}");
             TraversalModelError::BuildError(msg)
         })?;
-        let engine = GtfsFlexEngine::try_from(config).map_err(|e| {
+        let lookup = ZoneLookup::try_from(&config).map_err(|e| {
             let msg = format!("failure building engine from config for GtfsFlex builder: {e}");
             TraversalModelError::BuildError(msg)
         })?;
-        let service = GtfsFlexService::new(engine);
+        let service = GtfsFlexService::new(lookup);
         Ok(Arc::new(service))
     }
 }

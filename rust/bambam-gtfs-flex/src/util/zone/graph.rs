@@ -2,7 +2,10 @@ use std::{collections::HashMap, path::Path};
 
 use chrono::NaiveDateTime;
 use kdam::BarBuilder;
-use routee_compass_core::{model::traversal::TraversalModelError, util::fs::read_utils};
+use routee_compass_core::{
+    model::{frontier::FrontierModelError, traversal::TraversalModelError},
+    util::fs::read_utils,
+};
 
 use super::{ZonalRelation, ZoneId, ZoneRecord};
 
@@ -16,6 +19,14 @@ pub struct ZoneGraph(ZoneGraphImpl);
 type ZoneGraphImpl = HashMap<ZoneId, HashMap<ZoneId, ZonalRelation>>;
 
 impl ZoneGraph {
+    pub fn valid_departure(
+        &self,
+        src_zone_id: &ZoneId,
+        current_time: &NaiveDateTime,
+    ) -> Result<bool, FrontierModelError> {
+        todo!()
+    }
+
     /// confirms that this zone-to-zone trip exists in our zonal graph.
     pub fn valid_zonal_trip(
         &self,

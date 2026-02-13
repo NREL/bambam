@@ -1,1 +1,1 @@
-pub mod zone_graph;
+pub mod zone;

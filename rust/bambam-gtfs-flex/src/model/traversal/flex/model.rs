@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use super::{GtfsFlexEngine, GtfsFlexParams};
+use crate::util::zone::ZoneLookup;
+
+use super::GtfsFlexParams;
 
 use routee_compass_core::{
     algorithm::search::SearchTree,
@@ -12,15 +14,15 @@ use routee_compass_core::{
 };
 
 pub struct GtfsFlexModel {
-    pub engine: Arc<GtfsFlexEngine>,
+    pub lookup: Arc<ZoneLookup>,
     pub params: GtfsFlexParams,
 }
 
 impl GtfsFlexModel {
-    pub fn new(engine: Arc<GtfsFlexEngine>, params: GtfsFlexParams) -> Self {
+    pub fn new(lookup: Arc<ZoneLookup>, params: GtfsFlexParams) -> Self {
         // modify this and the struct definition if additional pre-processing
         // is required during model instantiation from query parameters.
-        Self { engine, params }
+        Self { lookup, params }
     }
 }
 
