@@ -1,4 +1,4 @@
-use crate::util::zone::{ZoneGraph, ZoneId, ZoneLookupConfig, ZoneRecord};
+use crate::util::zone::{ZoneError, ZoneGraph, ZoneId, ZoneLookupConfig, ZoneRecord};
 
 use chrono::NaiveDateTime;
 use kdam::BarBuilder;
@@ -51,26 +51,34 @@ impl ZoneLookup {
 }
 
 impl TryFrom<&ZoneLookupConfig> for ZoneLookup {
-    type Error = TraversalModelError;
+    type Error = ZoneError;
 
     fn try_from(config: &ZoneLookupConfig) -> Result<Self, Self::Error> {
-        let bb = BarBuilder::default().desc("zone records");
-        let zone_records: Box<[ZoneRecord]> =
-            read_utils::from_csv(&config.zone_record_input_file, true, Some(bb), None).map_err(
-                |e| {
-                    let msg = format!("failure reading zone records: {e}");
-                    TraversalModelError::BuildError(msg)
-                },
-            )?;
-        let graph = ZoneGraph::try_from(&zone_records[..])?;
+        let graph = read_records(&config.zone_record_input_file)?;
 
         // todo: load zone ids with geometries for the spatial index
-        let zone_geometries: Vec<(geo::Geometry<f32>, ZoneId)> = vec![];
-        let rtree = PolygonalRTree::new(zone_geometries).map_err(|e| {
-            let msg = format!("failure building spatial index for GTFS Flex zones: {e}");
-            TraversalModelError::BuildError(msg)
-        })?;
+        let rtree = read_geometries(&config.zone_geometry_input_file)?;
 
         Ok(ZoneLookup { graph, rtree })
     }
+}
+
+fn read_records(zone_record_input_file: &str) -> Result<ZoneGraph, ZoneError> {
+    let bb = BarBuilder::default().desc("reading zone records");
+    let zone_records: Box<[ZoneRecord]> =
+        read_utils::from_csv(&zone_record_input_file, true, Some(bb), None).map_err(|e| {
+            let msg = format!("failure reading zone records: {e}");
+            TraversalModelError::BuildError(msg)
+        })?;
+    let graph = ZoneGraph::try_from(&zone_records[..])?;
+    Ok(graph)
+}
+
+fn read_geometries(geometry_input_file: &str) -> Result<PolygonalRTree<f32, ZoneId>, ZoneError> {
+    let zone_geometries: Vec<(geo::Geometry<f32>, ZoneId)> = todo!("read from the geojson");
+    let rtree = PolygonalRTree::new(zone_geometries).map_err(|e| {
+        let msg = format!("failure building spatial index for GTFS Flex zones: {e}");
+        TraversalModelError::BuildError(msg)
+    })?;
+    Ok(rtree)
 }
