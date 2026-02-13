@@ -17,10 +17,10 @@ impl GtfsFlexDepartureFrontierModel {
 impl FrontierModel for GtfsFlexDepartureFrontierModel {
     fn valid_frontier(
         &self,
-        edge: &routee_compass_core::model::network::Edge,
-        previous_edge: Option<&routee_compass_core::model::network::Edge>,
-        state: &[routee_compass_core::model::state::StateVariable],
-        state_model: &routee_compass_core::model::state::StateModel,
+        _edge: &routee_compass_core::model::network::Edge,
+        _previous_edge: Option<&routee_compass_core::model::network::Edge>,
+        _state: &[routee_compass_core::model::state::StateVariable],
+        _state_model: &routee_compass_core::model::state::StateModel,
     ) -> Result<bool, routee_compass_core::model::frontier::FrontierModelError> {
         // have we transitioned onto this travel mode yet?
         // if not, we are boarding GTFS-Flex. check if the ZoneGraph would
@@ -30,7 +30,7 @@ impl FrontierModel for GtfsFlexDepartureFrontierModel {
 
     fn valid_edge(
         &self,
-        edge: &routee_compass_core::model::network::Edge,
+        _edge: &routee_compass_core::model::network::Edge,
     ) -> Result<bool, routee_compass_core::model::frontier::FrontierModelError> {
         Ok(true)
     }

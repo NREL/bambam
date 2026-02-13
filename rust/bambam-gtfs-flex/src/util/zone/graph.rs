@@ -21,8 +21,8 @@ type ZoneGraphImpl = HashMap<ZoneId, HashMap<ZoneId, ZonalRelation>>;
 impl ZoneGraph {
     pub fn valid_departure(
         &self,
-        src_zone_id: &ZoneId,
-        current_time: &NaiveDateTime,
+        _src_zone_id: &ZoneId,
+        _current_time: &NaiveDateTime,
     ) -> Result<bool, FrontierModelError> {
         todo!()
     }

@@ -19,8 +19,8 @@ impl GtfsFlexDepartureFrontierService {
 impl FrontierModelService for GtfsFlexDepartureFrontierService {
     fn build(
         &self,
-        query: &serde_json::Value,
-        state_model: std::sync::Arc<routee_compass_core::model::state::StateModel>,
+        _query: &serde_json::Value,
+        _state_model: std::sync::Arc<routee_compass_core::model::state::StateModel>,
     ) -> Result<
         std::sync::Arc<dyn routee_compass_core::model::frontier::FrontierModel>,
         routee_compass_core::model::frontier::FrontierModelError,
