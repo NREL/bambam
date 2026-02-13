@@ -1,4 +1,4 @@
-use crate::model::traversal::flex::zone_graph::{ZoneGraph, ZoneId, ZoneRecord};
+use crate::util::zone_graph::{ZoneGraph, ZoneId, ZoneRecord};
 
 use super::GtfsFlexConfig;
 

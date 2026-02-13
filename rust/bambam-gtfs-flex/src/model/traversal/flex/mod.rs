@@ -4,7 +4,6 @@ mod engine;
 mod model;
 mod params;
 mod service;
-pub mod zone_graph;
 
 pub use builder::GtfsFlexBuilder;
 pub use config::GtfsFlexConfig;
